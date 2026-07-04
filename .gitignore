@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# IDE (Android Studio / IntelliJ) — не трекаем весь каталог
+.idea/
