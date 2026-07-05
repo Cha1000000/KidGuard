@@ -17,7 +17,7 @@ private val Context.settingsDataStore by preferencesDataStore(name = "kidguard_s
 
 @Singleton
 class SettingsRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : SettingsRepository {
 
     private object Keys {

@@ -73,6 +73,8 @@
 - **SOLID**, Clean Architecture. Отступы по конвенции Kotlin; табы и пробелы не смешивать.
 - Compose: не раздувать composable-функции, дробить на мелкие, использовать `Preview`.
 - Состояние поднимать в ViewModel, использовать `StateFlow`. Nullable-safety, без `!!`.
+- **Не хардкодить UI-тексты** в `.kt`: все заголовки, лейблы, тексты кнопок и т.п. выносить в
+  `res/values/strings.xml` и использовать через `stringResource(R.string.…)`.
 
 ## Роли и skills (авто-роутинг)
 

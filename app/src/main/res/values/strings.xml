@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">KidGuard</string>
+
+    <!-- Первичная настройка: выбор роли -->
+    <string name="onboarding_title">Чей это телефон?</string>
+    <string name="onboarding_subtitle">Выбор делается один раз и его нельзя будет изменить.</string>
+    <string name="onboarding_role_parent">Это телефон родителя</string>
+    <string name="onboarding_role_child">Это телефон ребёнка</string>
+
+    <!-- Заглушки режимов (полноценные экраны — далее) -->
+    <string name="parent_mode">Режим родителя</string>
+    <string name="child_mode">Режим ребёнка</string>
 </resources>
