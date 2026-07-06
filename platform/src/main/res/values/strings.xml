@@ -9,5 +9,9 @@
     <string name="foreground_channel_name">Контроль KidGuard</string>
     <string name="foreground_notification_title">KidGuard активен</string>
     <string name="foreground_notification_text">Контроль экранного времени включён</string>
+
+    <!-- Экран блокировки (оверлей) -->
+    <string name="overlay_blocked_title">Время вышло</string>
+    <string name="overlay_blocked_text">Время на сегодня закончилось</string>
 </resources>
 

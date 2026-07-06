@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.overlay.BlockingController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
 import timber.log.Timber
 import javax.inject.Inject
@@ -33,17 +34,25 @@ class KidGuardForegroundService : Service() {
     @Inject
     lateinit var screenTimeTracker: ScreenTimeTracker
 
+    @Inject
+    lateinit var blockingController: BlockingController
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trackingJob: Job? = null
+    private var blockingJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification())
         Timber.tag(TAG).d("Foreground-сервис запущен")
-        // Запускаем движок учёта один раз (onStartCommand может вызываться повторно).
+        // Запускаем движок учёта и контроллер блокировки по одному разу
+        // (onStartCommand может вызываться повторно).
         if (trackingJob == null) {
             trackingJob = scope.launch { screenTimeTracker.run() }
+        }
+        if (blockingJob == null) {
+            blockingJob = scope.launch { blockingController.run() }
         }
         // START_STICKY — система перезапустит сервис, если он будет убит.
         return START_STICKY
