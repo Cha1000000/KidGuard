@@ -16,7 +16,8 @@
 - **DI:** Hilt. **Локальные данные:** Room (источник истины на устройстве). **Сеть:** Retrofit + OkHttp.
 - **Аутентификация:** Google Sign-In (Credential Manager).
 - **Сборка:** Gradle (Kotlin DSL, version catalog `gradle/libs.versions.toml`).
-- **Версии:** AGP 9.2.1, Kotlin 2.2.10, Compose BOM 2026.02. **minSdk 33**, target/compileSdk 36.
+- **Версии:** AGP 9.2.1, Kotlin 2.2.10, Compose BOM 2026.02. **minSdk 33**, targetSdk 36, compileSdk 37
+  (compileSdk поднят с 36 до 37 — этого требует lifecycle 2.11.0; на совместимость устройств не влияет).
 - **Package:** `ru.homelab.kidguard`.
 
 > Библиотеки Hilt/Room/Retrofit/Google Sign-In в каркасе ещё НЕ подключены — добавляются по
@@ -72,6 +73,8 @@
 - **SOLID**, Clean Architecture. Отступы по конвенции Kotlin; табы и пробелы не смешивать.
 - Compose: не раздувать composable-функции, дробить на мелкие, использовать `Preview`.
 - Состояние поднимать в ViewModel, использовать `StateFlow`. Nullable-safety, без `!!`.
+- **Не хардкодить UI-тексты** в `.kt`: все заголовки, лейблы, тексты кнопок и т.п. выносить в
+  `res/values/strings.xml` и использовать через `stringResource(R.string.…)`.
 
 ## Роли и skills (авто-роутинг)
 
