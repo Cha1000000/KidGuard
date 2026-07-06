@@ -11,8 +11,16 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Постоянный foreground-сервис детского режима. На шаге 2.1 держит устройство «под контролем»:
@@ -22,13 +30,28 @@ import timber.log.Timber
 @AndroidEntryPoint
 class KidGuardForegroundService : Service() {
 
+    @Inject
+    lateinit var screenTimeTracker: ScreenTimeTracker
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var trackingJob: Job? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification())
         Timber.tag(TAG).d("Foreground-сервис запущен")
+        // Запускаем движок учёта один раз (onStartCommand может вызываться повторно).
+        if (trackingJob == null) {
+            trackingJob = scope.launch { screenTimeTracker.run() }
+        }
         // START_STICKY — система перезапустит сервис, если он будет убит.
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
     private fun buildNotification(): Notification {
