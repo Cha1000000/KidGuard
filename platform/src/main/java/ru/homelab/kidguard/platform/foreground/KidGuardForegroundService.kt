@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.overlay.BlockingController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
+import ru.homelab.kidguard.platform.warning.WarningController
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -37,9 +38,13 @@ class KidGuardForegroundService : Service() {
     @Inject
     lateinit var blockingController: BlockingController
 
+    @Inject
+    lateinit var warningController: WarningController
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
+    private var warningJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -53,6 +58,9 @@ class KidGuardForegroundService : Service() {
         }
         if (blockingJob == null) {
             blockingJob = scope.launch { blockingController.run() }
+        }
+        if (warningJob == null) {
+            warningJob = scope.launch { warningController.run() }
         }
         // START_STICKY — система перезапустит сервис, если он будет убит.
         return START_STICKY

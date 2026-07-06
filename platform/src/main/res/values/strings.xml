@@ -13,5 +13,10 @@
     <!-- Экран блокировки (оверлей) -->
     <string name="overlay_blocked_title">Время вышло</string>
     <string name="overlay_blocked_text">Время на сегодня закончилось</string>
+
+    <!-- Предупреждение перед истечением лимита -->
+    <string name="warning_channel_name">Предупреждения о времени</string>
+    <string name="warning_title">Скоро конец времени</string>
+    <string name="warning_text">Осталось %1$d мин</string>
 </resources>
 
