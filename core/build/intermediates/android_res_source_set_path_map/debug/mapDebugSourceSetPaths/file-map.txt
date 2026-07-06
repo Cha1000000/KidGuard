@@ -1,9 +1,0 @@
-ru.homelab.kidguard.core-pngs-0 /home/racer/projects/KidGuard/core/build/generated/res/pngs/debug
-ru.homelab.kidguard.core-updated_navigation_xml-1 /home/racer/projects/KidGuard/core/build/generated/updated_navigation_xml/debug
-ru.homelab.kidguard.core-mergeDebugResources-2 /home/racer/projects/KidGuard/core/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-ru.homelab.kidguard.core-mergeDebugResources-3 /home/racer/projects/KidGuard/core/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-ru.homelab.kidguard.core-debug-4 /home/racer/projects/KidGuard/core/build/intermediates/merged_res/debug/mergeDebugResources
-ru.homelab.kidguard.core-debug-5 /home/racer/projects/KidGuard/core/build/intermediates/packaged_res/debug/packageDebugResources
-ru.homelab.kidguard.core-debug-6 /home/racer/projects/KidGuard/core/src/debug/res
-ru.homelab.kidguard.core-main-7 /home/racer/projects/KidGuard/core/src/main/res
-gradleHome-0 /home/racer/.gradle

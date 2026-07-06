@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-policies>
-        <!-- Минимальный набор политик. Расширим на вехе 6 (защита от обхода). -->
-        <watch-login />
-        <force-lock />
-    </uses-policies>
-</device-admin>

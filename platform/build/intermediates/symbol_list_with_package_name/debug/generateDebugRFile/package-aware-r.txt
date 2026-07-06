@@ -1,7 +1,0 @@
-ru.homelab.kidguard.platform
-string accessibility_service_description
-string accessibility_service_label
-string device_admin_description
-string device_admin_label
-xml accessibility_service_config
-xml device_admin_policies

@@ -1,6 +1,0 @@
-int string accessibility_service_description 0x0
-int string accessibility_service_label 0x0
-int string device_admin_description 0x0
-int string device_admin_label 0x0
-int xml accessibility_service_config 0x0
-int xml device_admin_policies 0x0

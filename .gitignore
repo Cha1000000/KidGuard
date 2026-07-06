@@ -9,6 +9,8 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+# Игнорируем build/ в любом модуле (app, core, data, platform, …)
+build/
 /captures
 .externalNativeBuild
 .cxx
