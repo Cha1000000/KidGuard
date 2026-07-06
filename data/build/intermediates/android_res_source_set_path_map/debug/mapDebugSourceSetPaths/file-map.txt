@@ -1,0 +1,9 @@
+ru.homelab.kidguard.data-pngs-0 /home/racer/projects/KidGuard/data/build/generated/res/pngs/debug
+ru.homelab.kidguard.data-updated_navigation_xml-1 /home/racer/projects/KidGuard/data/build/generated/updated_navigation_xml/debug
+ru.homelab.kidguard.data-mergeDebugResources-2 /home/racer/projects/KidGuard/data/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+ru.homelab.kidguard.data-mergeDebugResources-3 /home/racer/projects/KidGuard/data/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+ru.homelab.kidguard.data-debug-4 /home/racer/projects/KidGuard/data/build/intermediates/merged_res/debug/mergeDebugResources
+ru.homelab.kidguard.data-debug-5 /home/racer/projects/KidGuard/data/build/intermediates/packaged_res/debug/packageDebugResources
+ru.homelab.kidguard.data-debug-6 /home/racer/projects/KidGuard/data/src/debug/res
+ru.homelab.kidguard.data-main-7 /home/racer/projects/KidGuard/data/src/main/res
+gradleHome-0 /home/racer/.gradle

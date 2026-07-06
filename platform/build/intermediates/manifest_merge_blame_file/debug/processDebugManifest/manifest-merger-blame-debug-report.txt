@@ -1,0 +1,85 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    xmlns:tools="http://schemas.android.com/tools"
+4    package="ru.homelab.kidguard.platform" >
+5
+6    <uses-sdk android:minSdkVersion="33" />
+6-->INJECTED
+6-->INJECTED
+7
+8    <!-- Разрешения платформенных функций (специальные — выдаются через системные экраны). -->
+9    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+9-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:6:5-78
+9-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:6:22-75
+10    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+10-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:7:5-95
+10-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:7:22-92
+11    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+11-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:8:5-77
+11-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:8:22-74
+12    <uses-permission
+12-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:9:5-10:53
+13        android:name="android.permission.QUERY_ALL_PACKAGES"
+13-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:9:22-74
+14        tools:ignore="QueryAllPackagesPermission" />
+14-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:10:9-50
+15
+16    <application>
+16-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:12:5-42:19
+17
+18        <!-- Accessibility-сервис: детект активного приложения и блокирующие оверлеи. -->
+19        <service
+19-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:15:9-26:19
+20            android:name="ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService"
+20-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:16:13-99
+21            android:exported="false"
+21-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:17:13-37
+22            android:label="@string/accessibility_service_label"
+22-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:18:13-64
+23            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" >
+23-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:19:13-79
+24            <intent-filter>
+24-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:20:13-22:29
+25                <action android:name="android.accessibilityservice.AccessibilityService" />
+25-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:21:17-92
+25-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:21:25-89
+26            </intent-filter>
+27
+28            <meta-data
+28-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:23:13-25:72
+29                android:name="android.accessibilityservice"
+29-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:24:17-60
+30                android:resource="@xml/accessibility_service_config" />
+30-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:25:17-69
+31        </service>
+32
+33        <!-- Device Admin: защита приложения от удаления (НЕ Device Owner). -->
+34        <receiver
+34-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:29:9-41:20
+35            android:name="ru.homelab.kidguard.platform.deviceadmin.KidGuardDeviceAdminReceiver"
+35-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:30:13-96
+36            android:description="@string/device_admin_description"
+36-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:31:13-67
+37            android:exported="false"
+37-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:32:13-37
+38            android:label="@string/device_admin_label"
+38-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:33:13-55
+39            android:permission="android.permission.BIND_DEVICE_ADMIN" >
+39-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:34:13-70
+40            <meta-data
+40-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:35:13-37:65
+41                android:name="android.app.device_admin"
+41-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:36:17-56
+42                android:resource="@xml/device_admin_policies" />
+42-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:37:17-62
+43
+44            <intent-filter>
+44-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:38:13-40:29
+45                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+45-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:39:17-82
+45-->/home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:39:25-79
+46            </intent-filter>
+47        </receiver>
+48    </application>
+49
+50</manifest>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Позволяет KidGuard определять активное приложение и показывать экраны блокировки после истечения разрешённого времени.</string>
+    <string name="accessibility_service_label">KidGuard — контроль приложений</string>
+    <string name="device_admin_description">Защита KidGuard от удаления.</string>
+    <string name="device_admin_label">KidGuard</string>
+</resources>

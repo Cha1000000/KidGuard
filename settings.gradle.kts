@@ -24,4 +24,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "KidGuard"
 include(":app")
+include(":core")
+include(":data")
+include(":platform")
  
