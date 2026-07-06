@@ -16,8 +16,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
+import ru.homelab.kidguard.feature.parent.rules.DailyLimitScreen
 import ru.homelab.kidguard.feature.parent.rules.RulesScreen
+import ru.homelab.kidguard.feature.parent.rules.WhitelistScreen
 import ru.homelab.kidguard.feature.parent.statistics.StatisticsScreen
+
+private const val ROUTE_RULES_LIMIT = "parent/rules/limit"
+private const val ROUTE_RULES_WHITELIST = "parent/rules/whitelist"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -35,7 +40,8 @@ fun ParentScreen(modifier: Modifier = Modifier) {
             NavigationBar {
                 ParentTab.entries.forEach { tab ->
                     NavigationBarItem(
-                        selected = currentRoute == tab.route,
+                        // Под-экраны Правил (лимит/белый список) тоже подсвечивают вкладку «Правила».
+                        selected = currentRoute?.startsWith(tab.route) == true,
                         onClick = {
                             navController.navigate(tab.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -58,7 +64,18 @@ fun ParentScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(ParentTab.CHILDREN.route) { ChildrenScreen() }
-            composable(ParentTab.RULES.route) { RulesScreen() }
+            composable(ParentTab.RULES.route) {
+                RulesScreen(
+                    onOpenDailyLimit = { navController.navigate(ROUTE_RULES_LIMIT) },
+                    onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) }
+                )
+            }
+            composable(ROUTE_RULES_LIMIT) {
+                DailyLimitScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RULES_WHITELIST) {
+                WhitelistScreen(onBack = { navController.popBackStack() })
+            }
             composable(ParentTab.STATISTICS.route) { StatisticsScreen() }
         }
     }

@@ -16,6 +16,9 @@ interface PolicyDao {
     @Upsert
     suspend fun upsertDayLimit(entity: DayLimitEntity)
 
+    @Query("DELETE FROM day_limit WHERE dayOfWeek = :dayOfWeek")
+    suspend fun deleteDayLimit(dayOfWeek: Int)
+
     @Query("SELECT * FROM whitelisted_app")
     fun whitelist(): Flow<List<WhitelistedAppEntity>>
 

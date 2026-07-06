@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макеты вехи 2 (Правила)</title>
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#FFFFFF; --surface-2:#F5F9FB;
+    --primary:#2E6B7E; --primary-dim:#5D93A3; --accent:#E0A73C;
+    --on:#16232A; --on-dim:#5B6B72; --line:#DCE6EA; --ok:#2E7D53;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Roboto','Segoe UI',system-ui,sans-serif}
+  body{background:#cfd8dc;padding:32px;display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:14px;color:#37474f;font-weight:600}
+  .phone{width:340px;height:720px;background:var(--bg);border-radius:34px;
+    box-shadow:0 12px 40px rgba(0,0,0,.28);overflow:hidden;display:flex;flex-direction:column;
+    border:8px solid #10202a}
+  .status{height:26px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;font-size:11px;color:var(--on-dim);flex:none}
+  .appbar{padding:14px 18px 10px;background:var(--bg);flex:none}
+  .appbar h1{font-size:21px;color:var(--on);font-weight:700}
+  .appbar p{font-size:12.5px;color:var(--on-dim);margin-top:3px;line-height:1.35}
+  .body{flex:1;overflow:auto;padding:6px 14px 14px}
+  /* карточки лимита */
+  .card{background:var(--surface);border-radius:16px;padding:4px 6px;margin-bottom:10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .row{display:flex;align-items:center;padding:12px 12px;gap:12px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .day{font-size:15px;color:var(--on);flex:1;font-weight:500}
+  .row.today .day::after{content:'Сегодня';margin-left:8px;font-size:10px;color:var(--primary);
+    background:#DCEDF2;padding:2px 7px;border-radius:8px;font-weight:700;vertical-align:middle}
+  .val{font-size:14px;color:var(--primary);font-weight:700;display:flex;align-items:center;gap:6px}
+  .val.off{color:var(--on-dim);font-weight:500}
+  .chev{color:var(--primary-dim);font-size:18px}
+  /* нижняя навигация */
+  .nav{height:62px;background:var(--surface);display:flex;flex:none;
+    border-top:1px solid var(--line)}
+  .nav div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;font-size:11px;color:var(--on-dim)}
+  .nav .act{color:var(--primary);font-weight:700}
+  .nav .ic{font-size:20px}
+  /* белый список */
+  .search{background:var(--surface-2);border:1px solid var(--line);border-radius:24px;
+    padding:10px 16px;font-size:13px;color:var(--on-dim);margin:4px 2px 12px;display:flex;gap:8px;align-items:center}
+  .sect{font-size:12px;color:var(--on-dim);font-weight:700;margin:10px 6px 6px;text-transform:uppercase;letter-spacing:.4px}
+  .app{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--surface);
+    border-radius:14px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .app .ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:19px;color:#fff;flex:none}
+  .app .nm{flex:1;font-size:14.5px;color:var(--on);font-weight:500}
+  .sw{width:44px;height:26px;border-radius:14px;position:relative;flex:none;transition:.2s}
+  .sw::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;
+    background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .sw.on{background:var(--primary)}.sw.on::after{left:21px}
+  .sw.off{background:#c4d0d5}.sw.off::after{left:3px}
+  /* редактор лимита (bottom sheet) */
+  .sheet{position:relative;margin-top:auto}
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.32)}
+  .bs{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:22px 22px 0 0;padding:18px 20px 24px}
+  .bs h3{font-size:17px;color:var(--on);font-weight:700;margin-bottom:2px}
+  .bs .sub{font-size:12px;color:var(--on-dim);margin-bottom:18px}
+  .bigval{font-size:30px;color:var(--primary);font-weight:800;text-align:center;margin-bottom:14px}
+  .slider{height:6px;background:#DCEDF2;border-radius:3px;position:relative;margin:6px 6px 22px}
+  .slider .fill{position:absolute;left:0;top:0;bottom:0;width:55%;background:var(--primary);border-radius:3px}
+  .slider .knob{position:absolute;left:55%;top:50%;transform:translate(-50%,-50%);
+    width:22px;height:22px;border-radius:50%;background:var(--primary);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .btns{display:flex;gap:10px}
+  .btn{flex:1;padding:12px;border-radius:22px;text-align:center;font-size:14px;font-weight:700}
+  .btn.tonal{background:#DCEDF2;color:var(--primary)}
+  .btn.text{background:transparent;color:var(--on-dim)}
+</style>
+</head>
+<body>
+
+<!-- ЭКРАН 1: Дневной лимит -->
+<div class="col">
+  <div class="cap">1 · Дневной лимит</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+    <div class="appbar">
+      <h1>Дневной лимит</h1>
+      <p>Сколько времени в день ребёнок может пользоваться телефоном</p>
+    </div>
+    <div class="body">
+      <div class="card">
+        <div class="row today"><span class="day">Понедельник</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Вторник</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Среда</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Четверг</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Пятница</span><span class="val">2 ч 30 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Суббота</span><span class="val">3 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Воскресенье</span><span class="val off">Без лимита<span class="chev">›</span></span></div>
+      </div>
+    </div>
+    <div class="nav">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic">⏱️</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН 2: Редактор лимита (bottom sheet) -->
+<div class="col">
+  <div class="cap">2 · Изменение лимита (тап по дню)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+    <div class="appbar">
+      <h1>Дневной лимит</h1>
+      <p>Сколько времени в день ребёнок может пользоваться телефоном</p>
+    </div>
+    <div class="body" style="filter:blur(1px);opacity:.6">
+      <div class="card">
+        <div class="row today"><span class="day">Понедельник</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Вторник</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+        <div class="row"><span class="day">Среда</span><span class="val">2 ч 00 мин<span class="chev">›</span></span></div>
+      </div>
+    </div>
+    <div class="sheet">
+      <div class="scrim"></div>
+      <div class="bs">
+        <h3>Понедельник</h3>
+        <div class="sub">Лимит на этот день</div>
+        <div class="bigval">2 ч 00 мин</div>
+        <div class="slider"><div class="fill"></div><div class="knob"></div></div>
+        <div class="btns">
+          <div class="btn text">Без лимита</div>
+          <div class="btn tonal">Сохранить</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН 3: Белый список -->
+<div class="col">
+  <div class="cap">3 · Всегда доступные (белый список)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+    <div class="appbar">
+      <h1>Всегда доступные</h1>
+      <p>Эти приложения работают даже после того, как время закончилось</p>
+    </div>
+    <div class="body">
+      <div class="search">🔍 Поиск приложений</div>
+      <div class="sect">Связь</div>
+      <div class="app"><div class="ico" style="background:#2E7D53">📞</div><div class="nm">Телефон</div><div class="sw on"></div></div>
+      <div class="app"><div class="ico" style="background:#2E6B7E">💬</div><div class="nm">Сообщения</div><div class="sw on"></div></div>
+      <div class="app"><div class="ico" style="background:#8A5A2E">👤</div><div class="nm">Контакты</div><div class="sw on"></div></div>
+      <div class="sect">Остальные приложения</div>
+      <div class="app"><div class="ico" style="background:#C0392B">▶️</div><div class="nm">YouTube</div><div class="sw off"></div></div>
+      <div class="app"><div class="ico" style="background:#2E7D8A">🎮</div><div class="nm">Игры</div><div class="sw off"></div></div>
+      <div class="app"><div class="ico" style="background:#5B6B72">⚙️</div><div class="nm">Настройки</div><div class="sw off"></div></div>
+    </div>
+    <div class="nav">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic">⏱️</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

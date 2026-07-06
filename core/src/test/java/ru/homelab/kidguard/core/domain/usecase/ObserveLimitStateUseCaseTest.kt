@@ -57,7 +57,7 @@ class ObserveLimitStateUseCaseTest {
     private class FakePolicyRepository(private val limits: DailyLimits) : PolicyRepository {
         override val dailyLimits: Flow<DailyLimits> = flowOf(limits)
         override val whitelist: Flow<Set<String>> = flowOf(emptySet())
-        override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int) = Unit
+        override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
         override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
     }
 

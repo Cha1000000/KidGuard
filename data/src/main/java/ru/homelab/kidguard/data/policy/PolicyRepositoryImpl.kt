@@ -22,8 +22,12 @@ class PolicyRepositoryImpl @Inject constructor(
         rows.map { it.packageName }.toSet()
     }
 
-    override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int) {
-        policyDao.upsertDayLimit(DayLimitEntity(day.value, minutes))
+    override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) {
+        if (minutes == null) {
+            policyDao.deleteDayLimit(day.value)
+        } else {
+            policyDao.upsertDayLimit(DayLimitEntity(day.value, minutes))
+        }
     }
 
     override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) {
