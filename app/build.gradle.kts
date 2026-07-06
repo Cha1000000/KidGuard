@@ -57,6 +57,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.timber)
+    // Требуется сгенерированным Hilt-кодом при инъекции в Service (AGP 9 не тянет транзитивно).
+    compileOnly(libs.error.prone.annotations)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

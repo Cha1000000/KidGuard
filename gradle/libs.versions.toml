@@ -11,6 +11,7 @@ composeBom = "2026.06.01"
 hilt = "2.60"
 ksp = "2.2.10-2.0.2"
 timber = "5.0.1"
+errorProneAnnotations = "2.50.0"
 navigationCompose = "2.9.8"
 datastore = "1.2.1"
 androidxHiltNavigationCompose = "1.4.0"
@@ -41,6 +42,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+error-prone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorProneAnnotations" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
