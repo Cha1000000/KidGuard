@@ -4,4 +4,10 @@
     <string name="accessibility_service_description">Позволяет KidGuard определять активное приложение и показывать экраны блокировки после истечения разрешённого времени.</string>
     <string name="device_admin_label">KidGuard</string>
     <string name="device_admin_description">Защита KidGuard от удаления.</string>
+
+    <!-- Foreground-сервис контроля -->
+    <string name="foreground_channel_name">Контроль KidGuard</string>
+    <string name="foreground_notification_title">KidGuard активен</string>
+    <string name="foreground_notification_text">Контроль экранного времени включён</string>
 </resources>
+

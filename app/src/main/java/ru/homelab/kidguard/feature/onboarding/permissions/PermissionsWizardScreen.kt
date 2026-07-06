@@ -135,6 +135,7 @@ private fun DevicePermission.titleRes(): Int = when (this) {
     DevicePermission.OVERLAY -> R.string.permission_overlay_title
     DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_title
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_title
+    DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_title
     DevicePermission.VPN -> R.string.permission_vpn_title
 }
 
@@ -145,5 +146,6 @@ private fun DevicePermission.descRes(): Int = when (this) {
     DevicePermission.OVERLAY -> R.string.permission_overlay_desc
     DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_desc
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_desc
+    DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
     DevicePermission.VPN -> R.string.permission_vpn_desc
 }

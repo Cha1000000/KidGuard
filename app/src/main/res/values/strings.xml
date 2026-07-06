@@ -37,6 +37,8 @@
     <string name="permission_device_admin_desc">Защищает приложение от удаления.</string>
     <string name="permission_battery_title">Без оптимизации батареи</string>
     <string name="permission_battery_desc">Чтобы система не выгружала фоновый контроль.</string>
+    <string name="permission_notifications_title">Уведомления</string>
+    <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Понадобится для блокировки сети после лимита. Полноценно включим на вехе 5.</string>
 </resources>
