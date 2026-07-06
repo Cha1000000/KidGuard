@@ -14,8 +14,36 @@
 
     <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
     <string name="parent_children_placeholder">Здесь будет список детей</string>
-    <string name="parent_rules_placeholder">Здесь будут правила и ограничения</string>
     <string name="parent_statistics_placeholder">Здесь будет статистика использования</string>
+
+    <!-- Родитель: вкладка «Правила» -->
+    <string name="rules_daily_limit_title">Дневной лимит</string>
+    <string name="rules_daily_limit_subtitle">Сколько времени в день доступен телефон</string>
+    <string name="rules_whitelist_title">Всегда доступные</string>
+    <string name="rules_whitelist_subtitle">Приложения, работающие даже после лимита</string>
+    <string name="common_back">Назад</string>
+
+    <!-- Дневной лимит -->
+    <string name="daily_limit_subtitle">Сколько времени в день ребёнок может пользоваться телефоном</string>
+    <string name="daily_limit_no_limit">Без лимита</string>
+    <string name="daily_limit_today">Сегодня</string>
+    <string name="daily_limit_sheet_hint">Лимит на этот день</string>
+    <string name="daily_limit_save">Сохранить</string>
+    <string name="limit_value_hm">%1$d ч %2$02d мин</string>
+    <string name="limit_value_m">%1$d мин</string>
+
+    <!-- Дни недели -->
+    <string name="day_monday">Понедельник</string>
+    <string name="day_tuesday">Вторник</string>
+    <string name="day_wednesday">Среда</string>
+    <string name="day_thursday">Четверг</string>
+    <string name="day_friday">Пятница</string>
+    <string name="day_saturday">Суббота</string>
+    <string name="day_sunday">Воскресенье</string>
+
+    <!-- Всегда доступные (белый список) -->
+    <string name="whitelist_subtitle">Эти приложения работают даже после того, как время закончилось</string>
+    <string name="whitelist_search">Поиск приложений</string>
 
     <!-- Ребёнок: главный экран -->
     <string name="child_today_title">Сегодня</string>
@@ -37,6 +65,8 @@
     <string name="permission_device_admin_desc">Защищает приложение от удаления.</string>
     <string name="permission_battery_title">Без оптимизации батареи</string>
     <string name="permission_battery_desc">Чтобы система не выгружала фоновый контроль.</string>
+    <string name="permission_notifications_title">Уведомления</string>
+    <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Понадобится для блокировки сети после лимита. Полноценно включим на вехе 5.</string>
 </resources>
