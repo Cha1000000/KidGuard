@@ -14,9 +14,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ru.homelab.kidguard.core.domain.model.Role
 import ru.homelab.kidguard.core.ui.navigation.Destinations
-import ru.homelab.kidguard.feature.child.ChildPlaceholderScreen
+import ru.homelab.kidguard.feature.child.ChildScreen
 import ru.homelab.kidguard.feature.onboarding.OnboardingScreen
-import ru.homelab.kidguard.feature.parent.ParentPlaceholderScreen
+import ru.homelab.kidguard.feature.parent.ParentScreen
 
 /**
  * Корень UI. По стартовому состоянию (роль выбрана или нет) поднимает навигацию с нужным
@@ -57,8 +57,8 @@ fun KidGuardApp(
                         }
                     )
                 }
-                composable(Destinations.PARENT) { ParentPlaceholderScreen() }
-                composable(Destinations.CHILD) { ChildPlaceholderScreen() }
+                composable(Destinations.PARENT) { ParentScreen() }
+                composable(Destinations.CHILD) { ChildScreen() }
             }
         }
     }

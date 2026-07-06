@@ -7,7 +7,17 @@
     <string name="onboarding_role_parent">Это телефон родителя</string>
     <string name="onboarding_role_child">Это телефон ребёнка</string>
 
-    <!-- Заглушки режимов (полноценные экраны — далее) -->
-    <string name="parent_mode">Режим родителя</string>
-    <string name="child_mode">Режим ребёнка</string>
+    <!-- Родитель: нижняя навигация -->
+    <string name="parent_tab_children">Дети</string>
+    <string name="parent_tab_rules">Правила</string>
+    <string name="parent_tab_statistics">Статистика</string>
+
+    <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
+    <string name="parent_children_placeholder">Здесь будет список детей</string>
+    <string name="parent_rules_placeholder">Здесь будут правила и ограничения</string>
+    <string name="parent_statistics_placeholder">Здесь будет статистика использования</string>
+
+    <!-- Ребёнок: главный экран -->
+    <string name="child_today_title">Сегодня</string>
+    <string name="child_time_left_placeholder">Здесь будет доступное время</string>
 </resources>
