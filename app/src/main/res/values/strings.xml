@@ -20,4 +20,29 @@
     <!-- Ребёнок: главный экран -->
     <string name="child_today_title">Сегодня</string>
     <string name="child_time_left_placeholder">Здесь будет доступное время</string>
+
+    <!-- Платформенные компоненты -->
+    <string name="accessibility_service_label">KidGuard — контроль приложений</string>
+    <string name="accessibility_service_description">Позволяет KidGuard определять активное приложение и показывать экраны блокировки после истечения разрешённого времени.</string>
+    <string name="device_admin_label">KidGuard</string>
+    <string name="device_admin_description">Защита KidGuard от удаления.</string>
+
+    <!-- Мастер выдачи разрешений (детский режим) -->
+    <string name="permissions_title">Настройка разрешений</string>
+    <string name="permissions_subtitle">Для работы контроля выдайте приложению разрешения ниже. По нажатию «Выдать» откроется системный экран.</string>
+    <string name="permissions_grant">Выдать</string>
+    <string name="permissions_granted">Выдано</string>
+    <string name="permissions_continue">Продолжить</string>
+    <string name="permission_usage_title">Доступ к статистике использования</string>
+    <string name="permission_usage_desc">Нужен для учёта экранного времени по приложениям.</string>
+    <string name="permission_accessibility_title">Специальные возможности</string>
+    <string name="permission_accessibility_desc">Определяет активное приложение и блокирует нежелательные.</string>
+    <string name="permission_overlay_title">Поверх других приложений</string>
+    <string name="permission_overlay_desc">Нужен для экранов блокировки и предупреждений.</string>
+    <string name="permission_device_admin_title">Администратор устройства</string>
+    <string name="permission_device_admin_desc">Защищает приложение от удаления.</string>
+    <string name="permission_battery_title">Без оптимизации батареи</string>
+    <string name="permission_battery_desc">Чтобы система не выгружала фоновый контроль.</string>
+    <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
+    <string name="permission_vpn_desc">Понадобится для блокировки сети после лимита. Полноценно включим на вехе 5.</string>
 </resources>
