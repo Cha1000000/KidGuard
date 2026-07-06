@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Фон adaptive-иконки: светлый тон из краёв изображения иконки. -->
+    <color name="ic_launcher_background">#DDF0F6</color>
+</resources>
