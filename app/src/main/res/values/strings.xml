@@ -21,12 +21,6 @@
     <string name="child_today_title">Сегодня</string>
     <string name="child_time_left_placeholder">Здесь будет доступное время</string>
 
-    <!-- Платформенные компоненты -->
-    <string name="accessibility_service_label">KidGuard — контроль приложений</string>
-    <string name="accessibility_service_description">Позволяет KidGuard определять активное приложение и показывать экраны блокировки после истечения разрешённого времени.</string>
-    <string name="device_admin_label">KidGuard</string>
-    <string name="device_admin_description">Защита KidGuard от удаления.</string>
-
     <!-- Мастер выдачи разрешений (детский режим) -->
     <string name="permissions_title">Настройка разрешений</string>
     <string name="permissions_subtitle">Для работы контроля выдайте приложению разрешения ниже. По нажатию «Выдать» откроется системный экран.</string>

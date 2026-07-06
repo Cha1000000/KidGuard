@@ -1,0 +1,84 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:2:1-44:12
+INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:2:1-44:12
+	package
+		INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml
+	xmlns:tools
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:3:5-51
+	xmlns:android
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.SYSTEM_ALERT_WINDOW
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:6:5-78
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:6:22-75
+uses-permission#android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:7:5-95
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:7:22-92
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:8:5-77
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:8:22-74
+uses-permission#android.permission.QUERY_ALL_PACKAGES
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:9:5-10:53
+	tools:ignore
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:10:9-50
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:9:22-74
+application
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:12:5-42:19
+service#ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:15:9-26:19
+	android:label
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:18:13-64
+	android:exported
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:17:13-37
+	android:permission
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:19:13-79
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:16:13-99
+intent-filter#action:name:android.accessibilityservice.AccessibilityService
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:20:13-22:29
+action#android.accessibilityservice.AccessibilityService
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:21:17-92
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:21:25-89
+meta-data#android.accessibilityservice
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:23:13-25:72
+	android:resource
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:25:17-69
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:24:17-60
+receiver#ru.homelab.kidguard.platform.deviceadmin.KidGuardDeviceAdminReceiver
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:29:9-41:20
+	android:label
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:33:13-55
+	android:exported
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:32:13-37
+	android:permission
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:34:13-70
+	android:description
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:31:13-67
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:30:13-96
+meta-data#android.app.device_admin
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:35:13-37:65
+	android:resource
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:37:17-62
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:36:17-56
+intent-filter#action:name:android.app.action.DEVICE_ADMIN_ENABLED
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:38:13-40:29
+action#android.app.action.DEVICE_ADMIN_ENABLED
+ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:39:17-82
+	android:name
+		ADDED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml:39:25-79
+uses-sdk
+INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml
+INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/racer/projects/KidGuard/platform/src/main/AndroidManifest.xml
