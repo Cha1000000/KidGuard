@@ -9,8 +9,11 @@ import java.time.DayOfWeek
 data class DailyLimits(
     val minutesByDay: Map<DayOfWeek, Int>
 ) {
-    /** Лимит (минут) на конкретный день недели. */
-    fun minutesFor(day: DayOfWeek): Int = minutesByDay[day] ?: 0
+    /**
+     * Лимит (минут) на конкретный день недели, либо null, если родитель лимит не задавал
+     * (в этот день ограничения нет). Значение 0 означает явный запрет (0 минут доступа).
+     */
+    fun limitFor(day: DayOfWeek): Int? = minutesByDay[day]
 
     companion object {
         val EMPTY = DailyLimits(emptyMap())

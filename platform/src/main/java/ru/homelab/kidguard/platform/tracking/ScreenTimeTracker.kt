@@ -7,10 +7,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
 import timber.log.Timber
-import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +24,8 @@ import javax.inject.Singleton
 class ScreenTimeTracker @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val foregroundAppMonitor: ForegroundAppMonitor,
-    private val usageRepository: UsageRepository
+    private val usageRepository: UsageRepository,
+    private val currentDateProvider: CurrentDateProvider
 ) {
 
     private val powerManager = context.getSystemService(PowerManager::class.java)
@@ -36,7 +37,7 @@ class ScreenTimeTracker @Inject constructor(
         while (currentCoroutineContext().isActive) {
             delay(TICK_SECONDS * 1000L)
             if (isUserActive()) {
-                usageRepository.addScreenTime(LocalDate.now(), TICK_SECONDS)
+                usageRepository.addScreenTime(currentDateProvider.today(), TICK_SECONDS)
                 Timber.tag(TAG).d("Учтено +%d сек (реальное экранное время)", TICK_SECONDS)
             }
         }
