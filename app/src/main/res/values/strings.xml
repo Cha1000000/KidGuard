@@ -28,6 +28,7 @@
     <string name="daily_limit_no_limit">Без лимита</string>
     <string name="daily_limit_today">Сегодня</string>
     <string name="daily_limit_sheet_hint">Лимит на этот день</string>
+    <string name="daily_limit_apply_all">Установить на все дни недели</string>
     <string name="daily_limit_save">Сохранить</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_m">%1$d мин</string>
