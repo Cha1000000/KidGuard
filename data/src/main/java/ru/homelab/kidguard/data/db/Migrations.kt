@@ -19,3 +19,16 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+/** v2 → v3 (веха 3, шаг 3.2): пер-app учёт экранного времени по дням. */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `app_screen_time` (" +
+                "`date` TEXT NOT NULL, " +
+                "`packageName` TEXT NOT NULL, " +
+                "`seconds` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`date`, `packageName`))"
+        )
+    }
+}

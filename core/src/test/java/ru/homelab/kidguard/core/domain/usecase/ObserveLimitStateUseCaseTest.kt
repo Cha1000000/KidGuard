@@ -66,6 +66,8 @@ class ObserveLimitStateUseCaseTest {
     private class FakeUsageRepository(private val seconds: Int) : UsageRepository {
         override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(seconds)
         override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
+        override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(0)
+        override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
     }
 
     private class FakeDateProvider(private val date: LocalDate) : CurrentDateProvider {
