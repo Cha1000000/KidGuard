@@ -24,4 +24,11 @@ class DailyLimitViewModel @Inject constructor(
     fun setLimit(day: DayOfWeek, minutes: Int?) {
         viewModelScope.launch { policyRepository.setDailyLimit(day, minutes) }
     }
+
+    /** Сохранить один и тот же лимит на все дни недели. */
+    fun setLimitForAllDays(minutes: Int?) {
+        viewModelScope.launch {
+            DayOfWeek.entries.forEach { policyRepository.setDailyLimit(it, minutes) }
+        }
+    }
 }

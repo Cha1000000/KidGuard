@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,8 +97,12 @@ fun DailyLimitScreen(
             day = day,
             currentMinutes = limits.limitFor(day),
             onDismiss = { editingDay = null },
-            onSave = { minutes ->
-                viewModel.setLimit(day, minutes)
+            onSave = { minutes, applyToAll ->
+                if (applyToAll) {
+                    viewModel.setLimitForAllDays(minutes)
+                } else {
+                    viewModel.setLimit(day, minutes)
+                }
                 editingDay = null
             }
         )
@@ -147,9 +153,10 @@ private fun LimitEditorSheet(
     day: DayOfWeek,
     currentMinutes: Int?,
     onDismiss: () -> Unit,
-    onSave: (Int?) -> Unit
+    onSave: (minutes: Int?, applyToAll: Boolean) -> Unit
 ) {
     var minutes by remember { mutableIntStateOf(currentMinutes ?: DEFAULT_MINUTES) }
+    var applyToAll by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(stringResource(day.nameRes()), style = MaterialTheme.typography.titleLarge)
@@ -173,13 +180,32 @@ private fun LimitEditorSheet(
                 steps = MAX_MINUTES / STEP_MINUTES - 1
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { applyToAll = !applyToAll }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = applyToAll, onCheckedChange = { applyToAll = it })
+                Text(
+                    text = stringResource(R.string.daily_limit_apply_all),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TextButton(onClick = { onSave(null) }, modifier = Modifier.weight(1f)) {
+                TextButton(
+                    onClick = { onSave(null, applyToAll) },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(stringResource(R.string.daily_limit_no_limit))
                 }
-                Button(onClick = { onSave(minutes) }, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = { onSave(minutes, applyToAll) },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(stringResource(R.string.daily_limit_save))
                 }
             }

@@ -1,6 +1,8 @@
 package ru.homelab.kidguard.feature.parent
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -36,6 +38,8 @@ fun ParentScreen(modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = modifier,
+        // safeDrawing учитывает статусбар и вырез камеры, чтобы контент вкладок не залезал под них.
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             NavigationBar {
                 ParentTab.entries.forEach { tab ->

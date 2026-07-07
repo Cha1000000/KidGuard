@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>KidGuard — цвет панели/карточек (светлая тема)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Roboto','Segoe UI',system-ui,sans-serif}
+  body{background:#c9d2d6;padding:30px;display:flex;gap:30px;flex-wrap:wrap;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:8px;width:300px}
+  .cap{font-size:14px;color:#2f3a40;font-weight:700}
+  .sub{font-size:11px;color:#54626a;text-align:center}
+  .phone{width:290px;height:560px;border-radius:28px;overflow:hidden;display:flex;flex-direction:column;
+    border:7px solid #0a1418;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .status{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:10px;color:#5b6b72}
+  .appbar{padding:14px 16px 8px}
+  .appbar h1{font-size:19px;font-weight:700;color:#16232A}
+  .body{flex:1;padding:8px 14px}
+  .card{border-radius:14px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .card .ic{width:34px;height:34px;border-radius:9px;background:#2E6B7E;flex:none;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+  .card .tx{flex:1}
+  .card .tt{font-size:14px;font-weight:600;color:#16232A}
+  .card .ds{font-size:11px;color:#5B6B72;margin-top:2px}
+  .card .ch{color:#8fa3ab;font-size:16px}
+  .nav{height:58px;display:flex;flex:none;align-items:center}
+  .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:#5B6B72}
+  .nav .act{color:#2E6B7E;font-weight:700}
+  .nav .ic{font-size:17px}
+  .pill{background:#2E6B7E22;border-radius:12px;padding:2px 12px}
+</style>
+</head>
+<body>
+
+<!-- Текущий (бежевый дефолт) -->
+<div class="col">
+  <div class="cap">Сейчас (бежевый дефолт)</div>
+  <div class="sub">Material-контейнеры из seed — розовато-бежевые</div>
+  <div class="phone" style="background:#F5EFF7">
+    <div class="status"><span>9:41</span><span>100%</span></div>
+    <div class="appbar"><h1>Правила</h1></div>
+    <div class="body">
+      <div class="card" style="background:#EDE7F0"><div class="ic">📅</div><div class="tx"><div class="tt">Дневной лимит</div><div class="ds">Сколько времени доступен телефон</div></div><div class="ch">›</div></div>
+      <div class="card" style="background:#EDE7F0"><div class="ic" style="background:#2E7D53">✓</div><div class="tx"><div class="tt">Всегда доступные</div><div class="ds">Работают даже после лимита</div></div><div class="ch">›</div></div>
+    </div>
+    <div class="nav" style="background:#EDE7F0">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic pill">🔒</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- A Золотой тёплый -->
+<div class="col">
+  <div class="cap">A · Золотой (тёплый)</div>
+  <div class="sub">Светло-золотистые карточки и панель</div>
+  <div class="phone" style="background:#FBF6EC">
+    <div class="status"><span>9:41</span><span>100%</span></div>
+    <div class="appbar"><h1>Правила</h1></div>
+    <div class="body">
+      <div class="card" style="background:#F6EACB"><div class="ic">📅</div><div class="tx"><div class="tt">Дневной лимит</div><div class="ds">Сколько времени доступен телефон</div></div><div class="ch">›</div></div>
+      <div class="card" style="background:#F6EACB"><div class="ic" style="background:#2E7D53">✓</div><div class="tx"><div class="tt">Всегда доступные</div><div class="ds">Работают даже после лимита</div></div><div class="ch">›</div></div>
+    </div>
+    <div class="nav" style="background:#F6EACB">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic" style="background:#E0A73C33;border-radius:12px;padding:2px 12px">🔒</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- B Голубой в тон -->
+<div class="col">
+  <div class="cap">B · Голубой (в тон теме)</div>
+  <div class="sub">Светло-бирюзовые карточки и панель</div>
+  <div class="phone" style="background:#EEF4F6">
+    <div class="status"><span>9:41</span><span>100%</span></div>
+    <div class="appbar"><h1>Правила</h1></div>
+    <div class="body">
+      <div class="card" style="background:#DCEAEF"><div class="ic">📅</div><div class="tx"><div class="tt">Дневной лимит</div><div class="ds">Сколько времени доступен телефон</div></div><div class="ch">›</div></div>
+      <div class="card" style="background:#DCEAEF"><div class="ic" style="background:#2E7D53">✓</div><div class="tx"><div class="tt">Всегда доступные</div><div class="ds">Работают даже после лимита</div></div><div class="ch">›</div></div>
+    </div>
+    <div class="nav" style="background:#DCEAEF">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic pill">🔒</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- C Нейтральный -->
+<div class="col">
+  <div class="cap">C · Нейтральный чистый</div>
+  <div class="sub">Светло-серые карточки, панель белая</div>
+  <div class="phone" style="background:#F2F4F6">
+    <div class="status"><span>9:41</span><span>100%</span></div>
+    <div class="appbar"><h1>Правила</h1></div>
+    <div class="body">
+      <div class="card" style="background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div class="ic">📅</div><div class="tx"><div class="tt">Дневной лимит</div><div class="ds">Сколько времени доступен телефон</div></div><div class="ch">›</div></div>
+      <div class="card" style="background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div class="ic" style="background:#2E7D53">✓</div><div class="tx"><div class="tt">Всегда доступные</div><div class="ds">Работают даже после лимита</div></div><div class="ch">›</div></div>
+    </div>
+    <div class="nav" style="background:#FFFFFF;border-top:1px solid #E3E9EC">
+      <div><span class="ic">👪</span>Дети</div>
+      <div class="act"><span class="ic pill">🔒</span>Правила</div>
+      <div><span class="ic">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
