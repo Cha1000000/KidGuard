@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.data.db.KidGuardDatabase
+import ru.homelab.kidguard.data.db.MIGRATION_1_2
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
 import javax.inject.Singleton
@@ -19,7 +20,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KidGuardDatabase =
-        Room.databaseBuilder(context, KidGuardDatabase::class.java, "kidguard.db").build()
+        Room.databaseBuilder(context, KidGuardDatabase::class.java, "kidguard.db")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun providePolicyDao(database: KidGuardDatabase): PolicyDao = database.policyDao()

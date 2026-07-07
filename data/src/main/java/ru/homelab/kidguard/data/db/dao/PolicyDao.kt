@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 
@@ -18,6 +19,15 @@ interface PolicyDao {
 
     @Query("DELETE FROM day_limit WHERE dayOfWeek = :dayOfWeek")
     suspend fun deleteDayLimit(dayOfWeek: Int)
+
+    @Query("SELECT * FROM app_limits")
+    fun appLimits(): Flow<List<AppLimitEntity>>
+
+    @Upsert
+    suspend fun upsertAppLimit(entity: AppLimitEntity)
+
+    @Query("DELETE FROM app_limits WHERE packageName = :packageName")
+    suspend fun deleteAppLimit(packageName: String)
 
     @Query("SELECT * FROM whitelisted_app")
     fun whitelist(): Flow<List<WhitelistedAppEntity>>
