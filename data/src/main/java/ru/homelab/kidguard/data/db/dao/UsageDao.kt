@@ -3,6 +3,7 @@ package ru.homelab.kidguard.data.db.dao
 import androidx.room.Dao
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
+import ru.homelab.kidguard.data.db.entity.AppScreenTimeEntity
 
 @Dao
 interface UsageDao {
@@ -19,6 +20,10 @@ interface UsageDao {
 
     @Query("SELECT seconds FROM app_screen_time WHERE date = :date AND packageName = :packageName")
     fun appSecondsForDate(date: String, packageName: String): Flow<Int?>
+
+    /** Расход всех приложений за день (для списка настройки лимитов). */
+    @Query("SELECT * FROM app_screen_time WHERE date = :date")
+    fun appSecondsForDate(date: String): Flow<List<AppScreenTimeEntity>>
 
     /** Прибавить секунды приложению за день (создать запись, если её ещё нет). */
     @Query(

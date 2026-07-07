@@ -69,6 +69,7 @@ class ObserveAppLimitStateUseCaseTest {
         override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(0)
         override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(appSeconds)
+        override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
     }
 

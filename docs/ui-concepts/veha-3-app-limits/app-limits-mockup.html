@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --white:#FFFFFF; --primary:#2E6B7E; --on-surface:#17282E; --on-variant:#5A6B70;
+    --gold:#E0A73C; --divider:#C9DDE4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:48px;display:flex;gap:56px;align-items:flex-start;justify-content:center;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:20px;}
+  .caption{color:#cfe0e6;font-size:22px;font-weight:600;letter-spacing:.3px;}
+  .phone{width:420px;height:900px;background:var(--bg);border-radius:44px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;position:relative;
+    border:10px solid #0c1418;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:16px;font-weight:600;color:var(--on-surface);}
+  .status .right{display:flex;gap:7px;align-items:center;font-size:14px;}
+  /* app bar */
+  .appbar{display:flex;align-items:center;gap:14px;padding:10px 18px 14px;}
+  .appbar .back{font-size:26px;color:var(--on-surface);width:28px;}
+  .appbar .title{font-size:26px;font-weight:600;color:var(--on-surface);}
+  .subtitle{padding:4px 22px 14px;font-size:15px;color:var(--on-variant);line-height:1.4;}
+  /* search */
+  .search{margin:0 18px 14px;height:52px;border:1.5px solid var(--divider);border-radius:14px;
+    display:flex;align-items:center;gap:12px;padding:0 16px;color:var(--on-variant);font-size:16px;background:var(--surface);}
+  /* app row */
+  .list{padding:0 10px;}
+  .row{display:flex;align-items:center;gap:14px;padding:12px 12px;}
+  .icon{width:44px;height:44px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;}
+  .row .name{flex:1;font-size:17px;color:var(--on-surface);}
+  .row .limit{font-size:16px;font-weight:700;color:var(--primary);}
+  .row .limit.none{color:var(--on-variant);font-weight:500;}
+  .divider{height:1px;background:var(--divider);margin:0 18px;opacity:.55;}
+  /* nav */
+  .nav{position:absolute;bottom:0;left:0;right:0;height:78px;background:var(--container);
+    display:flex;justify-content:space-around;align-items:center;padding-bottom:14px;}
+  .nav .item{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--on-variant);}
+  .nav .item.active{color:var(--primary);font-weight:600;}
+  .nav .item .pill{font-size:20px;}
+  .nav .item.active .pill{background:#bfe0d8;border-radius:16px;padding:3px 18px;}
+  /* bottom sheet */
+  .scrim{position:absolute;inset:0;background:rgba(10,20,24,.42);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:28px 28px 0 0;padding:14px 26px 26px;}
+  .grabber{width:36px;height:4px;background:#b6ccd3;border-radius:2px;margin:2px auto 18px;}
+  .sheet .sheet-app{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .sheet .sheet-app .name{font-size:22px;font-weight:600;color:var(--on-surface);}
+  .sheet .hint{font-size:14px;color:var(--on-variant);margin-bottom:20px;}
+  .sheet .value{font-size:34px;font-weight:700;color:var(--primary);text-align:center;margin-bottom:14px;}
+  .slider{height:6px;background:var(--container-high);border-radius:3px;position:relative;margin:14px 4px 26px;}
+  .slider .fill{position:absolute;left:0;top:0;bottom:0;width:42%;background:var(--primary);border-radius:3px;}
+  .slider .knob{position:absolute;left:42%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:var(--primary);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+  .btns{display:flex;gap:14px;}
+  .btn{flex:1;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;}
+  .btn.text{color:var(--primary);}
+  .btn.filled{background:var(--primary);color:#fff;}
+  /* rules card entry */
+  .rules-title{font-size:26px;font-weight:600;color:var(--on-surface);padding:14px 22px 10px;}
+  .rcard{margin:6px 16px;background:var(--container);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;}
+  .rcard.hl{outline:2.5px dashed var(--gold);outline-offset:2px;}
+  .rcard .ric{font-size:28px;color:var(--primary);width:34px;text-align:center;}
+  .rcard .rtext{flex:1;}
+  .rcard .rtext .t{font-size:18px;font-weight:600;color:var(--on-surface);}
+  .rcard .rtext .s{font-size:14px;color:var(--on-variant);margin-top:2px;}
+  .rcard .arr{color:var(--on-variant);font-size:22px;}
+  .badge{display:inline-block;background:var(--gold);color:#3a2600;font-size:12px;font-weight:700;padding:2px 10px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+<!-- ЭКРАН 1: вход с экрана Правила -->
+<div class="col">
+  <div class="caption">1 · Вход — новая карточка на «Правила»</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span class="right">📶 🔋</span></div>
+    <div class="rules-title">Правила</div>
+    <div class="rcard"><div class="ric">📅</div><div class="rtext"><div class="t">Дневной лимит</div><div class="s">Сколько времени в день доступен телефон</div></div><div class="arr">›</div></div>
+    <div class="rcard hl"><div class="ric">⏱️</div><div class="rtext"><div class="t">Лимиты приложений<span class="badge">НОВОЕ</span></div><div class="s">Свой лимит на отдельные приложения</div></div><div class="arr">›</div></div>
+    <div class="rcard"><div class="ric">✓</div><div class="rtext"><div class="t">Всегда доступные</div><div class="s">Приложения, работающие даже после лимита</div></div><div class="arr">›</div></div>
+    <div class="nav">
+      <div class="item"><span class="pill">🧒</span>Дети</div>
+      <div class="item active"><span class="pill">🔒</span>Правила</div>
+      <div class="item"><span class="pill">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН 2: список лимитов приложений -->
+<div class="col">
+  <div class="caption">2 · Экран «Лимиты приложений»</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span class="right">📶 🔋</span></div>
+    <div class="appbar"><div class="back">←</div><div class="title">Лимиты приложений</div></div>
+    <div class="subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</div>
+    <div class="search">🔍 Поиск приложения</div>
+    <div class="list">
+      <div class="row"><div class="icon" style="background:#4285F4;">▶</div><div class="name">YouTube</div><div class="limit">1 ч</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#25D366;">💬</div><div class="name">WhatsApp</div><div class="limit none">—</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#E1306C;">📷</div><div class="name">Instagram</div><div class="limit">30 мин</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#000;">🎵</div><div class="name">TikTok</div><div class="limit">45 мин</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#0088cc;">✈</div><div class="name">Telegram</div><div class="limit none">—</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#7B1FA2;">🎮</div><div class="name">Roblox</div><div class="limit">2 ч</div></div>
+    </div>
+    <div class="nav">
+      <div class="item"><span class="pill">🧒</span>Дети</div>
+      <div class="item active"><span class="pill">🔒</span>Правила</div>
+      <div class="item"><span class="pill">📊</span>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН 3: bottom sheet пикер -->
+<div class="col">
+  <div class="caption">3 · Установка лимита (тап по строке)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span class="right">📶 🔋</span></div>
+    <div class="appbar"><div class="back">←</div><div class="title">Лимиты приложений</div></div>
+    <div class="subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</div>
+    <div class="search">🔍 Поиск приложения</div>
+    <div class="list" style="opacity:.35;">
+      <div class="row"><div class="icon" style="background:#4285F4;">▶</div><div class="name">YouTube</div><div class="limit">1 ч</div></div>
+      <div class="divider"></div>
+      <div class="row"><div class="icon" style="background:#25D366;">💬</div><div class="name">WhatsApp</div><div class="limit none">—</div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grabber"></div>
+      <div class="sheet-app"><div class="icon" style="background:#000;">🎵</div><div class="name">TikTok</div></div>
+      <div class="hint">Личный дневной лимит этого приложения.</div>
+      <div class="value">45 мин</div>
+      <div class="slider"><div class="fill"></div><div class="knob"></div></div>
+      <div class="btns"><div class="btn text">Убрать лимит</div><div class="btn filled">Сохранить</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

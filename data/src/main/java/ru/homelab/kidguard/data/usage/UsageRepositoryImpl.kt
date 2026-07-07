@@ -21,6 +21,11 @@ class UsageRepositoryImpl @Inject constructor(
     override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> =
         usageDao.appSecondsForDate(date.toString(), packageName).map { it ?: 0 }
 
+    override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> =
+        usageDao.appSecondsForDate(date.toString()).map { rows ->
+            rows.associate { it.packageName to it.seconds }
+        }
+
     override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) {
         usageDao.addAppSeconds(date.toString(), packageName, seconds)
     }
