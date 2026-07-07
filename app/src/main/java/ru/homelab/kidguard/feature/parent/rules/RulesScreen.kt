@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.ScreenTitle
 
 /** Вкладка «Правила»: две карточки-ссылки — на дневной лимит и на белый список приложений. */
 @Composable
@@ -31,24 +32,25 @@ fun RulesScreen(
     onOpenWhitelist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        RuleCard(
-            icon = Icons.Filled.DateRange,
-            title = R.string.rules_daily_limit_title,
-            subtitle = R.string.rules_daily_limit_subtitle,
-            onClick = onOpenDailyLimit
-        )
-        RuleCard(
-            icon = Icons.Filled.CheckCircle,
-            title = R.string.rules_whitelist_title,
-            subtitle = R.string.rules_whitelist_subtitle,
-            onClick = onOpenWhitelist
-        )
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenTitle(stringResource(R.string.parent_tab_rules))
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RuleCard(
+                icon = Icons.Filled.DateRange,
+                title = R.string.rules_daily_limit_title,
+                subtitle = R.string.rules_daily_limit_subtitle,
+                onClick = onOpenDailyLimit
+            )
+            RuleCard(
+                icon = Icons.Filled.CheckCircle,
+                title = R.string.rules_whitelist_title,
+                subtitle = R.string.rules_whitelist_subtitle,
+                onClick = onOpenWhitelist
+            )
+        }
     }
 }
 
