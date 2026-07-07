@@ -9,33 +9,48 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+// Фирменная тёмная схема — вариант A (Deep Teal).
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    secondary = DarkSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = DarkTertiary,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant
 )
 
+// Фирменная светлая схема — по макету.
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer,
+    secondary = LightSecondary,
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer,
+    tertiary = LightTertiary,
+    background = LightBackground,
+    onBackground = LightOnBackground,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant
 )
 
 @Composable
 fun KidGuardTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Динамические цвета доступны с Android 12; minSdk 33 их всегда поддерживает.
-    dynamicColor: Boolean = true,
+    // По умолчанию — фирменные палитры (светлая по макету, тёмная Deep Teal), следуя системной
+    // light/dark. Material You (цвета обоев) можно включить отдельно — тумблер добавим в настройках.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
