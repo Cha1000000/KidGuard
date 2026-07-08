@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import ru.homelab.kidguard.core.domain.model.Role
+import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.ui.navigation.Destinations
 import javax.inject.Inject
@@ -20,19 +21,23 @@ sealed interface AppStartState {
 
 /**
  * Определяет, куда вести пользователя при запуске: в мастер первичной настройки (роль ещё не
- * выбрана) или сразу в граф родителя/ребёнка (роль зафиксирована навсегда).
+ * выбрана), в экран входа (роль выбрана, но сохранённой рабочей сессии нет — не входили или
+ * истёк JWT — веха 4), либо сразу в граф родителя/ребёнка.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
-    settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository,
+    authRepository: AuthRepository
 ) : ViewModel() {
 
     val startState: StateFlow<AppStartState> = combine(
         settingsRepository.setupCompleted,
-        settingsRepository.role
-    ) { completed, role ->
+        settingsRepository.role,
+        authRepository.hasValidSession
+    ) { completed, role, hasValidSession ->
         val route = when {
             !completed || role == null -> Destinations.ONBOARDING
+            !hasValidSession -> Destinations.LOGIN
             role == Role.PARENT -> Destinations.PARENT
             else -> Destinations.CHILD
         }

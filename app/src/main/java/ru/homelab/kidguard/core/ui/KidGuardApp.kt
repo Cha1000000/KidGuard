@@ -15,14 +15,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ru.homelab.kidguard.core.domain.model.Role
 import ru.homelab.kidguard.core.ui.navigation.Destinations
+import ru.homelab.kidguard.feature.auth.SignInScreen
 import ru.homelab.kidguard.feature.child.ChildScreen
 import ru.homelab.kidguard.feature.onboarding.OnboardingScreen
 import ru.homelab.kidguard.feature.onboarding.permissions.PermissionsWizardScreen
 import ru.homelab.kidguard.feature.parent.ParentScreen
 
 /**
- * Корень UI. По стартовому состоянию (роль выбрана или нет) поднимает навигацию с нужным
- * начальным экраном. Повторного логина/выхода нет — роль читается один раз из настроек.
+ * Корень UI. По стартовому состоянию (роль выбрана, сессия входа валидна) поднимает навигацию
+ * с нужным начальным экраном. Роль — единоразовый выбор навсегда; сессия входа через Google
+ * (веха 4) может истечь и потребовать повторного входа — тогда стартовым маршрутом будет `LOGIN`
+ * (см. [AppViewModel]).
  */
 @Composable
 fun KidGuardApp(
@@ -51,15 +54,28 @@ fun KidGuardApp(
             ) {
                 composable(Destinations.ONBOARDING) {
                     OnboardingScreen(
-                        onRoleChosen = { role ->
-                            // Родитель — сразу в свой режим. Ребёнок — сначала мастер разрешений.
+                        onRoleChosen = {
+                            // Роль сохранена — дальше в любом случае нужен вход через Google
+                            // (веха 4), он и решит, куда вести дальше (см. LOGIN ниже).
+                            navController.navigate(Destinations.LOGIN) {
+                                popUpTo(Destinations.ONBOARDING) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+                composable(Destinations.LOGIN) {
+                    SignInScreen(
+                        onSignedIn = { role ->
+                            // Родитель — сразу в свой режим. Ребёнок — через мастер разрешений:
+                            // он идемпотентен (проверяет реальные системные разрешения), поэтому
+                            // безопасно показывать его и повторно вошедшему пользователю.
                             val target = if (role == Role.PARENT) {
                                 Destinations.PARENT
                             } else {
                                 Destinations.PERMISSIONS
                             }
                             navController.navigate(target) {
-                                popUpTo(Destinations.ONBOARDING) { inclusive = true }
+                                popUpTo(Destinations.LOGIN) { inclusive = true }
                             }
                         }
                     )
