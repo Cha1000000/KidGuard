@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
+import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
@@ -48,11 +49,44 @@ class ObserveLimitStateUseCaseTest {
         assertEquals(LimitState.Expired, state)
     }
 
-    private fun useCase(limits: DailyLimits, usedSeconds: Int) = ObserveLimitStateUseCase(
-        policyRepository = FakePolicyRepository(limits),
-        usageRepository = FakeUsageRepository(usedSeconds),
-        currentDateProvider = FakeDateProvider(monday)
-    )
+    @Test
+    fun `лимит исчерпан, но выдан бонус - снова Remaining`() = runTest {
+        // Лимит 30 мин, использовано 30 мин (Expired), бонус +15 -> осталось 15.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 30))
+        val state = useCase(limits = limits, usedSeconds = 1800, bonusMinutes = 15).invoke().first()
+        assertEquals(LimitState.Remaining(15), state)
+    }
+
+    @Test
+    fun `бонус суммирован из нескольких выдач - учитывается целиком`() = runTest {
+        // Лимит 30 мин, использовано 45 мин (перерасход 15), бонус 15+15=30 -> осталось 15.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 30))
+        val state = useCase(limits = limits, usedSeconds = 2700, bonusMinutes = 30).invoke().first()
+        assertEquals(LimitState.Remaining(15), state)
+    }
+
+    @Test
+    fun `бонус выдан, но лимит на день не задан - всё равно NoLimit`() = runTest {
+        val state = useCase(limits = DailyLimits.EMPTY, usedSeconds = 3600, bonusMinutes = 30)
+            .invoke().first()
+        assertEquals(LimitState.NoLimit, state)
+    }
+
+    @Test
+    fun `бонус недостаточен - остаётся Expired`() = runTest {
+        // Лимит 30 мин, использовано 60 мин (перерасход 30), бонус всего 10 -> всё ещё исчерпан.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 30))
+        val state = useCase(limits = limits, usedSeconds = 3600, bonusMinutes = 10).invoke().first()
+        assertEquals(LimitState.Expired, state)
+    }
+
+    private fun useCase(limits: DailyLimits, usedSeconds: Int, bonusMinutes: Int = 0) =
+        ObserveLimitStateUseCase(
+            policyRepository = FakePolicyRepository(limits),
+            usageRepository = FakeUsageRepository(usedSeconds),
+            bonusRepository = FakeBonusRepository(bonusMinutes),
+            currentDateProvider = FakeDateProvider(monday)
+        )
 
     private class FakePolicyRepository(private val limits: DailyLimits) : PolicyRepository {
         override val dailyLimits: Flow<DailyLimits> = flowOf(limits)
@@ -69,6 +103,13 @@ class ObserveLimitStateUseCaseTest {
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(0)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+    }
+
+    private class FakeBonusRepository(private val phoneMinutes: Int) : BonusRepository {
+        override fun phoneBonusMinutes(date: LocalDate): Flow<Int> = flowOf(phoneMinutes)
+        override fun appBonusMinutes(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addBonus(date: LocalDate, packageName: String?, minutes: Int) = Unit
+        override suspend fun clearBonus(date: LocalDate, packageName: String?) = Unit
     }
 
     private class FakeDateProvider(private val date: LocalDate) : CurrentDateProvider {
