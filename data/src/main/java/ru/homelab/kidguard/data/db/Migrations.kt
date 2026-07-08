@@ -32,3 +32,16 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
     }
 }
+
+/** v3 → v4 (веха 3Б, шаг 3Б.1): разовые бонусы (дополнительное время) на день. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `bonus_grants` (" +
+                "`date` TEXT NOT NULL, " +
+                "`packageName` TEXT NOT NULL, " +
+                "`minutes` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`date`, `packageName`))"
+        )
+    }
+}

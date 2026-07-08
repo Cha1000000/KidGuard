@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
+import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
@@ -50,9 +51,39 @@ class ObserveAppLimitStateUseCaseTest {
         assertEquals(LimitState.Expired, state)
     }
 
-    private fun useCase(appLimits: Map<String, Int>, usedSeconds: Int) = ObserveAppLimitStateUseCase(
+    @Test
+    fun `личный лимит исчерпан, но выдан бонус приложению - снова Remaining`() = runTest {
+        // Лимит 30 мин, использовано 30 мин (Expired), бонус +15 -> осталось 15.
+        val state = useCase(appLimits = mapOf(pkg to 30), usedSeconds = 1800, appBonusMinutes = mapOf(pkg to 15))
+            .invoke(pkg).first()
+        assertEquals(LimitState.Remaining(15), state)
+    }
+
+    @Test
+    fun `бонус выдан другому приложению - на это приложение не влияет`() = runTest {
+        val state = useCase(
+            appLimits = mapOf(pkg to 30),
+            usedSeconds = 1800,
+            appBonusMinutes = mapOf("com.other.app" to 100)
+        ).invoke(pkg).first()
+        assertEquals(LimitState.Expired, state)
+    }
+
+    @Test
+    fun `бонус выдан, но личный лимит не задан - всё равно NoLimit`() = runTest {
+        val state = useCase(appLimits = emptyMap(), usedSeconds = 3600, appBonusMinutes = mapOf(pkg to 30))
+            .invoke(pkg).first()
+        assertEquals(LimitState.NoLimit, state)
+    }
+
+    private fun useCase(
+        appLimits: Map<String, Int>,
+        usedSeconds: Int,
+        appBonusMinutes: Map<String, Int> = emptyMap()
+    ) = ObserveAppLimitStateUseCase(
         policyRepository = FakePolicyRepository(appLimits),
         usageRepository = FakeUsageRepository(usedSeconds),
+        bonusRepository = FakeBonusRepository(appBonusMinutes),
         currentDateProvider = FakeDateProvider(today)
     )
 
@@ -71,6 +102,13 @@ class ObserveAppLimitStateUseCaseTest {
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(appSeconds)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+    }
+
+    private class FakeBonusRepository(private val appMinutes: Map<String, Int>) : BonusRepository {
+        override fun phoneBonusMinutes(date: LocalDate): Flow<Int> = flowOf(0)
+        override fun appBonusMinutes(date: LocalDate): Flow<Map<String, Int>> = flowOf(appMinutes)
+        override suspend fun addBonus(date: LocalDate, packageName: String?, minutes: Int) = Unit
+        override suspend fun clearBonus(date: LocalDate, packageName: String?) = Unit
     }
 
     private class FakeDateProvider(private val date: LocalDate) : CurrentDateProvider {

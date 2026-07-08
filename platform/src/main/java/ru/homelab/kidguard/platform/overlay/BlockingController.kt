@@ -58,12 +58,13 @@ class BlockingController @Inject constructor(
                 shouldBlock(activePackage, limitState, appLimitState, whitelist, alwaysAllowed)
             }
         }.distinctUntilChanged().collect { block ->
+            // Скрытие оверлея сюда намеренно не добавляем: он закрывается только свайпом
+            // самого ребёнка (см. OverlayManager). Иначе уход на домашний экран ниже сразу же
+            // «снял» бы блокировку — лаунчер всегда разрешён.
             if (block) {
                 overlayManager.show()
                 sendHome()
                 Timber.tag(TAG).d("Блокировка активна")
-            } else {
-                overlayManager.hide()
             }
         }
     }
