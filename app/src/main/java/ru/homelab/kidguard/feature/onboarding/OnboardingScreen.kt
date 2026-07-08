@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.onboarding
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +34,10 @@ fun OnboardingScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            // Theme.KidGuard — фиксированная светлая системная тема (статичный windowBackground);
+            // без Scaffold (у него уже встроено через containerColor) экран красит фон сам,
+            // иначе в тёмной теме будет просвечивать светлый фон окна.
+            .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -39,10 +45,12 @@ fun OnboardingScreen(
     ) {
         Text(
             text = stringResource(R.string.onboarding_title),
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Text(
             text = stringResource(R.string.onboarding_subtitle),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
         )
