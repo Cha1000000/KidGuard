@@ -10,6 +10,8 @@ import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.data.db.KidGuardDatabase
 import ru.homelab.kidguard.data.db.MIGRATION_1_2
 import ru.homelab.kidguard.data.db.MIGRATION_2_3
+import ru.homelab.kidguard.data.db.MIGRATION_3_4
+import ru.homelab.kidguard.data.db.dao.BonusDao
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
 import javax.inject.Singleton
@@ -22,7 +24,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KidGuardDatabase =
         Room.databaseBuilder(context, KidGuardDatabase::class.java, "kidguard.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
     @Provides
@@ -30,4 +32,7 @@ object DatabaseModule {
 
     @Provides
     fun provideUsageDao(database: KidGuardDatabase): UsageDao = database.usageDao()
+
+    @Provides
+    fun provideBonusDao(database: KidGuardDatabase): BonusDao = database.bonusDao()
 }

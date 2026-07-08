@@ -4,10 +4,12 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.data.bonus.BonusRepositoryImpl
 import ru.homelab.kidguard.data.date.CurrentDateProviderImpl
 import ru.homelab.kidguard.data.policy.PolicyRepositoryImpl
 import ru.homelab.kidguard.data.settings.SettingsRepositoryImpl
@@ -33,4 +35,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCurrentDateProvider(impl: CurrentDateProviderImpl): CurrentDateProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindBonusRepository(impl: BonusRepositoryImpl): BonusRepository
 }
