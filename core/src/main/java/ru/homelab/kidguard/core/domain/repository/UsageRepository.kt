@@ -14,4 +14,13 @@ interface UsageRepository {
 
     /** Прибавить секунды реального экранного времени к указанному дню. */
     suspend fun addScreenTime(date: LocalDate, seconds: Int)
+
+    /** Накопленное экранное время приложения (в секундах) за указанный день (веха 3). */
+    fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int>
+
+    /** Расход всех приложений за день: пакет → секунды (для списка настройки лимитов). */
+    fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>>
+
+    /** Прибавить приложению секунды реального экранного времени за указанный день. */
+    suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int)
 }

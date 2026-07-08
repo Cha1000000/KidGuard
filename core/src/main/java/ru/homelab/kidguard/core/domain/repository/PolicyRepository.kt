@@ -16,8 +16,14 @@ interface PolicyRepository {
     /** Пакеты приложений из белого списка (доступны всегда, даже после лимита). */
     val whitelist: Flow<Set<String>>
 
+    /** Личные дневные лимиты приложений: пакет → минут/день (веха 3). */
+    val appLimits: Flow<Map<String, Int>>
+
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
+
+    /** Задать личный дневной лимит приложения (минут); null убирает лимит. */
+    suspend fun setAppLimit(packageName: String, minutes: Int?)
 
     /** Добавить/убрать приложение из белого списка. */
     suspend fun setWhitelisted(packageName: String, whitelisted: Boolean)

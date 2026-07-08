@@ -36,19 +36,22 @@ class ScreenTimeTracker @Inject constructor(
         Timber.tag(TAG).d("Движок учёта экранного времени запущен")
         while (currentCoroutineContext().isActive) {
             delay(TICK_SECONDS * 1000L)
-            if (isUserActive()) {
-                usageRepository.addScreenTime(currentDateProvider.today(), TICK_SECONDS)
-                Timber.tag(TAG).d("Учтено +%d сек (реальное экранное время)", TICK_SECONDS)
+            // Пакет читаем один раз за тик: суммарное и пер-app время должны сойтись.
+            val activePackage = foregroundAppMonitor.currentPackage.value
+            if (isUserActive() && activePackage != null) {
+                val today = currentDateProvider.today()
+                usageRepository.addScreenTime(today, TICK_SECONDS)
+                usageRepository.addAppScreenTime(today, activePackage, TICK_SECONDS)
+                Timber.tag(TAG).d("Учтено +%d сек (всего и для %s)", TICK_SECONDS, activePackage)
             }
         }
     }
 
-    /** Ребёнок реально пользуется телефоном: экран включён, разблокирован, есть активное приложение. */
+    /** Экраном реально пользуются: включён и разблокирован (активный пакет проверяется в цикле). */
     private fun isUserActive(): Boolean {
         val interactive = powerManager?.isInteractive == true
         val unlocked = keyguardManager?.isKeyguardLocked == false
-        val hasForegroundApp = foregroundAppMonitor.currentPackage.value != null
-        return interactive && unlocked && hasForegroundApp
+        return interactive && unlocked
     }
 
     private companion object {

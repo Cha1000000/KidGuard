@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,7 @@ import ru.homelab.kidguard.core.ui.components.ScreenTitle
 @Composable
 fun RulesScreen(
     onOpenDailyLimit: () -> Unit,
+    onOpenAppLimits: () -> Unit,
     onOpenWhitelist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -43,6 +45,12 @@ fun RulesScreen(
                 title = R.string.rules_daily_limit_title,
                 subtitle = R.string.rules_daily_limit_subtitle,
                 onClick = onOpenDailyLimit
+            )
+            RuleCard(
+                icon = ImageVector.vectorResource(R.drawable.ic_timer),
+                title = R.string.rules_app_limits_title,
+                subtitle = R.string.rules_app_limits_subtitle,
+                onClick = onOpenAppLimits
             )
             RuleCard(
                 icon = Icons.Filled.CheckCircle,

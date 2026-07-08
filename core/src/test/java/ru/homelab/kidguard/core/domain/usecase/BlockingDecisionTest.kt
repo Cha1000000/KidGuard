@@ -5,39 +5,84 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.LimitState
 
+/**
+ * Матрица приоритетов вехи 3: alwaysAllowed > пер-app лимит > белый список > общий лимит.
+ */
 class BlockingDecisionTest {
 
     private val allowed = setOf("ru.homelab.kidguard", "com.android.launcher")
 
+    private fun block(
+        pkg: String? = "com.game.app",
+        limit: LimitState = LimitState.NoLimit,
+        appLimit: LimitState = LimitState.NoLimit,
+        whitelist: Set<String> = emptySet()
+    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed)
+
+    // --- Приоритет 1: alwaysAllowed ---
+
     @Test
-    fun `лимит исчерпан и приложение не разрешено - блокируем`() {
+    fun `само KidGuard и лаунчер - не блокируем даже при исчерпанных лимитах`() {
+        assertFalse(block(pkg = "ru.homelab.kidguard", limit = LimitState.Expired, appLimit = LimitState.Expired))
+        assertFalse(block(pkg = "com.android.launcher", limit = LimitState.Expired, appLimit = LimitState.Expired))
+    }
+
+    // --- Приоритет 2: личный (пер-app) лимит ---
+
+    @Test
+    fun `личный лимит исчерпан - блокируем, даже если общий не исчерпан`() {
+        assertTrue(block(appLimit = LimitState.Expired, limit = LimitState.Remaining(30)))
+        assertTrue(block(appLimit = LimitState.Expired, limit = LimitState.NoLimit))
+    }
+
+    @Test
+    fun `личный лимит исчерпан - блокируем даже приложение из белого списка`() {
         assertTrue(
-            shouldBlock("com.game.app", LimitState.Expired, whitelist = emptySet(), alwaysAllowed = allowed)
+            block(appLimit = LimitState.Expired, whitelist = setOf("com.game.app"))
         )
     }
+
+    @Test
+    fun `личный лимит ещё не исчерпан - не блокируем (общий в норме)`() {
+        assertFalse(block(appLimit = LimitState.Remaining(10), limit = LimitState.Remaining(30)))
+    }
+
+    // --- Приоритет 3: белый список ---
+
+    @Test
+    fun `белый список - не блокируем даже при исчерпанном общем лимите`() {
+        assertFalse(
+            block(pkg = "com.android.dialer", limit = LimitState.Expired, whitelist = setOf("com.android.dialer"))
+        )
+    }
+
+    // --- Приоритет 4: общий дневной лимит ---
+
+    @Test
+    fun `общий лимит исчерпан и приложение не разрешено - блокируем`() {
+        assertTrue(block(limit = LimitState.Expired))
+    }
+
+    @Test
+    fun `общий лимит исчерпан, но у приложения свой лимит ещё не исчерпан - всё равно блокируем`() {
+        // Личный Remaining не даёт послабления от общего Expired: Remaining — не белый список.
+        assertTrue(block(limit = LimitState.Expired, appLimit = LimitState.Remaining(15)))
+    }
+
+    // --- Приоритет 5: всё в норме ---
 
     @Test
     fun `время ещё есть - не блокируем`() {
-        assertFalse(
-            shouldBlock("com.game.app", LimitState.Remaining(10), whitelist = emptySet(), alwaysAllowed = allowed)
-        )
+        assertFalse(block(limit = LimitState.Remaining(10)))
     }
 
     @Test
-    fun `приложение в белом списке - не блокируем даже при Expired`() {
-        assertFalse(
-            shouldBlock("com.android.dialer", LimitState.Expired, whitelist = setOf("com.android.dialer"), alwaysAllowed = allowed)
-        )
-    }
-
-    @Test
-    fun `само KidGuard и лаунчер - не блокируем`() {
-        assertFalse(shouldBlock("ru.homelab.kidguard", LimitState.Expired, emptySet(), allowed))
-        assertFalse(shouldBlock("com.android.launcher", LimitState.Expired, emptySet(), allowed))
+    fun `лимиты не заданы - не блокируем`() {
+        assertFalse(block())
     }
 
     @Test
     fun `нет активного приложения - не блокируем`() {
-        assertFalse(shouldBlock(null, LimitState.Expired, emptySet(), allowed))
+        assertFalse(block(pkg = null, limit = LimitState.Expired, appLimit = LimitState.Expired))
     }
 }

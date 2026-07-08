@@ -5,9 +5,14 @@ import android.content.Intent
 import androidx.core.content.getSystemService
 import android.content.pm.PackageManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
@@ -16,15 +21,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Связывает активное приложение, состояние лимита и белый список: когда время вышло и приложение
- * не разрешено — показывает блокирующий оверлей и уводит на домашний экран. Запускается
- * foreground-сервисом.
+ * Связывает активное приложение, состояния лимитов (общего и личного пер-app) и белый список:
+ * когда по матрице приоритетов приложение должно быть заблокировано — показывает оверлей и
+ * уводит на домашний экран. Запускается foreground-сервисом.
  */
 @Singleton
 class BlockingController @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val foregroundAppMonitor: ForegroundAppMonitor,
     private val observeLimitStateUseCase: ObserveLimitStateUseCase,
+    private val observeAppLimitStateUseCase: ObserveAppLimitStateUseCase,
     private val policyRepository: PolicyRepository,
     private val overlayManager: OverlayManager
 ) {
@@ -35,14 +41,22 @@ class BlockingController @Inject constructor(
         addAll(resolveLauncherPackages())
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun run() {
         Timber.tag(TAG).d("Контроллер блокировки запущен")
-        combine(
-            foregroundAppMonitor.currentPackage,
-            observeLimitStateUseCase(),
-            policyRepository.whitelist
-        ) { activePackage, limitState, whitelist ->
-            shouldBlock(activePackage, limitState, whitelist, alwaysAllowed)
+        // Личный лимит зависит от активного пакета, поэтому на каждую его смену пересобираем
+        // подписку (flatMapLatest): наблюдаем usage+limit именно текущего приложения.
+        foregroundAppMonitor.currentPackage.flatMapLatest { activePackage ->
+            val appLimitStateFlow =
+                if (activePackage != null) observeAppLimitStateUseCase(activePackage)
+                else flowOf(LimitState.NoLimit)
+            combine(
+                observeLimitStateUseCase(),
+                appLimitStateFlow,
+                policyRepository.whitelist
+            ) { limitState, appLimitState, whitelist ->
+                shouldBlock(activePackage, limitState, appLimitState, whitelist, alwaysAllowed)
+            }
         }.distinctUntilChanged().collect { block ->
             if (block) {
                 overlayManager.show()

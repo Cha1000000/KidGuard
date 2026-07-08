@@ -21,6 +21,8 @@
     <string name="rules_daily_limit_subtitle">Сколько времени в день доступен телефон</string>
     <string name="rules_whitelist_title">Всегда доступные</string>
     <string name="rules_whitelist_subtitle">Приложения, работающие даже после лимита</string>
+    <string name="rules_app_limits_title">Лимиты приложений</string>
+    <string name="rules_app_limits_subtitle">Свой лимит на отдельные приложения</string>
     <string name="common_back">Назад</string>
 
     <!-- Дневной лимит -->
@@ -45,6 +47,15 @@
     <!-- Всегда доступные (белый список) -->
     <string name="whitelist_subtitle">Эти приложения работают даже после того, как время закончилось</string>
     <string name="whitelist_search">Поиск приложений</string>
+
+    <!-- Лимиты приложений (пер-app) -->
+    <string name="app_limits_subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</string>
+    <string name="app_limits_search">Поиск приложения</string>
+    <string name="app_limits_no_limit">—</string>
+    <string name="app_limits_spent">Сегодня: %1$d из %2$d мин</string>
+    <string name="app_limits_sheet_hint">Личный дневной лимит этого приложения</string>
+    <string name="app_limits_remove">Убрать лимит</string>
+    <string name="app_limits_save">Сохранить</string>
 
     <!-- Ребёнок: главный экран -->
     <string name="child_today_title">Сегодня</string>
