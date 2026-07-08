@@ -220,14 +220,18 @@ private fun AppLimitEditorSheet(
                     Text(stringResource(R.string.app_limits_save))
                 }
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            BonusSection(
-                activeBonusMinutes = app.bonusMinutes,
-                subtitleRes = R.string.bonus_subtitle_app,
-                onAdd = onAddBonus,
-                onClear = onClearBonus,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            // Бонус приложению имеет смысл только при заданном лимите: без лимита приложение и
+            // так не блокируется по своему времени, поэтому доп. время было бы лишним.
+            if (app.limitMinutes != null) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                BonusSection(
+                    activeBonusMinutes = app.bonusMinutes,
+                    subtitleRes = R.string.bonus_subtitle_app,
+                    onAdd = onAddBonus,
+                    onClear = onClearBonus,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
         }
     }
 }
