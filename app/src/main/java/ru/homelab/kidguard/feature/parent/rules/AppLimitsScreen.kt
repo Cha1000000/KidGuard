@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +52,9 @@ fun AppLimitsScreen(
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
-    var editing by remember { mutableStateOf<AppLimitUi?>(null) }
+    // Храним пакет редактируемого приложения (не снимок): при выдаче бонуса список обновляется,
+    // и открытый bottom-sheet реактивно показывает новое «Дополнительное время».
+    var editingPackage by remember { mutableStateOf<String?>(null) }
     val filtered = remember(apps, query) {
         if (query.isBlank()) apps else apps.filter { it.label.contains(query, ignoreCase = true) }
     }
@@ -97,20 +100,23 @@ fun AppLimitsScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(filtered, key = { it.packageName }) { app ->
-                    AppLimitRow(app = app, onClick = { editing = app })
+                    AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
                 }
             }
         }
     }
 
-    editing?.let { app ->
+    val editingApp = apps.find { it.packageName == editingPackage }
+    if (editingApp != null) {
         AppLimitEditorSheet(
-            app = app,
-            onDismiss = { editing = null },
+            app = editingApp,
+            onDismiss = { editingPackage = null },
             onSave = { minutes ->
-                viewModel.setAppLimit(app.packageName, minutes)
-                editing = null
-            }
+                viewModel.setAppLimit(editingApp.packageName, minutes)
+                editingPackage = null
+            },
+            onAddBonus = { viewModel.addAppBonus(editingApp.packageName, it) },
+            onClearBonus = { viewModel.clearAppBonus(editingApp.packageName) }
         )
     }
 }
@@ -158,7 +164,9 @@ private fun AppLimitRow(app: AppLimitUi, onClick: () -> Unit) {
 private fun AppLimitEditorSheet(
     app: AppLimitUi,
     onDismiss: () -> Unit,
-    onSave: (minutes: Int?) -> Unit
+    onSave: (minutes: Int?) -> Unit,
+    onAddBonus: (minutes: Int) -> Unit,
+    onClearBonus: () -> Unit
 ) {
     var minutes by remember { mutableIntStateOf(app.limitMinutes ?: DEFAULT_MINUTES) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -212,6 +220,14 @@ private fun AppLimitEditorSheet(
                     Text(stringResource(R.string.app_limits_save))
                 }
             }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            BonusSection(
+                activeBonusMinutes = app.bonusMinutes,
+                subtitleRes = R.string.bonus_subtitle_app,
+                onAdd = onAddBonus,
+                onClear = onClearBonus,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
     }
 }

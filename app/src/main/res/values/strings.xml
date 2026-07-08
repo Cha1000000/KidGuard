@@ -57,6 +57,16 @@
     <string name="app_limits_remove">Убрать лимит</string>
     <string name="app_limits_save">Сохранить</string>
 
+    <!-- Дополнительное время (бонусы) -->
+    <string name="bonus_title">Дополнительное время</string>
+    <string name="bonus_subtitle_phone">Добавить время сверх дневного лимита — только на сегодня. Суммируется.</string>
+    <string name="bonus_subtitle_app">Сверх лимита этого приложения на сегодня. Суммируется.</string>
+    <string name="bonus_active">Сегодня выдано: +%1$s</string>
+    <string name="bonus_cancel">Отменить</string>
+    <string name="bonus_quick_add">+%1$d мин</string>
+    <string name="bonus_other">Другое…</string>
+    <string name="bonus_add_action">Добавить +%1$s</string>
+
     <!-- Ребёнок: главный экран -->
     <string name="child_today_title">Сегодня</string>
     <string name="child_time_left_placeholder">Здесь будет доступное время</string>

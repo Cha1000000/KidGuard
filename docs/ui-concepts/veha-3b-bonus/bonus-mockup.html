@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --white:#FFFFFF; --primary:#2E6B7E; --on-surface:#17282E; --on-variant:#5A6B70;
+    --gold:#E0A73C; --gold-bg:#F7EBD2; --divider:#C9DDE4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:48px;display:flex;gap:56px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:20px;}
+  .caption{color:#cfe0e6;font-size:21px;font-weight:600;letter-spacing:.3px;max-width:420px;text-align:center;}
+  .phone{width:420px;height:900px;background:var(--bg);border-radius:44px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;position:relative;border:10px solid #0c1418;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:16px;font-weight:600;color:var(--on-surface);}
+  .appbar{display:flex;align-items:center;gap:14px;padding:10px 18px 8px;}
+  .appbar .back{font-size:26px;color:var(--on-surface);width:28px;}
+  .appbar .title{font-size:25px;font-weight:600;color:var(--on-surface);}
+  .subtitle{padding:2px 22px 12px;font-size:14px;color:var(--on-variant);line-height:1.4;}
+  /* блок доп.времени */
+  .bonus-card{margin:6px 16px 14px;background:var(--container);border-radius:18px;padding:16px 18px;}
+  .bonus-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .bonus-head .ic{font-size:22px;}
+  .bonus-head .t{font-size:18px;font-weight:600;color:var(--on-surface);}
+  .bonus-sub{font-size:13px;color:var(--on-variant);line-height:1.4;margin-bottom:14px;}
+  .bonus-active{display:flex;align-items:center;justify-content:space-between;
+    background:var(--gold-bg);border-radius:12px;padding:10px 14px;margin-bottom:14px;}
+  .bonus-active .val{font-size:16px;font-weight:700;color:#8a6412;}
+  .bonus-active .cancel{font-size:14px;font-weight:600;color:var(--primary);}
+  .bonus-btns{display:flex;gap:12px;}
+  .chip{flex:1;height:46px;border:1.5px solid var(--primary);border-radius:23px;
+    display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;font-weight:600;color:var(--primary);}
+  .chip .plus{font-size:18px;}
+  /* карточка дней */
+  .card{margin:0 16px;background:var(--white);border-radius:16px;overflow:hidden;}
+  .day{display:flex;align-items:center;padding:14px 16px;font-size:16px;color:var(--on-surface);}
+  .day .nm{flex:1;}
+  .day .today{background:var(--container-high);color:var(--primary);font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:7px;margin-right:8px;}
+  .day .lim{font-size:14px;font-weight:700;color:var(--primary);}
+  .day + .day{border-top:1px solid var(--divider);}
+  .section-label{padding:6px 22px 8px;font-size:13px;font-weight:600;color:var(--on-variant);text-transform:uppercase;letter-spacing:.4px;}
+  /* bottom sheet (для приложения) */
+  .dim{position:absolute;inset:0;background:rgba(10,20,24,.38);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:28px 28px 0 0;padding:14px 24px 24px;}
+  .grab{width:36px;height:4px;background:#b6ccd3;border-radius:2px;margin:2px auto 16px;}
+  .sheet .app{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+  .sheet .app .ic{width:40px;height:40px;border-radius:10px;background:#4285F4;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;}
+  .sheet .app .nm{font-size:21px;font-weight:600;color:var(--on-surface);}
+  .sheet .hint{font-size:13px;color:var(--on-variant);margin:2px 0 16px;}
+  .sheet .value{font-size:30px;font-weight:700;color:var(--primary);text-align:center;margin-bottom:10px;}
+  .slider{height:6px;background:var(--container-high);border-radius:3px;position:relative;margin:12px 4px 20px;}
+  .slider .fill{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--primary);border-radius:3px;}
+  .slider .knob{position:absolute;left:38%;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;background:var(--primary);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+  .sheet-divider{height:1px;background:var(--divider);margin:6px 0 14px;}
+  .btns{display:flex;gap:12px;margin-top:6px;}
+  .btn{flex:1;height:50px;border-radius:25px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;}
+  .btn.text{color:var(--primary);}
+  .btn.filled{background:var(--primary);color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- 1: Дневной лимит, доп.время НЕ выдано -->
+<div class="col">
+  <div class="caption">1 · «Дневной лимит» — блок «Дополнительное время» (бонус ещё не выдан)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="appbar"><div class="back">←</div><div class="title">Дневной лимит</div></div>
+    <div class="subtitle">Сколько времени в день ребёнок может пользоваться телефоном</div>
+    <div class="bonus-card">
+      <div class="bonus-head"><span class="ic">⏱️</span><span class="t">Дополнительное время</span></div>
+      <div class="bonus-sub">Добавить время сверх лимита — только на сегодня. Суммируется.</div>
+      <div class="bonus-btns">
+        <div class="chip"><span class="plus">+</span>15 мин</div>
+        <div class="chip"><span class="plus">+</span>30 мин</div>
+      </div>
+    </div>
+    <div class="section-label">Лимит по дням</div>
+    <div class="card">
+      <div class="day"><span class="nm">Понедельник</span><span class="today">Сегодня</span><span class="lim">1 ч 30 мин</span></div>
+      <div class="day"><span class="nm">Вторник</span><span class="lim">1 ч 30 мин</span></div>
+      <div class="day"><span class="nm">Среда</span><span class="lim">1 ч 30 мин</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: Дневной лимит, доп.время выдано +30 -->
+<div class="col">
+  <div class="caption">2 · Тот же блок, когда бонус активен (+30 мин, можно отменить)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="appbar"><div class="back">←</div><div class="title">Дневной лимит</div></div>
+    <div class="subtitle">Сколько времени в день ребёнок может пользоваться телефоном</div>
+    <div class="bonus-card">
+      <div class="bonus-head"><span class="ic">⏱️</span><span class="t">Дополнительное время</span></div>
+      <div class="bonus-sub">Добавить время сверх лимита — только на сегодня. Суммируется.</div>
+      <div class="bonus-active"><span class="val">Сегодня выдано: +30 мин</span><span class="cancel">Отменить</span></div>
+      <div class="bonus-btns">
+        <div class="chip"><span class="plus">+</span>15 мин</div>
+        <div class="chip"><span class="plus">+</span>30 мин</div>
+      </div>
+    </div>
+    <div class="section-label">Лимит по дням</div>
+    <div class="card">
+      <div class="day"><span class="nm">Понедельник</span><span class="today">Сегодня</span><span class="lim">1 ч 30 мин</span></div>
+      <div class="day"><span class="nm">Вторник</span><span class="lim">1 ч 30 мин</span></div>
+      <div class="day"><span class="nm">Среда</span><span class="lim">1 ч 30 мин</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: bottom-sheet приложения с секцией доп.времени -->
+<div class="col">
+  <div class="caption">3 · «Лимиты приложений» — секция доп. времени в bottom-sheet приложения</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="appbar"><div class="back">←</div><div class="title">Лимиты приложений</div></div>
+    <div class="subtitle">Задайте отдельным приложениям свой дневной лимит.</div>
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="app"><div class="ic">▶</div><div class="nm">YouTube</div></div>
+      <div class="hint">Личный дневной лимит этого приложения</div>
+      <div class="value">1 ч 00 мин</div>
+      <div class="slider"><div class="fill"></div><div class="knob"></div></div>
+      <div class="btns" style="margin-bottom:18px;">
+        <div class="btn text">Убрать лимит</div>
+        <div class="btn filled">Сохранить</div>
+      </div>
+      <div class="sheet-divider"></div>
+      <div class="bonus-head" style="margin-bottom:2px;"><span class="ic">⏱️</span><span class="t" style="font-size:16px;">Дополнительное время</span></div>
+      <div class="bonus-sub" style="margin-bottom:12px;">Сверх лимита этого приложения на сегодня</div>
+      <div class="bonus-active"><span class="val">Сегодня: +15 мин</span><span class="cancel">Отменить</span></div>
+      <div class="bonus-btns">
+        <div class="chip"><span class="plus">+</span>15 мин</div>
+        <div class="chip"><span class="plus">+</span>30 мин</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

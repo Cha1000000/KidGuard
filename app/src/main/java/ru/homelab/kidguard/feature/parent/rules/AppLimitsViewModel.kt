@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
@@ -27,7 +28,9 @@ data class AppLimitUi(
     /** Личный дневной лимит (минут), либо null, если не задан. */
     val limitMinutes: Int?,
     /** Израсходовано этим приложением сегодня (минут). */
-    val spentMinutes: Int
+    val spentMinutes: Int,
+    /** Активное «Дополнительное время» приложения на сегодня (минут). */
+    val bonusMinutes: Int
 )
 
 @HiltViewModel
@@ -35,6 +38,7 @@ class AppLimitsViewModel @Inject constructor(
     private val installedAppsProvider: InstalledAppsProvider,
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
+    private val bonusRepository: BonusRepository,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
 
@@ -47,8 +51,9 @@ class AppLimitsViewModel @Inject constructor(
         val combined = combine(
             installedApps,
             policyRepository.appLimits,
-            usageRepository.appScreenTimeByPackage(today)
-        ) { apps, limits, usedByPackage ->
+            usageRepository.appScreenTimeByPackage(today),
+            bonusRepository.appBonusMinutes(today)
+        ) { apps, limits, usedByPackage, bonusByPackage ->
             apps
                 .map { app ->
                     AppLimitUi(
@@ -56,7 +61,8 @@ class AppLimitsViewModel @Inject constructor(
                         label = app.label,
                         icon = app.icon,
                         limitMinutes = limits[app.packageName],
-                        spentMinutes = (usedByPackage[app.packageName] ?: 0) / 60
+                        spentMinutes = (usedByPackage[app.packageName] ?: 0) / 60,
+                        bonusMinutes = bonusByPackage[app.packageName] ?: 0
                     )
                 }
                 // Приложения с заданным лимитом — вверх; внутри групп сохраняем алфавит.
@@ -67,5 +73,15 @@ class AppLimitsViewModel @Inject constructor(
 
     fun setAppLimit(packageName: String, minutes: Int?) {
         viewModelScope.launch { policyRepository.setAppLimit(packageName, minutes) }
+    }
+
+    /** Добавить приложению дополнительное время на сегодня (суммируется). */
+    fun addAppBonus(packageName: String, minutes: Int) {
+        viewModelScope.launch { bonusRepository.addBonus(currentDateProvider.today(), packageName, minutes) }
+    }
+
+    /** Отменить дополнительное время приложения на сегодня. */
+    fun clearAppBonus(packageName: String) {
+        viewModelScope.launch { bonusRepository.clearBonus(currentDateProvider.today(), packageName) }
     }
 }

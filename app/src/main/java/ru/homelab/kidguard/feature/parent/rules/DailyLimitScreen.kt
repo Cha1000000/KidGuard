@@ -51,6 +51,7 @@ fun DailyLimitScreen(
     viewModel: DailyLimitViewModel = hiltViewModel()
 ) {
     val limits by viewModel.dailyLimits.collectAsStateWithLifecycle()
+    val phoneBonus by viewModel.phoneBonusMinutes.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
@@ -77,6 +78,15 @@ fun DailyLimitScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
+            Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                BonusSection(
+                    activeBonusMinutes = phoneBonus,
+                    subtitleRes = R.string.bonus_subtitle_phone,
+                    onAdd = { viewModel.addPhoneBonus(it) },
+                    onClear = { viewModel.clearPhoneBonus() },
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
                 val days = DayOfWeek.entries
                 days.forEachIndexed { index, day ->
