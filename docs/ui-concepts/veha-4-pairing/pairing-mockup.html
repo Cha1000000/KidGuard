@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --white:#FFFFFF; --primary:#2E6B7E; --on-primary:#FFFFFF; --on-surface:#16232A;
+    --on-variant:#5B6B72; --outline:#C9DDE4; --gold:#E0A73C; --gold-bg:#F7EBD2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:48px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:18px;}
+  .caption{color:#cfe0e6;font-size:20px;font-weight:600;max-width:400px;text-align:center;line-height:1.35;}
+  .phone{width:400px;height:860px;background:var(--bg);border-radius:42px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;}
+  .status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .title-lg{font-size:26px;font-weight:600;color:var(--on-surface);padding:12px 22px 4px;}
+  .appbar{display:flex;align-items:center;gap:14px;padding:8px 18px;}
+  .appbar .back{font-size:24px;color:var(--on-surface);width:26px;}
+  .appbar .t{font-size:23px;font-weight:600;color:var(--on-surface);}
+  /* центрированный контент (ребёнок) */
+  .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px;}
+  .ic-badge{width:84px;height:84px;border-radius:22px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:42px;margin-bottom:22px;}
+  .h1{font-size:22px;font-weight:700;color:var(--on-surface);text-align:center;margin-bottom:8px;}
+  .sub{font-size:14px;color:var(--on-variant);text-align:center;line-height:1.5;margin-bottom:30px;max-width:290px;}
+  .code-input{display:flex;gap:10px;margin-bottom:28px;}
+  .code-box{width:44px;height:56px;border:2px solid var(--outline);border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--on-surface);}
+  .code-box.filled{border-color:var(--primary);}
+  .code-box.cursor{border-color:var(--primary);}
+  .btn{width:100%;max-width:300px;height:52px;border-radius:26px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;}
+  .btn.disabled{background:var(--container-high);color:var(--on-variant);}
+  .hint{margin-top:18px;font-size:12px;color:var(--on-variant);text-align:center;max-width:280px;line-height:1.5;}
+  /* список детей (родитель) */
+  .kid-card{margin:6px 16px;background:var(--container);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;}
+  .kid-av{width:46px;height:46px;border-radius:50%;background:var(--container-high);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+  .kid-info{flex:1;}
+  .kid-name{font-size:18px;font-weight:600;color:var(--on-surface);}
+  .kid-status{font-size:13px;margin-top:2px;}
+  .kid-status.ok{color:#2e7d52;}
+  .kid-status.wait{color:#8a6412;}
+  .kid-card .arr{color:var(--on-variant);font-size:22px;}
+  .fab-row{margin:14px 16px;}
+  .add-btn{width:100%;height:54px;border:2px dashed var(--primary);border-radius:16px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--primary);font-size:16px;font-weight:600;}
+  /* bottom sheet: добавить ребёнка (показ кода) */
+  .dim{position:absolute;inset:0;background:rgba(10,20,24,.42);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:26px 26px 0 0;padding:14px 26px 28px;}
+  .grab{width:36px;height:4px;background:#b6ccd3;border-radius:2px;margin:2px auto 18px;}
+  .sheet h3{font-size:20px;font-weight:600;color:var(--on-surface);margin-bottom:6px;}
+  .sheet .sub2{font-size:13px;color:var(--on-variant);margin-bottom:18px;line-height:1.4;}
+  .code-display{background:var(--gold-bg);border-radius:16px;padding:18px;text-align:center;margin-bottom:14px;}
+  .code-big{font-size:44px;font-weight:800;letter-spacing:8px;color:#8a6412;}
+  .code-timer{font-size:13px;color:var(--on-variant);margin-top:6px;}
+  .code-actions{display:flex;gap:12px;}
+  .oc-btn{flex:1;height:48px;border-radius:24px;border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;gap:8px;color:var(--primary);font-size:15px;font-weight:600;}
+  .field{border:1.5px solid var(--outline);border-radius:14px;height:52px;display:flex;align-items:center;padding:0 16px;color:var(--on-variant);font-size:15px;background:var(--white);margin-bottom:16px;}
+  .coparent-link{display:flex;align-items:center;gap:8px;color:var(--primary);font-size:14px;font-weight:600;padding:12px 20px;}
+</style>
+</head>
+<body>
+
+<!-- 1: ребёнок вводит код -->
+<div class="col">
+  <div class="caption">1 · Детское устройство — ввод кода привязки</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="center">
+      <div class="ic-badge">🔗</div>
+      <div class="h1">Введите код от родителя</div>
+      <div class="sub">Попросите родителя добавить вас в приложении KidGuard и продиктовать 6-значный код.</div>
+      <div class="code-input">
+        <div class="code-box filled">4</div>
+        <div class="code-box filled">8</div>
+        <div class="code-box filled">2</div>
+        <div class="code-box cursor">9</div>
+        <div class="code-box"></div>
+        <div class="code-box"></div>
+      </div>
+      <div class="btn disabled">Привязать</div>
+      <div class="hint">Код действует ограниченное время. Если истёк — попросите родителя создать новый.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: родитель — список детей -->
+<div class="col">
+  <div class="caption">2 · Родитель — вкладка «Дети»</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title-lg">Дети</div>
+    <div class="kid-card">
+      <div class="kid-av">🧒</div>
+      <div class="kid-info"><div class="kid-name">Петя</div><div class="kid-status ok">● Привязан</div></div>
+      <div class="arr">›</div>
+    </div>
+    <div class="kid-card">
+      <div class="kid-av">👧</div>
+      <div class="kid-info"><div class="kid-name">Маша</div><div class="kid-status wait">● Ждёт ввода кода</div></div>
+      <div class="arr">›</div>
+    </div>
+    <div class="fab-row">
+      <div class="add-btn"><span style="font-size:22px;">＋</span> Добавить ребёнка</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="height:78px;background:var(--container);display:flex;justify-content:space-around;align-items:center;padding-bottom:12px;">
+      <div style="text-align:center;color:var(--primary);font-size:12px;font-weight:600;">🧒<br>Дети</div>
+      <div style="text-align:center;color:var(--on-variant);font-size:12px;">🔒<br>Правила</div>
+      <div style="text-align:center;color:var(--on-variant);font-size:12px;">📊<br>Статистика</div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: родитель — добавление ребёнка, показ кода -->
+<div class="col">
+  <div class="caption">3 · Родитель — имя ребёнка задано, показан код</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title-lg" style="opacity:.4;">Дети</div>
+    <div class="kid-card" style="opacity:.4;"><div class="kid-av">🧒</div><div class="kid-info"><div class="kid-name">Петя</div></div></div>
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>Код для привязки</h3>
+      <div class="sub2">Продиктуйте этот код ребёнку — пусть введёт его на своём телефоне в KidGuard (режим «ребёнка»).</div>
+      <div class="code-display">
+        <div class="code-big">482 915</div>
+        <div class="code-timer">Код действует, пока ребёнок его не введёт</div>
+      </div>
+      <div class="code-actions">
+        <div class="oc-btn">⧉ Скопировать</div>
+        <div class="oc-btn">↗ Поделиться</div>
+      </div>
+      <div class="coparent-link" style="justify-content:center;margin-top:14px;">＋ Пригласить второго родителя</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
