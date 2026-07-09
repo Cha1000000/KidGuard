@@ -19,13 +19,13 @@ import ru.homelab.kidguard.feature.auth.SignInScreen
 import ru.homelab.kidguard.feature.child.ChildScreen
 import ru.homelab.kidguard.feature.onboarding.OnboardingScreen
 import ru.homelab.kidguard.feature.onboarding.permissions.PermissionsWizardScreen
+import ru.homelab.kidguard.feature.pairing.PairingScreen
 import ru.homelab.kidguard.feature.parent.ParentScreen
 
 /**
- * Корень UI. По стартовому состоянию (роль выбрана, сессия входа валидна) поднимает навигацию
- * с нужным начальным экраном. Роль — единоразовый выбор навсегда; сессия входа через Google
- * (веха 4) может истечь и потребовать повторного входа — тогда стартовым маршрутом будет `LOGIN`
- * (см. [AppViewModel]).
+ * Корень UI. По стартовому состоянию поднимает навигацию с нужным начальным экраном. Роль —
+ * единоразовый выбор навсегда. Родитель входит через Google (`LOGIN`, сессия может истечь);
+ * ребёнок привязывает устройство pairing-кодом (`PAIRING`) — без Google-входа (см. [AppViewModel]).
  */
 @Composable
 fun KidGuardApp(
@@ -54,28 +54,36 @@ fun KidGuardApp(
             ) {
                 composable(Destinations.ONBOARDING) {
                     OnboardingScreen(
-                        onRoleChosen = {
-                            // Роль сохранена — дальше в любом случае нужен вход через Google
-                            // (веха 4), он и решит, куда вести дальше (см. LOGIN ниже).
-                            navController.navigate(Destinations.LOGIN) {
+                        onRoleChosen = { role ->
+                            // Родитель → вход через Google; ребёнок → привязка pairing-кодом.
+                            val target = if (role == Role.PARENT) {
+                                Destinations.LOGIN
+                            } else {
+                                Destinations.PAIRING
+                            }
+                            navController.navigate(target) {
                                 popUpTo(Destinations.ONBOARDING) { inclusive = true }
                             }
                         }
                     )
                 }
                 composable(Destinations.LOGIN) {
+                    // Google-вход — только роль родителя (ребёнок сюда не попадает).
                     SignInScreen(
-                        onSignedIn = { role ->
-                            // Родитель — сразу в свой режим. Ребёнок — через мастер разрешений:
-                            // он идемпотентен (проверяет реальные системные разрешения), поэтому
-                            // безопасно показывать его и повторно вошедшему пользователю.
-                            val target = if (role == Role.PARENT) {
-                                Destinations.PARENT
-                            } else {
-                                Destinations.PERMISSIONS
-                            }
-                            navController.navigate(target) {
+                        onSignedIn = {
+                            navController.navigate(Destinations.PARENT) {
                                 popUpTo(Destinations.LOGIN) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+                composable(Destinations.PAIRING) {
+                    PairingScreen(
+                        onPaired = {
+                            // После привязки — мастер разрешений (идемпотентен: проверяет реальные
+                            // системные разрешения, безопасно показывать и повторно), затем детский режим.
+                            navController.navigate(Destinations.PERMISSIONS) {
+                                popUpTo(Destinations.PAIRING) { inclusive = true }
                             }
                         }
                     )

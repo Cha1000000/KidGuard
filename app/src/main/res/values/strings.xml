@@ -15,6 +15,41 @@
     <string name="signin_consent_hint">Продолжая, вы соглашаетесь на использование Google-аккаунта для входа в KidGuard.</string>
     <string name="signin_error">Не удалось войти. Проверьте подключение к интернету и попробуйте снова.</string>
 
+    <!-- Привязка детского устройства (pairing-код) -->
+    <string name="pairing_title">Введите код от родителя</string>
+    <string name="pairing_subtitle">Попросите родителя добавить вас в приложении KidGuard и продиктовать 6-значный код.</string>
+    <string name="pairing_button">Привязать</string>
+    <string name="pairing_loading">Привязываем устройство…</string>
+    <string name="pairing_hint">Код действует, пока родитель не создаст новый.</string>
+    <string name="pairing_error">Неверный код или он уже использован. Попросите родителя создать новый.</string>
+
+    <!-- Дети (родитель): список, добавление, pairing-код, второй родитель -->
+    <string name="children_add">Добавить ребёнка</string>
+    <string name="children_empty">Пока нет детей. Добавьте ребёнка и привяжите его устройство кодом.</string>
+    <string name="children_status_paired">Привязан</string>
+    <string name="children_status_waiting">Ждёт ввода кода</string>
+    <string name="children_load_error">Не удалось загрузить список. Проверьте подключение.</string>
+    <string name="add_child_title">Новый ребёнок</string>
+    <string name="add_child_name_label">Имя ребёнка</string>
+    <string name="add_child_avatar_label">Выберите аватар</string>
+    <string name="add_child_create">Создать</string>
+    <string name="child_code_title">Код для привязки</string>
+    <string name="child_code_subtitle">Продиктуйте код ребёнку — пусть введёт его на своём телефоне в KidGuard (режим «ребёнка»).</string>
+    <string name="child_code_hint">Код действует, пока ребёнок его не введёт.</string>
+    <string name="child_code_copy">Скопировать</string>
+    <string name="child_code_copied">Код скопирован</string>
+    <string name="child_code_new">Новый код</string>
+    <string name="child_code_get">Показать код для привязки</string>
+    <string name="child_coparent">Пригласить второго родителя</string>
+    <string name="coparent_title">Второй родитель</string>
+    <string name="coparent_subtitle">Введите email второго родителя. Он получит доступ к этому ребёнку после входа через Google.</string>
+    <string name="coparent_email_label">Email второго родителя</string>
+    <string name="coparent_invite">Пригласить</string>
+    <string name="coparent_linked">Родитель добавлен</string>
+    <string name="coparent_pending">Приглашение отправлено — родитель получит доступ после входа</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_error">Что-то пошло не так. Проверьте подключение и попробуйте снова.</string>
+
     <!-- Родитель: нижняя навигация -->
     <string name="parent_tab_children">Дети</string>
     <string name="parent_tab_rules">Правила</string>

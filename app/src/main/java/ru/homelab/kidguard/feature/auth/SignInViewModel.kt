@@ -6,24 +6,21 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import ru.homelab.kidguard.core.domain.model.Role
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
-import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import javax.inject.Inject
 
 sealed interface SignInUiState {
     data object Idle : SignInUiState
     data object Loading : SignInUiState
-    data class Success(val role: Role) : SignInUiState
+    data object Success : SignInUiState
     data object Error : SignInUiState
 }
 
+/** Google-вход — только роль родителя (ребёнок привязывается pairing-кодом, см. PairingScreen). */
 @HiltViewModel
 class SignInViewModel @Inject constructor(
-    private val authRepository: AuthRepository,
-    private val settingsRepository: SettingsRepository
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignInUiState>(SignInUiState.Idle)
@@ -36,12 +33,7 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             val result = authRepository.signInWithGoogleIdToken(googleIdToken)
             _uiState.value = result.fold(
-                onSuccess = {
-                    // К этому моменту роль уже выбрана и сохранена (шаг онбординга перед входом,
-                    // либо это возвращающийся пользователь) — читаем её, чтобы решить, куда вести.
-                    val role = settingsRepository.role.first() ?: Role.PARENT
-                    SignInUiState.Success(role)
-                },
+                onSuccess = { SignInUiState.Success },
                 onFailure = { SignInUiState.Error }
             )
         }

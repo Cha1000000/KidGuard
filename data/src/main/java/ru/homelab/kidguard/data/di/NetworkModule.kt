@@ -10,6 +10,8 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.homelab.kidguard.data.network.AuthApi
+import ru.homelab.kidguard.data.network.AuthTokenInterceptor
+import ru.homelab.kidguard.data.network.ChildrenApi
 import javax.inject.Singleton
 
 @Module
@@ -27,7 +29,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
+    fun provideOkHttpClient(authTokenInterceptor: AuthTokenInterceptor): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(authTokenInterceptor)
+            .build()
 
     @Provides
     @Singleton
@@ -41,4 +46,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideChildrenApi(retrofit: Retrofit): ChildrenApi = retrofit.create(ChildrenApi::class.java)
 }

@@ -33,7 +33,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.R
-import ru.homelab.kidguard.core.domain.model.Role
 
 /**
  * Экран входа через Google — общий для обеих ролей, показывается один раз после выбора роли
@@ -41,7 +40,7 @@ import ru.homelab.kidguard.core.domain.model.Role
  */
 @Composable
 fun SignInScreen(
-    onSignedIn: (Role) -> Unit,
+    onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SignInViewModel = hiltViewModel()
 ) {
@@ -50,9 +49,8 @@ fun SignInScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiState) {
-        val state = uiState
-        if (state is SignInUiState.Success) {
-            onSignedIn(state.role)
+        if (uiState is SignInUiState.Success) {
+            onSignedIn()
         }
     }
 

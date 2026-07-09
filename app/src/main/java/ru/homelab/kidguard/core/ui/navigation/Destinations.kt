@@ -4,6 +4,7 @@ package ru.homelab.kidguard.core.ui.navigation
 object Destinations {
     const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
+    const val PAIRING = "pairing"
     const val PERMISSIONS = "permissions"
     const val PARENT = "parent"
     const val CHILD = "child"

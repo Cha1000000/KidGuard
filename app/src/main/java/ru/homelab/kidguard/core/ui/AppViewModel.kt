@@ -20,9 +20,10 @@ sealed interface AppStartState {
 }
 
 /**
- * Определяет, куда вести пользователя при запуске: в мастер первичной настройки (роль ещё не
- * выбрана), в экран входа (роль выбрана, но сохранённой рабочей сессии нет — не входили или
- * истёк JWT — веха 4), либо сразу в граф родителя/ребёнка.
+ * Определяет, куда вести пользователя при запуске, по роли устройства и состоянию сессии:
+ * - роль не выбрана → онбординг;
+ * - родитель без валидной Google-сессии → вход через Google; иначе → родительский режим;
+ * - ребёнок без привязки устройства → экран pairing-кода; иначе → детский режим.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
@@ -33,13 +34,13 @@ class AppViewModel @Inject constructor(
     val startState: StateFlow<AppStartState> = combine(
         settingsRepository.setupCompleted,
         settingsRepository.role,
-        authRepository.hasValidSession
-    ) { completed, role, hasValidSession ->
+        authRepository.hasValidSession,
+        authRepository.hasPairedDevice
+    ) { completed, role, hasValidSession, hasPairedDevice ->
         val route = when {
             !completed || role == null -> Destinations.ONBOARDING
-            !hasValidSession -> Destinations.LOGIN
-            role == Role.PARENT -> Destinations.PARENT
-            else -> Destinations.CHILD
+            role == Role.PARENT -> if (hasValidSession) Destinations.PARENT else Destinations.LOGIN
+            else -> if (hasPairedDevice) Destinations.CHILD else Destinations.PAIRING
         }
         AppStartState.Ready(route)
     }.stateIn(
