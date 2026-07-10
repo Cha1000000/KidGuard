@@ -13,13 +13,18 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
+import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.repository.PolicySyncRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
+import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthLocalStore
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.PolicyApi
 import ru.homelab.kidguard.data.network.PolicyDocumentDto
 import ru.homelab.kidguard.data.network.PutPolicyRequest
+import ru.homelab.kidguard.data.network.UsageApi
+import ru.homelab.kidguard.data.network.UsageBatchRequest
+import ru.homelab.kidguard.data.network.UsageEntryDto
 import timber.log.Timber
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -28,13 +33,16 @@ import javax.inject.Singleton
 private val Context.syncDataStore by preferencesDataStore(name = "kidguard_sync")
 
 @Singleton
-class PolicySyncRepositoryImpl @Inject constructor(
+class SyncRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val policyApi: PolicyApi,
     private val childrenApi: ChildrenApi,
+    private val usageApi: UsageApi,
     private val policyRepository: PolicyRepository,
+    private val usageRepository: UsageRepository,
+    private val currentDateProvider: CurrentDateProvider,
     private val authLocalStore: AuthLocalStore
-) : PolicySyncRepository {
+) : SyncRepository {
 
     private object Keys {
         /**
@@ -79,9 +87,31 @@ class PolicySyncRepositoryImpl @Inject constructor(
             if (childId != null) {
                 runCatching { pullAndApply(childId) }
                     .onFailure { Timber.tag(TAG).w(it, "Pull политики не удался (повторим через интервал)") }
+                runCatching { pushUsage(childId) }
+                    .onFailure { Timber.tag(TAG).w(it, "Отправка статистики не удалась (повторим через интервал)") }
             }
             delay(CHILD_PULL_INTERVAL_MS)
         }
+    }
+
+    /**
+     * Отправляет статистику за сегодня и вчера (вчера — дослать хвост дня после полуночи).
+     * Значения АБСОЛЮТНЫЕ (накопленные за день из Room) — сервер перезаписывает, повтор безопасен.
+     */
+    private suspend fun pushUsage(childId: Int) {
+        val today = currentDateProvider.today()
+        val entries = buildList {
+            for (date in listOf(today.minusDays(1), today)) {
+                val total = usageRepository.screenTimeSeconds(date).first()
+                if (total > 0) add(UsageEntryDto(date.toString(), packageName = "", seconds = total))
+                usageRepository.appScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
+                    if (seconds > 0) add(UsageEntryDto(date.toString(), packageName = pkg, seconds = seconds))
+                }
+            }
+        }
+        if (entries.isEmpty()) return
+        usageApi.sendUsage(childId, UsageBatchRequest(entries))
+        Timber.tag(TAG).d("Статистика отправлена (%d записей)", entries.size)
     }
 
     // --- Pull / Push ----------------------------------------------------------------------------

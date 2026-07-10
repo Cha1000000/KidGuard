@@ -9,7 +9,7 @@ import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.repository.PolicySyncRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthRepositoryImpl
@@ -18,7 +18,7 @@ import ru.homelab.kidguard.data.children.ChildRepositoryImpl
 import ru.homelab.kidguard.data.date.CurrentDateProviderImpl
 import ru.homelab.kidguard.data.policy.PolicyRepositoryImpl
 import ru.homelab.kidguard.data.settings.SettingsRepositoryImpl
-import ru.homelab.kidguard.data.sync.PolicySyncRepositoryImpl
+import ru.homelab.kidguard.data.sync.SyncRepositoryImpl
 import ru.homelab.kidguard.data.usage.UsageRepositoryImpl
 import javax.inject.Singleton
 
@@ -56,5 +56,5 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindPolicySyncRepository(impl: PolicySyncRepositoryImpl): PolicySyncRepository
+    abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
 }

@@ -13,6 +13,7 @@ import ru.homelab.kidguard.data.network.AuthApi
 import ru.homelab.kidguard.data.network.AuthTokenInterceptor
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.PolicyApi
+import ru.homelab.kidguard.data.network.UsageApi
 import javax.inject.Singleton
 
 @Module
@@ -55,4 +56,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePolicyApi(retrofit: Retrofit): PolicyApi = retrofit.create(PolicyApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUsageApi(retrofit: Retrofit): UsageApi = retrofit.create(UsageApi::class.java)
 }

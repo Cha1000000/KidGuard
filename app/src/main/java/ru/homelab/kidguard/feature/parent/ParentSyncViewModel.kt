@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import ru.homelab.kidguard.core.domain.repository.PolicySyncRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import javax.inject.Inject
 
 /**
@@ -14,10 +14,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ParentSyncViewModel @Inject constructor(
-    policySyncRepository: PolicySyncRepository
+    syncRepository: SyncRepository
 ) : ViewModel() {
 
     init {
-        viewModelScope.launch { policySyncRepository.parentSyncLoop() }
+        viewModelScope.launch { syncRepository.parentSyncLoop() }
     }
 }
