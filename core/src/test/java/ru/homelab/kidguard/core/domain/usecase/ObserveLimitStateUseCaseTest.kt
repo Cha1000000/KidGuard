@@ -95,6 +95,11 @@ class ObserveLimitStateUseCaseTest {
         override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
         override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
         override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
+        override suspend fun replaceAll(
+            dailyLimits: Map<DayOfWeek, Int>,
+            appLimits: Map<String, Int>,
+            whitelist: Set<String>
+        ) = Unit
     }
 
     private class FakeUsageRepository(private val seconds: Int) : UsageRepository {

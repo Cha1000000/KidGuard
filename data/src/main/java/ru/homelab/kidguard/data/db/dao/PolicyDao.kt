@@ -2,6 +2,7 @@ package ru.homelab.kidguard.data.db.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
@@ -37,4 +38,32 @@ interface PolicyDao {
 
     @Query("DELETE FROM whitelisted_app WHERE packageName = :packageName")
     suspend fun removeFromWhitelist(packageName: String)
+
+    @Query("DELETE FROM day_limit")
+    suspend fun deleteAllDayLimits()
+
+    @Query("DELETE FROM app_limits")
+    suspend fun deleteAllAppLimits()
+
+    @Query("DELETE FROM whitelisted_app")
+    suspend fun deleteAllWhitelist()
+
+    /**
+     * Транзакционно заменяет ВСЮ политику разом (применение серверного документа — веха 4.3):
+     * либо применяется целиком, либо не применяется вовсе — исполнители (блокировка/учёт)
+     * не увидят промежуточного полупустого состояния.
+     */
+    @Transaction
+    suspend fun replaceAllPolicy(
+        dayLimits: List<DayLimitEntity>,
+        appLimits: List<AppLimitEntity>,
+        whitelist: List<WhitelistedAppEntity>
+    ) {
+        deleteAllDayLimits()
+        deleteAllAppLimits()
+        deleteAllWhitelist()
+        dayLimits.forEach { upsertDayLimit(it) }
+        appLimits.forEach { upsertAppLimit(it) }
+        whitelist.forEach { addToWhitelist(it) }
+    }
 }

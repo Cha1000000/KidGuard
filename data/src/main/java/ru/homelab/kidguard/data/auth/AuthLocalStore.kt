@@ -81,4 +81,7 @@ class AuthLocalStore @Inject constructor(
         return prefs[Keys.TOKEN]?.takeIf { it.isNotBlank() }
             ?: prefs[Keys.DEVICE_TOKEN]?.takeIf { it.isNotBlank() }
     }
+
+    /** id привязанного ребёнка (детская сессия), либо null, если устройство не привязано. */
+    suspend fun pairedChildId(): Int? = context.authDataStore.data.first()[Keys.CHILD_ID]
 }

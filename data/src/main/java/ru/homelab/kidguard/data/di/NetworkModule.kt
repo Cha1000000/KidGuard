@@ -12,6 +12,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.homelab.kidguard.data.network.AuthApi
 import ru.homelab.kidguard.data.network.AuthTokenInterceptor
 import ru.homelab.kidguard.data.network.ChildrenApi
+import ru.homelab.kidguard.data.network.PolicyApi
 import javax.inject.Singleton
 
 @Module
@@ -50,4 +51,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideChildrenApi(retrofit: Retrofit): ChildrenApi = retrofit.create(ChildrenApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePolicyApi(retrofit: Retrofit): PolicyApi = retrofit.create(PolicyApi::class.java)
 }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.core.domain.repository.PolicySyncRepository
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.overlay.BlockingController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
@@ -41,10 +42,14 @@ class KidGuardForegroundService : Service() {
     @Inject
     lateinit var warningController: WarningController
 
+    @Inject
+    lateinit var policySyncRepository: PolicySyncRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
     private var warningJob: Job? = null
+    private var policySyncJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -61,6 +66,11 @@ class KidGuardForegroundService : Service() {
         }
         if (warningJob == null) {
             warningJob = scope.launch { warningController.run() }
+        }
+        if (policySyncJob == null) {
+            // Периодический pull единой политики с сервера (веха 4.3) — правила родителя
+            // доезжают до устройства и применяются в Room офлайн-движком.
+            policySyncJob = scope.launch { policySyncRepository.childSyncLoop() }
         }
         // START_STICKY — система перезапустит сервис, если он будет убит.
         return START_STICKY

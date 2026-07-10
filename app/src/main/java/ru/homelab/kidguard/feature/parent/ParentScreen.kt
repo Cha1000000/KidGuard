@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +34,11 @@ private const val ROUTE_RULES_APP_LIMITS = "parent/rules/app-limits"
  * графом. Содержимое вкладок — заглушки, наполняются на следующих вехах.
  */
 @Composable
-fun ParentScreen(modifier: Modifier = Modifier) {
+fun ParentScreen(
+    modifier: Modifier = Modifier,
+    // Поднимает петлю синхронизации политики (веха 4.3) на время жизни родительского режима.
+    @Suppress("UNUSED_PARAMETER") syncViewModel: ParentSyncViewModel = hiltViewModel()
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route

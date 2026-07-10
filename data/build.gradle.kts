@@ -34,5 +34,6 @@ dependencies {
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.timber)
     compileOnly(libs.error.prone.annotations)
 }
