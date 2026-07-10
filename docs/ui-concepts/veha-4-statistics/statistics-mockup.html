@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --white:#FFFFFF; --primary:#2E6B7E; --on-surface:#16232A; --on-variant:#5B6B72;
+    --outline:#C9DDE4; --gold:#E0A73C;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:44px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .caption{color:#cfe0e6;font-size:20px;font-weight:600;max-width:400px;text-align:center;}
+  .phone{width:400px;height:860px;background:var(--bg);border-radius:42px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;}
+  .status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .title{font-size:26px;font-weight:600;color:var(--on-surface);padding:10px 20px 6px;}
+  .child-row{display:flex;align-items:center;gap:10px;padding:2px 20px 12px;}
+  .child-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f7d7a8,#e8b4d8);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .child-name{font-size:16px;font-weight:600;color:var(--on-surface);}
+  .card{margin:0 16px 12px;background:var(--container);border-radius:18px;padding:16px;}
+  .card .lbl{font-size:13px;color:var(--on-variant);margin-bottom:4px;}
+  .today-time{font-size:38px;font-weight:800;color:var(--primary);}
+  .today-sub{font-size:13px;color:var(--on-variant);margin-top:2px;}
+  /* бар-чарт 7 дней */
+  .chart{display:flex;align-items:flex-end;gap:10px;height:120px;margin-top:14px;}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .bar{width:100%;border-radius:8px 8px 4px 4px;background:var(--primary);opacity:.45;}
+  .bar.today{opacity:1;}
+  .bar-day{font-size:11px;color:var(--on-variant);}
+  .bar-val{font-size:10px;color:var(--on-variant);}
+  /* список приложений */
+  .apps-title{font-size:15px;font-weight:700;color:var(--on-surface);margin:4px 20px 8px;}
+  .app-row{display:flex;align-items:center;gap:12px;padding:10px 20px;}
+  .app-ic{width:38px;height:38px;border-radius:10px;background:var(--container-high);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--primary);font-weight:700;}
+  .app-info{flex:1;}
+  .app-name{font-size:15px;font-weight:600;color:var(--on-surface);}
+  .app-pkg{font-size:11px;color:var(--on-variant);}
+  .app-time{font-size:14px;font-weight:700;color:var(--primary);}
+  .app-track{height:5px;border-radius:3px;background:var(--container-high);margin:4px 20px 2px;overflow:hidden;}
+  .app-fill{height:100%;background:var(--primary);border-radius:3px;}
+  .nav{margin-top:auto;height:76px;background:var(--container);display:flex;justify-content:space-around;align-items:center;padding-bottom:12px;}
+  .nav div{text-align:center;font-size:12px;color:var(--on-variant);}
+  .nav .active{color:var(--primary);font-weight:600;}
+  .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 40px;}
+  .empty .ic{font-size:44px;opacity:.5;}
+  .empty .t{font-size:15px;color:var(--on-variant);text-align:center;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<!-- 1: с данными -->
+<div class="col">
+  <div class="caption">1 · «Статистика» — данные ребёнка за 7 дней</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title">Статистика</div>
+    <div class="child-row"><div class="child-av">👧</div><div class="child-name">Alina</div></div>
+
+    <div class="card">
+      <div class="lbl">Экранное время сегодня</div>
+      <div class="today-time">2 ч 15 мин</div>
+      <div class="today-sub">Лимит: 3 ч 00 мин · осталось 45 мин</div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Последние 7 дней</div>
+      <div class="chart">
+        <div class="bar-wrap"><div class="bar-val">1:20</div><div class="bar" style="height:38%"></div><div class="bar-day">Пт</div></div>
+        <div class="bar-wrap"><div class="bar-val">2:40</div><div class="bar" style="height:76%"></div><div class="bar-day">Сб</div></div>
+        <div class="bar-wrap"><div class="bar-val">3:05</div><div class="bar" style="height:88%"></div><div class="bar-day">Вс</div></div>
+        <div class="bar-wrap"><div class="bar-val">1:45</div><div class="bar" style="height:50%"></div><div class="bar-day">Пн</div></div>
+        <div class="bar-wrap"><div class="bar-val">0:55</div><div class="bar" style="height:26%"></div><div class="bar-day">Вт</div></div>
+        <div class="bar-wrap"><div class="bar-val">2:10</div><div class="bar" style="height:62%"></div><div class="bar-day">Ср</div></div>
+        <div class="bar-wrap"><div class="bar-val">2:15</div><div class="bar today" style="height:64%"></div><div class="bar-day">Чт</div></div>
+      </div>
+    </div>
+
+    <div class="apps-title">По приложениям · сегодня</div>
+    <div class="app-row">
+      <div class="app-ic">Y</div>
+      <div class="app-info"><div class="app-name">youtube</div><div class="app-pkg">com.google.android.youtube</div></div>
+      <div class="app-time">1 ч 05 мин</div>
+    </div>
+    <div class="app-track"><div class="app-fill" style="width:48%"></div></div>
+    <div class="app-row">
+      <div class="app-ic">C</div>
+      <div class="app-info"><div class="app-name">chrome</div><div class="app-pkg">com.android.chrome</div></div>
+      <div class="app-time">40 мин</div>
+    </div>
+    <div class="app-track"><div class="app-fill" style="width:30%"></div></div>
+    <div class="app-row">
+      <div class="app-ic">R</div>
+      <div class="app-info"><div class="app-name">roblox</div><div class="app-pkg">com.roblox.client</div></div>
+      <div class="app-time">30 мин</div>
+    </div>
+    <div class="app-track"><div class="app-fill" style="width:22%"></div></div>
+
+    <div class="nav"><div>🧒<br>Дети</div><div>🔒<br>Правила</div><div class="active">📊<br>Статистика</div></div>
+  </div>
+</div>
+
+<!-- 2: пусто -->
+<div class="col">
+  <div class="caption">2 · Пустое состояние (данных ещё нет)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title">Статистика</div>
+    <div class="child-row"><div class="child-av">👧</div><div class="child-name">Alina</div></div>
+    <div class="empty">
+      <div class="ic">📊</div>
+      <div class="t">Пока нет данных. Статистика появится, когда ребёнок начнёт пользоваться телефоном.</div>
+    </div>
+    <div class="nav"><div>🧒<br>Дети</div><div>🔒<br>Правила</div><div class="active">📊<br>Статистика</div></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ package ru.homelab.kidguard.core.domain.repository
 
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
+import ru.homelab.kidguard.core.domain.model.UsageEntry
 
 /**
  * Операции родителя над детьми (веха 4.2): создание ребёнка с pairing-кодом, список,
@@ -24,4 +25,7 @@ interface ChildRepository {
      * зарегистрирован и связь создана сразу; `false` — приглашение отложено до его первого входа.
      */
     suspend fun inviteCoParent(childId: Int, email: String): Result<Boolean>
+
+    /** Серверная статистика ребёнка за последние [days] дней (включая записи-тоталы). */
+    suspend fun getChildUsage(childId: Int, days: Int): Result<List<UsageEntry>>
 }

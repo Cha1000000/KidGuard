@@ -57,7 +57,16 @@
 
     <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
     <string name="parent_children_placeholder">Здесь будет список детей</string>
-    <string name="parent_statistics_placeholder">Здесь будет статистика использования</string>
+
+    <!-- Статистика (родитель) -->
+    <string name="statistics_today_label">Экранное время сегодня</string>
+    <string name="statistics_today_limit">Лимит: %1$s · осталось %2$s</string>
+    <string name="statistics_today_limit_exceeded">Лимит: %1$s · исчерпан</string>
+    <string name="statistics_week_label">Последние 7 дней</string>
+    <string name="statistics_apps_label">По приложениям · сегодня</string>
+    <string name="statistics_empty">Пока нет данных. Статистика появится, когда ребёнок начнёт пользоваться телефоном.</string>
+    <string name="statistics_load_error">Не удалось загрузить статистику. Проверьте подключение.</string>
+    <string name="statistics_no_children">Сначала добавьте ребёнка на вкладке «Дети».</string>
 
     <!-- Родитель: вкладка «Правила» -->
     <string name="rules_daily_limit_title">Дневной лимит</string>
