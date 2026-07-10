@@ -9,8 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -200,15 +199,18 @@ private fun AddChildButton(onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+private const val AVATAR_GRID_COLUMNS = 4
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddChildSheet(onDismiss: () -> Unit, onCreate: (name: String, avatar: Int) -> Unit) {
     var name by remember { mutableStateOf("") }
     var avatar by remember { mutableStateOf(0) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        // verticalScroll + FlowRow (не Lazy) — чтобы всё содержимое, включая кнопку «Создать»,
-        // было доступно скроллом на любом экране; LazyVerticalGrid внутри скролла конфликтует.
+        // verticalScroll + ручная сетка рядами (не Lazy) — чтобы всё содержимое, включая кнопку
+        // «Создать», было доступно скроллом на любом экране; LazyVerticalGrid внутри скролла
+        // конфликтует.
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -226,36 +228,56 @@ private fun AddChildSheet(onDismiss: () -> Unit, onCreate: (name: String, avatar
                 text = stringResource(R.string.add_child_avatar_label),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 18.dp, bottom = 8.dp)
+                modifier = Modifier.padding(top = 18.dp, bottom = 12.dp)
             )
-            FlowRow(
-                maxItemsInEachRow = 5,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ChildAvatars.all.forEachIndexed { index, res ->
-                    val selected = index == avatar
-                    Image(
-                        painter = painterResource(res),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .then(
-                                if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                else Modifier
-                            )
-                            .clickable { avatar = index }
-                    )
-                }
-            }
+            AvatarGrid(
+                selected = avatar,
+                onSelect = { avatar = it },
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
             Button(
                 onClick = { onCreate(name, avatar) },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 16.dp)
             ) {
                 Text(stringResource(R.string.add_child_create))
+            }
+        }
+    }
+}
+
+/**
+ * Сетка выбора аватара в [AVATAR_GRID_COLUMNS] колонки. Ячейки квадратные и делят доступную
+ * ширину поровну через `weight` — размер и отступы адаптируются под любой экран, ничего не
+ * обрезается и не наезжает. Неполный последний ряд добивается невидимыми ячейками, чтобы
+ * элементы не растягивались.
+ */
+@Composable
+private fun AvatarGrid(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val spacing = 12.dp
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
+        ChildAvatars.all.indices.chunked(AVATAR_GRID_COLUMNS).forEach { rowIndices ->
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing), modifier = Modifier.fillMaxWidth()) {
+                rowIndices.forEach { index ->
+                    val isSelected = index == selected
+                    Image(
+                        painter = painterResource(ChildAvatars.resFor(index)),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(CircleShape)
+                            .then(
+                                if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                else Modifier
+                            )
+                            .clickable { onSelect(index) }
+                    )
+                }
+                // Добить неполный ряд пустыми ячейками, чтобы аватарки не растянулись на всю ширину.
+                repeat(AVATAR_GRID_COLUMNS - rowIndices.size) {
+                    Box(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -271,7 +293,17 @@ private fun ChildActionsSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-            Text(child.name, style = MaterialTheme.typography.titleLarge)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Image(
+                    painter = painterResource(ChildAvatars.resFor(child.avatar)),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp).clip(CircleShape)
+                )
+                Text(child.name, style = MaterialTheme.typography.titleLarge)
+            }
             if (!child.paired) {
                 OutlinedButton(
                     onClick = onShowCode,
