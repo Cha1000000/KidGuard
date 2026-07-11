@@ -68,6 +68,9 @@
     <string name="statistics_load_error">Не удалось загрузить статистику. Проверьте подключение.</string>
     <string name="statistics_no_children">Сначала добавьте ребёнка на вкладке «Дети».</string>
 
+    <!-- Селектор активного ребёнка (веха 4.5) -->
+    <string name="child_selector_switch_error">Не удалось переключить профиль. Проверьте подключение.</string>
+
     <!-- Родитель: вкладка «Правила» -->
     <string name="rules_daily_limit_title">Дневной лимит</string>
     <string name="rules_daily_limit_subtitle">Сколько времени в день доступен телефон</string>

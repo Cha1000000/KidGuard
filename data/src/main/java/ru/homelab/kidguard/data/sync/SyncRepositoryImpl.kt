@@ -2,15 +2,18 @@ package ru.homelab.kidguard.data.sync
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
@@ -53,6 +56,9 @@ class SyncRepositoryImpl @Inject constructor(
          */
         val LAST_SYNCED_SNAPSHOT = stringPreferencesKey("last_synced_snapshot")
         val LAST_SYNCED_AT = stringPreferencesKey("last_synced_at")
+
+        /** Выбранный родителем активный ребёнок (веха 4.5); null — выбор ещё не делался. */
+        val ACTIVE_CHILD_ID = intPreferencesKey("active_child_id")
     }
 
     private val json = Json
@@ -79,6 +85,36 @@ class SyncRepositoryImpl @Inject constructor(
                     pushIfChanged(childId)
                 }.onFailure { Timber.tag(TAG).w(it, "Push политики не удался (повторим при следующей правке)") }
             }
+    }
+
+    override val activeChildId: Flow<Int?> =
+        context.syncDataStore.data.map { it[Keys.ACTIVE_CHILD_ID] }
+
+    /**
+     * Переключение активного ребёнка. Порядок важен: сперва тянем и применяем политику нового
+     * ребёнка (обновляя снапшот — дебаунс-push после replaceAll сравнит и промолчит), и только
+     * при успехе сохраняем выбор. Если pull упал — выбор не меняется, политика старого ребёнка
+     * не может уехать новому.
+     */
+    override suspend fun switchActiveChild(childId: Int): Result<Unit> = runCatching {
+        val response = policyApi.getPolicy(childId)
+        // У нового ребёнка политики может ещё не быть — тогда локальный кэш очищается.
+        val data = response.data ?: PolicyDocumentDto(
+            dailyLimits = emptyMap(),
+            appLimits = emptyMap(),
+            whitelist = emptyList()
+        )
+        applyDocument(data)
+        context.syncDataStore.edit { prefs ->
+            prefs[Keys.LAST_SYNCED_SNAPSHOT] = canonicalJson(data)
+            if (response.updatedAt != null) {
+                prefs[Keys.LAST_SYNCED_AT] = response.updatedAt
+            } else {
+                prefs.remove(Keys.LAST_SYNCED_AT)
+            }
+            prefs[Keys.ACTIVE_CHILD_ID] = childId
+        }
+        Timber.tag(TAG).d("Активный ребёнок переключён на %d", childId)
     }
 
     override suspend fun childSyncLoop() {
@@ -122,6 +158,13 @@ class SyncRepositoryImpl @Inject constructor(
         val data = response.data ?: return // политики на сервере ещё нет
         if (response.updatedAt != null && response.updatedAt == lastSyncedAt()) return // уже применяли
 
+        applyDocument(data)
+        saveSyncedState(canonicalJson(data), response.updatedAt)
+        Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
+    }
+
+    /** Целиком заменяет локальную политику содержимым серверного документа. */
+    private suspend fun applyDocument(data: PolicyDocumentDto) {
         policyRepository.replaceAll(
             dailyLimits = data.dailyLimits.mapNotNull { (key, minutes) ->
                 runCatching { DayOfWeek.valueOf(key) to minutes }.getOrNull()
@@ -129,8 +172,6 @@ class SyncRepositoryImpl @Inject constructor(
             appLimits = data.appLimits,
             whitelist = data.whitelist.toSet()
         )
-        saveSyncedState(canonicalJson(data), response.updatedAt)
-        Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
     }
 
     /** Пушит локальную политику, только если она отличается от последнего синхронизированного снапшота. */
@@ -146,9 +187,21 @@ class SyncRepositoryImpl @Inject constructor(
 
     // --- Вспомогательное -------------------------------------------------------------------------
 
-    /** Активный ребёнок родителя — первый в списке (селектор для нескольких детей отложен). */
-    private suspend fun resolveParentChildId(): Int? =
-        childrenApi.listChildren().children.firstOrNull()?.id
+    /**
+     * Активный ребёнок родителя: сохранённый выбор, если такой ребёнок ещё есть в списке;
+     * иначе первый из списка (выбор при этом сохраняется — «дефолт по умолчанию»).
+     */
+    private suspend fun resolveParentChildId(): Int? {
+        val children = childrenApi.listChildren().children
+        if (children.isEmpty()) return null
+
+        val savedId = activeChildId.first()
+        if (savedId != null && children.any { it.id == savedId }) return savedId
+
+        val fallbackId = children.first().id
+        context.syncDataStore.edit { it[Keys.ACTIVE_CHILD_ID] = fallbackId }
+        return fallbackId
+    }
 
     private suspend fun currentLocalDocument(): PolicyDocumentDto = PolicyDocumentDto(
         dailyLimits = policyRepository.dailyLimits.first().minutesByDay

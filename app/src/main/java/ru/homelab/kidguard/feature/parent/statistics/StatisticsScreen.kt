@@ -1,6 +1,5 @@
 package ru.homelab.kidguard.feature.parent.statistics
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -26,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,7 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CenteredMessage
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
-import ru.homelab.kidguard.feature.parent.children.ChildAvatars
+import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -53,6 +50,7 @@ fun StatisticsScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_statistics))
+        if (!uiState.noChildren) ChildSelectorChip()
 
         when {
             uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -82,23 +80,6 @@ private fun StatisticsContent(state: StatisticsUiState) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
-        state.child?.let { child ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                Image(
-                    painter = painterResource(ChildAvatars.resFor(child.avatar)),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                )
-                Text(child.name, style = MaterialTheme.typography.titleMedium)
-            }
-        }
-
         if (!state.hasData) {
             CenteredMessage(
                 text = stringResource(R.string.statistics_empty),

@@ -8,9 +8,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -40,7 +42,8 @@ data class StatisticsUiState(
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val childRepository: ChildRepository,
-    private val policyRepository: PolicyRepository
+    private val policyRepository: PolicyRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
@@ -48,13 +51,23 @@ class StatisticsViewModel @Inject constructor(
 
     init {
         refresh()
+        // Переключение активного ребёнка (чип, веха 4.5) — сразу перегружаем статистику.
+        viewModelScope.launch {
+            syncRepository.activeChildId.drop(1).collect { refresh() }
+        }
     }
 
     fun refresh() {
         viewModelScope.launch {
-            val child = childRepository.listChildren().getOrNull()?.firstOrNull()
-            if (child == null) {
+            val children = childRepository.listChildren().getOrNull()
+            if (children != null && children.isEmpty()) {
                 _uiState.value = StatisticsUiState(loading = false, noChildren = true)
+                return@launch
+            }
+            val activeId = syncRepository.activeChildId.first()
+            val child = children?.firstOrNull { it.id == activeId } ?: children?.firstOrNull()
+            if (child == null) {
+                _uiState.value = StatisticsUiState(loading = false, error = true)
                 return@launch
             }
 
