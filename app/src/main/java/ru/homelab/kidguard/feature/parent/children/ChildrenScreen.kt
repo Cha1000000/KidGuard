@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,10 @@ fun ChildrenScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var sheet by remember { mutableStateOf<ChildrenSheet?>(null) }
+
+    // Обновляем при каждом входе на вкладку: VM переживает переключение вкладок, а статус
+    // ребёнка мог измениться снаружи (устройство ввело pairing-код → «Привязан»).
+    LaunchedEffect(Unit) { viewModel.refresh() }
 
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_children))
