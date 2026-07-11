@@ -7,15 +7,24 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 
 /**
- * JSON-документ единой политики (формат зафиксирован в плане вехи 4, шаг 4.3; бонусы — в 4.5).
+ * JSON-документ единой политики (формат зафиксирован в плане вехи 4, шаги 4.3 и 4.6).
  * Сервер policy-agnostic — структуру понимает только клиент. Ключи dailyLimits — имена
- * java.time.DayOfWeek ("MONDAY"…).
+ * java.time.DayOfWeek ("MONDAY"…). Бонусы датированы и включаются только за текущий день.
  */
 @Serializable
 data class PolicyDocumentDto(
     val dailyLimits: Map<String, Int> = emptyMap(),
     val appLimits: Map<String, Int> = emptyMap(),
-    val whitelist: List<String> = emptyList()
+    val whitelist: List<String> = emptyList(),
+    val bonuses: List<BonusEntryDto> = emptyList()
+)
+
+/** Бонус «Дополнительное время» за день; `packageName = ""` — бонус на весь телефон. */
+@Serializable
+data class BonusEntryDto(
+    val date: String,
+    val packageName: String,
+    val minutes: Int
 )
 
 @Serializable

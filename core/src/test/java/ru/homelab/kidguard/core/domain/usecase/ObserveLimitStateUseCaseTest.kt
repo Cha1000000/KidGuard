@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
@@ -115,6 +116,8 @@ class ObserveLimitStateUseCaseTest {
         override fun appBonusMinutes(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addBonus(date: LocalDate, packageName: String?, minutes: Int) = Unit
         override suspend fun clearBonus(date: LocalDate, packageName: String?) = Unit
+        override fun observeAll(): Flow<List<BonusGrant>> = flowOf(emptyList())
+        override suspend fun replaceAll(grants: List<BonusGrant>) = Unit
     }
 
     private class FakeDateProvider(private val date: LocalDate) : CurrentDateProvider {

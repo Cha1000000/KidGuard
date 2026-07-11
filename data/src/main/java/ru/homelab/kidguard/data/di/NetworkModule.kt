@@ -22,8 +22,9 @@ object NetworkModule {
 
     // 10.0.2.2 — алиас эмулятора Android на localhost хост-машины: локальный dev-сервер
     // KidGuard-server (см. ~/projects/KidGuard-server), ещё не задеплоенный на боевой AdminVPS.
-    // TODO(шаг 4.6): заменить на адрес поддомена после деплоя.
-    private const val BASE_URL = "http://10.0.2.2:3003/"
+    // TODO(шаг 4.7): заменить на адрес поддомена после деплоя.
+    // internal — из BASE_URL производится и адрес WS-канала (PolicySocket).
+    internal const val BASE_URL = "http://10.0.2.2:3003/"
 
     @Provides
     @Singleton

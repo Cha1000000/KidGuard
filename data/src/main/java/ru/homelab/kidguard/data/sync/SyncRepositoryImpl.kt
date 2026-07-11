@@ -15,12 +15,17 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import ru.homelab.kidguard.core.domain.model.BonusGrant
+import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthLocalStore
+import ru.homelab.kidguard.data.network.BonusEntryDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.PolicyApi
 import ru.homelab.kidguard.data.network.PolicyDocumentDto
@@ -30,6 +35,7 @@ import ru.homelab.kidguard.data.network.UsageBatchRequest
 import ru.homelab.kidguard.data.network.UsageEntryDto
 import timber.log.Timber
 import java.time.DayOfWeek
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,9 +48,11 @@ class SyncRepositoryImpl @Inject constructor(
     private val childrenApi: ChildrenApi,
     private val usageApi: UsageApi,
     private val policyRepository: PolicyRepository,
+    private val bonusRepository: BonusRepository,
     private val usageRepository: UsageRepository,
     private val currentDateProvider: CurrentDateProvider,
-    private val authLocalStore: AuthLocalStore
+    private val authLocalStore: AuthLocalStore,
+    private val policySocket: PolicySocket
 ) : SyncRepository {
 
     private object Keys {
@@ -66,18 +74,28 @@ class SyncRepositoryImpl @Inject constructor(
     // --- Петли ---------------------------------------------------------------------------------
 
     @OptIn(FlowPreview::class)
-    override suspend fun parentSyncLoop() {
+    override suspend fun parentSyncLoop() = coroutineScope {
         // Разовый pull при входе: подхватить правки второго родителя (LWW — сервер прав).
         runCatching { pullAndApply(resolveParentChildId() ?: return@runCatching) }
             .onFailure { Timber.tag(TAG).w(it, "Стартовый pull родителя не удался") }
 
-        // Дальше — наблюдаем локальные правки и пушим с дебаунсом. combine эмитит и после
+        // Push-канал: правка вторым родителем прилетает без перезахода (веха 4.6).
+        launch {
+            policySocket.events().collect { changedChildId ->
+                runCatching {
+                    if (changedChildId == activeChildId.first()) pullAndApply(changedChildId)
+                }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+            }
+        }
+
+        // Наблюдаем локальные правки (включая бонусы) и пушим с дебаунсом. combine эмитит и после
         // pull-apply, но pushIfChanged сравнит со снапшотом и промолчит.
         combine(
             policyRepository.dailyLimits,
             policyRepository.appLimits,
-            policyRepository.whitelist
-        ) { _, _, _ -> Unit }
+            policyRepository.whitelist,
+            bonusRepository.observeAll()
+        ) { _, _, _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -117,7 +135,17 @@ class SyncRepositoryImpl @Inject constructor(
         Timber.tag(TAG).d("Активный ребёнок переключён на %d", childId)
     }
 
-    override suspend fun childSyncLoop() {
+    override suspend fun childSyncLoop() = coroutineScope {
+        // Push-канал: политика/бонус применяются почти мгновенно (веха 4.6);
+        // периодический pull ниже остаётся страховкой на случай долгого разрыва WS.
+        launch {
+            policySocket.events().collect { changedChildId ->
+                runCatching {
+                    if (changedChildId == authLocalStore.pairedChildId()) pullAndApply(changedChildId)
+                }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+            }
+        }
+
         while (currentCoroutineContext().isActive) {
             val childId = authLocalStore.pairedChildId()
             if (childId != null) {
@@ -163,7 +191,7 @@ class SyncRepositoryImpl @Inject constructor(
         Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
     }
 
-    /** Целиком заменяет локальную политику содержимым серверного документа. */
+    /** Целиком заменяет локальную политику (включая бонусы) содержимым серверного документа. */
     private suspend fun applyDocument(data: PolicyDocumentDto) {
         policyRepository.replaceAll(
             dailyLimits = data.dailyLimits.mapNotNull { (key, minutes) ->
@@ -171,6 +199,12 @@ class SyncRepositoryImpl @Inject constructor(
             }.toMap(),
             appLimits = data.appLimits,
             whitelist = data.whitelist.toSet()
+        )
+        bonusRepository.replaceAll(
+            data.bonuses.mapNotNull { dto ->
+                runCatching { BonusGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes) }
+                    .getOrNull()
+            }
         )
     }
 
@@ -207,7 +241,11 @@ class SyncRepositoryImpl @Inject constructor(
         dailyLimits = policyRepository.dailyLimits.first().minutesByDay
             .mapKeys { it.key.name },
         appLimits = policyRepository.appLimits.first(),
-        whitelist = policyRepository.whitelist.first().toList()
+        whitelist = policyRepository.whitelist.first().toList(),
+        // Бонусы датированы «на сегодня»: прошедшие дни в документ не тащим.
+        bonuses = bonusRepository.observeAll().first()
+            .filter { it.date == currentDateProvider.today() }
+            .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) }
     )
 
     /**
@@ -219,7 +257,8 @@ class SyncRepositoryImpl @Inject constructor(
         PolicyDocumentDto(
             dailyLimits = document.dailyLimits.toSortedMap(),
             appLimits = document.appLimits.toSortedMap(),
-            whitelist = document.whitelist.sorted()
+            whitelist = document.whitelist.sorted(),
+            bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName }))
         )
     )
 
