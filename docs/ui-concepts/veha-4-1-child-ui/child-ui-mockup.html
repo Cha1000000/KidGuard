@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --primary:#2E6B7E; --on-surface:#16232A; --on-variant:#5B6B72; --outline:#C9DDE4;
+    --gold:#E0A73C; --gold-bg:#F7ECD0; --error:#B3383E; --error-bg:#F5DEDF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:44px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .caption{color:#cfe0e6;font-size:20px;font-weight:600;max-width:400px;text-align:center;}
+  .phone{width:400px;height:860px;background:var(--bg);border-radius:42px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;}
+  .status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .hello{display:flex;align-items:center;gap:12px;padding:14px 20px 6px;}
+  .hello .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f7d7a8,#e8b4d8);display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .hello .t1{font-size:13px;color:var(--on-variant);}
+  .hello .t2{font-size:19px;font-weight:700;color:var(--on-surface);}
+  /* кольцо времени (только обычное состояние) */
+  .ring-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 0 8px;}
+  .ring{width:220px;height:220px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .ring .inner{width:180px;height:180px;border-radius:50%;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:18px;}
+  .ring .big{font-size:31px;font-weight:800;color:var(--primary);text-align:center;}
+  .ring .sub{font-size:13px;color:var(--on-variant);text-align:center;}
+  .bonus-chip{margin-top:14px;background:var(--gold-bg);border-radius:999px;padding:7px 16px;font-size:14px;font-weight:600;color:#7a5a14;}
+  .guard{display:flex;align-items:center;gap:8px;justify-content:center;padding:12px 0 4px;font-size:13px;color:var(--on-variant);}
+  /* состояния без кольца — карточки */
+  .state-card{margin:22px 24px 6px;border-radius:22px;padding:30px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;}
+  .state-card .big{font-size:30px;font-weight:800;}
+  .state-card .sub{font-size:14px;color:var(--on-variant);}
+  /* мои правила */
+  .rules-title{font-size:15px;font-weight:700;color:var(--on-surface);margin:12px 20px 8px;}
+  .rule-row{display:flex;align-items:center;gap:12px;margin:0 16px 8px;background:var(--container);border-radius:14px;padding:12px 14px;}
+  .rule-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .rule-info{flex:1;}
+  .rule-name{font-size:14px;font-weight:600;color:var(--on-surface);}
+  .rule-sub{font-size:12px;color:var(--on-variant);}
+  .rule-count{font-size:13px;font-weight:700;color:var(--primary);}
+  .nav-note{margin-top:auto;padding:12px;text-align:center;font-size:11px;color:var(--on-variant);}
+  /* родительские экраны */
+  .title{font-size:24px;font-weight:600;color:var(--on-surface);padding:12px 20px 2px;}
+  .subtitle{font-size:13px;color:var(--on-variant);padding:0 20px 10px;line-height:1.4;}
+  .search{margin:4px 16px 12px;background:var(--container);border-radius:999px;padding:11px 18px;font-size:14px;color:var(--on-variant);}
+  .app-row{display:flex;align-items:center;gap:12px;padding:10px 20px;}
+  .app-ic{width:40px;height:40px;border-radius:10px;background:var(--container-high);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--primary);}
+  .app-name{flex:1;font-size:15px;font-weight:600;color:var(--on-surface);}
+  .app-name small{display:block;font-size:11px;color:var(--on-variant);font-weight:400;}
+  .chk{width:24px;height:24px;border-radius:7px;border:2.2px solid var(--outline);}
+  .chk.on{background:var(--error);border-color:var(--error);position:relative;}
+  .chk.on:after{content:"✓";color:#fff;font-size:15px;font-weight:800;position:absolute;left:4px;top:0px;}
+  .blocked-badge{font-size:11px;font-weight:700;color:var(--error);background:var(--error-bg);border-radius:999px;padding:3px 10px;margin-right:6px;}
+  /* карточки «Правил» */
+  .prule-card{margin:0 16px 12px;background:var(--container);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;}
+  .prule-ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--primary);}
+  .prule-info{flex:1;}
+  .prule-name{font-size:16px;font-weight:700;color:var(--on-surface);}
+  .prule-sub{font-size:12px;color:var(--on-variant);margin-top:2px;}
+  .prule-arr{color:var(--on-variant);font-size:18px;}
+</style>
+</head>
+<body>
+
+<!-- 1: детский «Сегодня» -->
+<div class="col">
+  <div class="caption">1 · Детский экран «Сегодня» (обычный день) — добавлен воздух в кольце</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="hello">
+      <div class="av">👧</div>
+      <div><div class="t1">Привет,</div><div class="t2">Alina!</div></div>
+    </div>
+
+    <div class="ring-wrap">
+      <div class="ring" style="background:conic-gradient(var(--primary) 0 65%, var(--container-high) 65% 100%);">
+        <div class="inner">
+          <div class="big">1 ч 18 мин</div>
+          <div class="sub">осталось из 2 ч</div>
+        </div>
+      </div>
+      <div class="bonus-chip">🎁 +30 мин от родителей</div>
+    </div>
+
+    <div class="guard">🛡 Телефон под присмотром KidGuard</div>
+
+    <div class="rules-title">Мои правила</div>
+    <div class="rule-row">
+      <div class="rule-ic" style="background:#DCEFDD;">✅</div>
+      <div class="rule-info"><div class="rule-name">Всегда доступные</div><div class="rule-sub">Телефон, Сообщения, KidGuard</div></div>
+      <div class="rule-count">3</div>
+    </div>
+    <div class="rule-row">
+      <div class="rule-ic" style="background:#DCE6EF;">⏱</div>
+      <div class="rule-info"><div class="rule-name">С лимитом</div><div class="rule-sub">YouTube — осталось 25 мин</div></div>
+      <div class="rule-count">2</div>
+    </div>
+    <div class="rule-row">
+      <div class="rule-ic" style="background:var(--error-bg);">🚫</div>
+      <div class="rule-info"><div class="rule-name">Запрещённые</div><div class="rule-sub">Play Market, TikTok</div></div>
+      <div class="rule-count">2</div>
+    </div>
+    <div class="nav-note">Один экран без нижней навигации; списки правил раскрываются тапом</div>
+  </div>
+</div>
+
+<!-- 2: состояния без колец -->
+<div class="col">
+  <div class="caption">2 · Состояния без прогрессбаров: «время вышло» и «без лимита» — карточки с центрированным текстом</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="hello">
+      <div class="av">👧</div>
+      <div><div class="t1">Привет,</div><div class="t2">Alina!</div></div>
+    </div>
+
+    <div class="state-card" style="background:var(--error-bg);">
+      <div style="font-size:40px;">⏰</div>
+      <div class="big" style="color:var(--error);">Время вышло</div>
+      <div class="sub">Израсходовано 2 ч из 2 ч.<br>Доступны только «всегда доступные» приложения.</div>
+    </div>
+
+    <div style="border-top:2px dashed var(--outline);margin:26px 16px 0;padding-top:6px;"></div>
+    <div class="caption" style="color:var(--on-variant);font-size:13px;margin:6px 20px 0;">…а если лимита на сегодня нет:</div>
+
+    <div class="state-card" style="background:var(--container);">
+      <div style="font-size:40px;">🌤</div>
+      <div class="big" style="color:var(--primary);">Без лимита</div>
+      <div class="sub">Сегодня свободный день — пользуйся без ограничений.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: родительские «Правила» с новой карточкой + экран «Запрещённые» -->
+<div class="col">
+  <div class="caption">3 · «Правила»: карточка «Запрет приложений» между «Лимитами» и «Всегда доступными» (сверху) → экран «Запрещённые» (снизу)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title" style="padding-bottom:8px;">Правила</div>
+    <div class="prule-card"><div class="prule-ic">📅</div>
+      <div class="prule-info"><div class="prule-name">Дневной лимит</div><div class="prule-sub">Сколько времени в день доступен телефон</div></div>
+      <div class="prule-arr">›</div></div>
+    <div class="prule-card"><div class="prule-ic">⏱</div>
+      <div class="prule-info"><div class="prule-name">Лимиты приложений</div><div class="prule-sub">Свой лимит на отдельные приложения</div></div>
+      <div class="prule-arr">›</div></div>
+    <div class="prule-card" style="outline:2.5px solid var(--error);"><div class="prule-ic" style="background:var(--error-bg);">🚫</div>
+      <div class="prule-info"><div class="prule-name">Запрет приложений</div><div class="prule-sub">Полностью недоступные ребёнку приложения</div></div>
+      <div class="prule-arr">›</div></div>
+    <div class="prule-card"><div class="prule-ic">✅</div>
+      <div class="prule-info"><div class="prule-name">Всегда доступные</div><div class="prule-sub">Приложения, работающие даже после лимита</div></div>
+      <div class="prule-arr">›</div></div>
+
+    <div style="border-top:2px dashed var(--outline);margin:8px 16px 0;padding-top:8px;"></div>
+    <div class="title" style="font-size:20px;">← Запрещённые</div>
+    <div class="subtitle">Эти приложения полностью недоступны ребёнку — независимо от лимитов.</div>
+    <div class="app-row">
+      <div class="app-ic">P</div>
+      <div class="app-name">Play Market<small>com.android.vending</small></div>
+      <span class="blocked-badge">запрещено</span>
+      <div class="chk on"></div>
+    </div>
+    <div class="app-row">
+      <div class="app-ic">Y</div>
+      <div class="app-name">YouTube<small>com.google.android.youtube</small></div>
+      <div class="chk"></div>
+    </div>
+    <div class="nav-note">Список приложений РЕБЁНКА (с сервера); заблокированные — вверху; поиск как во «Всегда доступных»</div>
+  </div>
+</div>
+
+</body>
+</html>
