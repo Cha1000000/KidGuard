@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +64,8 @@ private sealed interface ChildrenSheet {
     data class Actions(val child: Child) : ChildrenSheet
     data class Code(val childName: String, val code: String) : ChildrenSheet
     data class CoParent(val child: Child) : ChildrenSheet
+    data class Edit(val child: Child) : ChildrenSheet
+    data class ConfirmDelete(val child: Child) : ChildrenSheet
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +132,9 @@ fun ChildrenScreen(
                     onError = { sheet = null }
                 )
             },
-            onInviteCoParent = { sheet = ChildrenSheet.CoParent(current.child) }
+            onInviteCoParent = { sheet = ChildrenSheet.CoParent(current.child) },
+            onEdit = { sheet = ChildrenSheet.Edit(current.child) },
+            onDelete = { sheet = ChildrenSheet.ConfirmDelete(current.child) }
         )
 
         is ChildrenSheet.Code -> CodeSheet(
@@ -139,6 +146,32 @@ fun ChildrenScreen(
             onDismiss = { sheet = null },
             onInvite = { email, onResult ->
                 viewModel.inviteCoParent(current.child.id, email) { result -> onResult(result) }
+            }
+        )
+
+        is ChildrenSheet.Edit -> EditChildSheet(
+            child = current.child,
+            onDismiss = { sheet = null },
+            onSave = { name, avatar, onError ->
+                viewModel.updateChild(
+                    childId = current.child.id,
+                    name = name,
+                    avatar = avatar,
+                    onDone = {},
+                    onError = onError
+                )
+            }
+        )
+
+        is ChildrenSheet.ConfirmDelete -> DeleteChildDialog(
+            child = current.child,
+            onDismiss = { sheet = null },
+            onConfirm = { onError ->
+                viewModel.deleteChild(
+                    childId = current.child.id,
+                    onDone = {},
+                    onError = onError
+                )
             }
         )
     }
@@ -289,7 +322,9 @@ private fun ChildActionsSheet(
     child: Child,
     onDismiss: () -> Unit,
     onShowCode: () -> Unit,
-    onInviteCoParent: () -> Unit
+    onInviteCoParent: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -314,9 +349,26 @@ private fun ChildActionsSheet(
             }
             OutlinedButton(
                 onClick = onInviteCoParent,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
             ) {
                 Text(stringResource(R.string.child_coparent))
+            }
+            OutlinedButton(
+                onClick = onEdit,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            ) {
+                Text(stringResource(R.string.child_edit))
+            }
+            OutlinedButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp)
+            ) {
+                Text(stringResource(R.string.child_delete))
             }
         }
     }
@@ -427,3 +479,88 @@ private fun isValidEmail(email: String): Boolean =
 /** «482915» -> «482 915» для читаемости. */
 private fun formatCode(code: String): String =
     if (code.length == 6) "${code.substring(0, 3)} ${code.substring(3)}" else code
+
+/** Sheet редактирования профиля — структура как у [AddChildSheet], но с предзаполнением. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditChildSheet(
+    child: Child,
+    onDismiss: () -> Unit,
+    onSave: (name: String, avatar: Int, onError: () -> Unit) -> Unit
+) {
+    var name by remember { mutableStateOf(child.name) }
+    var avatar by remember { mutableStateOf(child.avatar) }
+    val context = LocalContext.current
+    val errorMsg = stringResource(R.string.common_error)
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            Text(stringResource(R.string.edit_child_title), style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.add_child_name_label)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            )
+            Text(
+                text = stringResource(R.string.add_child_avatar_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 18.dp, bottom = 12.dp)
+            )
+            AvatarGrid(
+                selected = avatar,
+                onSelect = { avatar = it },
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Button(
+                onClick = {
+                    onSave(name, avatar) { Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show() }
+                    onDismiss()
+                },
+                enabled = name.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 16.dp)
+            ) {
+                Text(stringResource(R.string.edit_child_save))
+            }
+        }
+    }
+}
+
+/** Диалог подтверждения удаления ребёнка — необратимо стирает правила и статистику. */
+@Composable
+private fun DeleteChildDialog(
+    child: Child,
+    onDismiss: () -> Unit,
+    onConfirm: (onError: () -> Unit) -> Unit
+) {
+    val context = LocalContext.current
+    val errorMsg = stringResource(R.string.common_error)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_child_title, child.name)) },
+        text = { Text(stringResource(R.string.delete_child_message)) },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm { Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show() }
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text(stringResource(R.string.delete_child_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}

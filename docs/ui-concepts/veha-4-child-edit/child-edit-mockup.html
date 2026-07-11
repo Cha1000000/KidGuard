@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --white:#FFFFFF; --primary:#2E6B7E; --on-surface:#16232A; --on-variant:#5B6B72;
+    --outline:#C9DDE4; --error:#B3383E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:44px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .caption{color:#cfe0e6;font-size:20px;font-weight:600;max-width:400px;text-align:center;}
+  .phone{width:400px;height:860px;background:var(--bg);border-radius:42px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;}
+  .status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .title{font-size:26px;font-weight:600;color:var(--on-surface);padding:10px 20px 6px;}
+  .child-card{margin:8px 16px;background:var(--container);border-radius:18px;padding:14px;display:flex;align-items:center;gap:14px;}
+  .av{border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .av-girl{background:linear-gradient(135deg,#f7d7a8,#e8b4d8);}
+  .av-boy{background:linear-gradient(135deg,#a8d8f7,#b4e8c4);}
+  .scrim{position:absolute;inset:0;background:rgba(10,20,24,.45);display:flex;flex-direction:column;justify-content:flex-end;border-radius:32px;}
+  .sheet{background:var(--surface);border-radius:28px 28px 0 0;padding:10px 24px 26px;}
+  .grabber{width:44px;height:5px;border-radius:3px;background:var(--outline);margin:6px auto 16px;}
+  .sheet-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+  .sheet-name{font-size:21px;font-weight:700;color:var(--on-surface);}
+  .btn{display:block;width:100%;padding:13px 0;border-radius:999px;text-align:center;font-size:15px;font-weight:600;margin-bottom:12px;}
+  .btn.outline{border:1.5px solid var(--outline);color:var(--primary);background:transparent;}
+  .btn.danger-outline{border:1.5px solid #E4C4C6;color:var(--error);background:transparent;}
+  .btn.filled{background:var(--primary);color:#fff;border:none;}
+  .btn.danger-filled{background:var(--error);color:#fff;border:none;}
+  .field{border:1.8px solid var(--primary);border-radius:8px;padding:14px 14px;font-size:17px;color:var(--on-surface);position:relative;margin-top:14px;}
+  .field .lbl{position:absolute;top:-9px;left:12px;background:var(--surface);padding:0 5px;font-size:12px;color:var(--primary);}
+  .sec-lbl{font-size:13px;font-weight:600;color:var(--on-variant);margin:18px 0 12px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .g-av{width:100%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .g-av.sel{outline:3px solid var(--primary);outline-offset:-1px;}
+  /* AlertDialog */
+  .dialog-scrim{position:absolute;inset:0;background:rgba(10,20,24,.5);display:flex;align-items:center;justify-content:center;border-radius:32px;}
+  .dialog{background:var(--surface);border-radius:26px;padding:24px;width:320px;}
+  .dialog h3{font-size:20px;font-weight:700;color:var(--on-surface);margin-bottom:10px;}
+  .dialog p{font-size:14px;color:var(--on-variant);line-height:1.5;margin-bottom:20px;}
+  .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
+  .d-btn{padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;}
+  .d-btn.text{color:var(--primary);}
+  .d-btn.danger{background:var(--error);color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- 1: sheet действий с новыми пунктами -->
+<div class="col">
+  <div class="caption">1 · Тап по карточке ребёнка — sheet действий (новые пункты)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title">Дети</div>
+    <div class="child-card"><div class="av av-girl" style="width:48px;height:48px;font-size:24px;">👧</div>
+      <div><div style="font-size:17px;font-weight:700;">Alina</div><div style="font-size:13px;color:var(--primary);">Привязан</div></div></div>
+
+    <div class="scrim">
+      <div class="sheet">
+        <div class="grabber"></div>
+        <div class="sheet-head"><div class="av av-girl" style="width:52px;height:52px;font-size:26px;">👧</div><div class="sheet-name">Alina</div></div>
+        <div class="btn outline">Пригласить второго родителя</div>
+        <div class="btn outline">✏️ &nbsp;Редактировать профиль</div>
+        <div class="btn danger-outline">🗑 &nbsp;Удалить ребёнка</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: sheet редактирования -->
+<div class="col">
+  <div class="caption">2 · «Редактировать профиль» — имя + аватар с предзаполнением</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title">Дети</div>
+
+    <div class="scrim">
+      <div class="sheet">
+        <div class="grabber"></div>
+        <div style="font-size:21px;font-weight:700;margin-bottom:4px;">Редактировать профиль</div>
+        <div class="field"><span class="lbl">Имя ребёнка</span>Alina</div>
+        <div class="sec-lbl">Выберите аватар</div>
+        <div class="grid">
+          <div class="g-av av-girl sel">👧</div>
+          <div class="g-av av-boy">👦</div>
+          <div class="g-av" style="background:#e8d4f7;">🐱</div>
+          <div class="g-av" style="background:#d4f7e0;">🤖</div>
+          <div class="g-av" style="background:#f7ecd4;">🦊</div>
+          <div class="g-av" style="background:#d4e4f7;">🐧</div>
+          <div class="g-av" style="background:#f7d4d4;">🦄</div>
+          <div class="g-av" style="background:#e0f7d4;">🐸</div>
+        </div>
+        <div style="font-size:12px;color:var(--on-variant);margin-top:10px;">…(вся сетка из 24 аватарок скроллится)</div>
+        <div class="btn filled" style="margin-top:16px;">Сохранить</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: подтверждение удаления -->
+<div class="col">
+  <div class="caption">3 · «Удалить ребёнка» — диалог подтверждения</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="title">Дети</div>
+    <div class="child-card"><div class="av av-girl" style="width:48px;height:48px;font-size:24px;">👧</div>
+      <div><div style="font-size:17px;font-weight:700;">Alina</div><div style="font-size:13px;color:var(--primary);">Привязан</div></div></div>
+
+    <div class="dialog-scrim">
+      <div class="dialog">
+        <h3>Удалить Alina?</h3>
+        <p>Профиль, правила и статистика ребёнка будут удалены безвозвратно. Привязанное устройство перестанет контролироваться.</p>
+        <div class="dialog-actions">
+          <div class="d-btn text">Отмена</div>
+          <div class="d-btn danger">Удалить</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

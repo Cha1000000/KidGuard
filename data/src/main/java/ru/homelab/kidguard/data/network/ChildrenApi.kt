@@ -2,12 +2,23 @@ package ru.homelab.kidguard.data.network
 
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
 @Serializable
 data class CreateChildRequest(val name: String, val avatar: Int)
+
+@Serializable
+data class UpdateChildRequest(val name: String? = null, val avatar: Int? = null)
+
+@Serializable
+data class UpdateChildResponse(val child: ChildDto)
+
+@Serializable
+data class DeleteChildResponse(val ok: Boolean = true)
 
 @Serializable
 data class ChildDto(val id: Int, val name: String, val avatar: Int = 0, val paired: Boolean = false)
@@ -54,6 +65,12 @@ interface ChildrenApi {
 
     @POST("children/{childId}/co-parent")
     suspend fun inviteCoParent(@Path("childId") childId: Int, @Body request: CoParentRequest): CoParentResponse
+
+    @PATCH("children/{childId}")
+    suspend fun updateChild(@Path("childId") childId: Int, @Body request: UpdateChildRequest): UpdateChildResponse
+
+    @DELETE("children/{childId}")
+    suspend fun deleteChild(@Path("childId") childId: Int): DeleteChildResponse
 
     @POST("device/pair")
     suspend fun pairDevice(@Body request: DevicePairRequest): DevicePairResponse

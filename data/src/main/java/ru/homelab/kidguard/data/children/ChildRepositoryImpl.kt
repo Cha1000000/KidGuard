@@ -8,6 +8,7 @@ import ru.homelab.kidguard.data.network.ChildDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.CoParentRequest
 import ru.homelab.kidguard.data.network.CreateChildRequest
+import ru.homelab.kidguard.data.network.UpdateChildRequest
 import ru.homelab.kidguard.data.network.UsageApi
 import java.time.LocalDate
 import javax.inject.Inject
@@ -55,6 +56,20 @@ class ChildRepositoryImpl @Inject constructor(
                 }.getOrNull()
             }
         )
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
+
+    override suspend fun updateChild(childId: Int, name: String, avatar: Int): Result<Child> = try {
+        val response = childrenApi.updateChild(childId, UpdateChildRequest(name = name, avatar = avatar))
+        Result.success(response.child.toDomain())
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
+
+    override suspend fun deleteChild(childId: Int): Result<Unit> = try {
+        childrenApi.deleteChild(childId)
+        Result.success(Unit)
     } catch (error: Exception) {
         Result.failure(error)
     }

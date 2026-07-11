@@ -28,4 +28,10 @@ interface ChildRepository {
 
     /** Серверная статистика ребёнка за последние [days] дней (включая записи-тоталы). */
     suspend fun getChildUsage(childId: Int, days: Int): Result<List<UsageEntry>>
+
+    /** Обновить имя и/или аватар ребёнка (редактирование профиля). */
+    suspend fun updateChild(childId: Int, name: String, avatar: Int): Result<Child>
+
+    /** Удалить ребёнка со всеми его данными на сервере (правила, статистика, приглашения). */
+    suspend fun deleteChild(childId: Int): Result<Unit>
 }

@@ -41,6 +41,13 @@
     <string name="child_code_new">Новый код</string>
     <string name="child_code_get">Показать код для привязки</string>
     <string name="child_coparent">Пригласить второго родителя</string>
+    <string name="edit_child_title">Редактировать профиль</string>
+    <string name="edit_child_save">Сохранить</string>
+    <string name="child_edit">Редактировать профиль</string>
+    <string name="child_delete">Удалить ребёнка</string>
+    <string name="delete_child_title">Удалить %1$s?</string>
+    <string name="delete_child_message">Профиль, правила и статистика ребёнка будут удалены безвозвратно. Привязанное устройство перестанет контролироваться.</string>
+    <string name="delete_child_confirm">Удалить</string>
     <string name="coparent_title">Второй родитель</string>
     <string name="coparent_subtitle">Введите email второго родителя. Он получит доступ к этому ребёнку после входа через Google.</string>
     <string name="coparent_email_label">Email второго родителя</string>
