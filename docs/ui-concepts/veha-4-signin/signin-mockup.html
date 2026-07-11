@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --primary:#2E6B7E; --on-primary:#FFFFFF;
+    --on-surface:#16232A; --on-variant:#5B6B72; --outline:#C9DDE4; --error:#B3261E;
+  }
+  .dark{
+    --bg:#0E1C21; --surface:#17282E; --primary:#4FC3B0; --on-primary:#04312B;
+    --on-surface:#E6EEF0; --on-variant:#9DB2B8; --outline:#1E353C; --error:#FFB4AB;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:48px;display:flex;gap:56px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:20px;}
+  .caption{color:#cfe0e6;font-size:21px;font-weight:600;letter-spacing:.3px;max-width:420px;text-align:center;}
+  .phone{width:420px;height:900px;background:var(--bg);border-radius:44px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;position:relative;border:10px solid #0c1418;
+    display:flex;flex-direction:column;}
+  .status{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:16px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px;}
+  .logo{width:96px;height:96px;border-radius:26px;background:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:28px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);}
+  .title{font-size:24px;font-weight:700;color:var(--on-surface);text-align:center;margin-bottom:10px;}
+  .subtitle{font-size:15px;color:var(--on-variant);text-align:center;line-height:1.5;margin-bottom:36px;max-width:300px;}
+  .gbtn{width:100%;max-width:320px;height:52px;border-radius:26px;background:var(--surface);
+    border:1.5px solid var(--outline);display:flex;align-items:center;justify-content:center;gap:12px;
+    font-size:15px;font-weight:600;color:var(--on-surface);}
+  .gbtn .g{width:20px;height:20px;flex-shrink:0;}
+  .hint{margin-top:20px;font-size:12px;color:var(--on-variant);text-align:center;max-width:280px;line-height:1.5;}
+  /* loading state */
+  .spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--outline);
+    border-top-color:var(--primary);margin-bottom:16px;}
+  .loading-text{font-size:15px;color:var(--on-variant);}
+  /* error state */
+  .error-box{width:100%;max-width:320px;background:transparent;border:1px solid var(--error);
+    border-radius:12px;padding:12px 16px;margin-top:20px;}
+  .error-text{font-size:13px;color:var(--error);text-align:center;line-height:1.4;}
+</style>
+</head>
+<body>
+
+<!-- 1: обычное состояние, светлая тема -->
+<div class="col">
+  <div class="caption">1 · Экран входа — обычное состояние (светлая тема)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="content">
+      <div class="logo">🛡️</div>
+      <div class="title">Вход через Google</div>
+      <div class="subtitle">Нужен для синхронизации правил между устройствами родителей и ребёнка.</div>
+      <div class="gbtn">
+        <svg class="g" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 4.1 29.5 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22 22-9.8 22-22c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.1 8 3l6-6C34.5 4.1 29.5 2 24 2 16 2 9 6.5 6.3 14.7z"/><path fill="#4CAF50" d="M24 46c5.4 0 10.3-1.8 14.1-5l-6.5-5.5C29.5 37 26.9 38 24 38c-5.3 0-9.7-3.5-11.3-8.3l-6.5 5C9 41.4 15.9 46 24 46z"/><path fill="#1976D2" d="M43.6 20.5H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.5 5.5C41.4 36.6 44 30.8 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+        <span>Войти через Google</span>
+      </div>
+      <div class="hint">Продолжая, вы соглашаетесь на использование Google-аккаунта для входа в KidGuard.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: загрузка -->
+<div class="col">
+  <div class="caption">2 · Во время обмена токена (короткая загрузка)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="content">
+      <div class="logo">🛡️</div>
+      <div class="title">Вход через Google</div>
+      <div class="subtitle">Нужен для синхронизации правил между устройствами родителей и ребёнка.</div>
+      <div class="spinner"></div>
+      <div class="loading-text">Выполняется вход…</div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: ошибка + тёмная тема -->
+<div class="col dark">
+  <div class="caption">3 · Ошибка входа (тёмная тема)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="content">
+      <div class="logo">🛡️</div>
+      <div class="title">Вход через Google</div>
+      <div class="subtitle">Нужен для синхронизации правил между устройствами родителей и ребёнка.</div>
+      <div class="gbtn">
+        <svg class="g" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 4.1 29.5 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22 22-9.8 22-22c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.1 8 3l6-6C34.5 4.1 29.5 2 24 2 16 2 9 6.5 6.3 14.7z"/><path fill="#4CAF50" d="M24 46c5.4 0 10.3-1.8 14.1-5l-6.5-5.5C29.5 37 26.9 38 24 38c-5.3 0-9.7-3.5-11.3-8.3l-6.5 5C9 41.4 15.9 46 24 46z"/><path fill="#1976D2" d="M43.6 20.5H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.5 5.5C41.4 36.6 44 30.8 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+        <span>Войти через Google</span>
+      </div>
+      <div class="error-box"><div class="error-text">Не удалось войти. Проверьте подключение к интернету и попробуйте снова.</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

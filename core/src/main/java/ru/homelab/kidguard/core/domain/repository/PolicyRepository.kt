@@ -27,4 +27,14 @@ interface PolicyRepository {
 
     /** Добавить/убрать приложение из белого списка. */
     suspend fun setWhitelisted(packageName: String, whitelisted: Boolean)
+
+    /**
+     * Транзакционно заменить всю политику разом — применение серверного документа при
+     * синхронизации (веха 4.3). Локальные правила полностью перезаписываются.
+     */
+    suspend fun replaceAll(
+        dailyLimits: Map<DayOfWeek, Int>,
+        appLimits: Map<String, Int>,
+        whitelist: Set<String>
+    )
 }

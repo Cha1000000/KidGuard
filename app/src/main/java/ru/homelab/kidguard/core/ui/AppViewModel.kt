@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import ru.homelab.kidguard.core.domain.model.Role
+import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.ui.navigation.Destinations
 import javax.inject.Inject
@@ -19,22 +20,27 @@ sealed interface AppStartState {
 }
 
 /**
- * Определяет, куда вести пользователя при запуске: в мастер первичной настройки (роль ещё не
- * выбрана) или сразу в граф родителя/ребёнка (роль зафиксирована навсегда).
+ * Определяет, куда вести пользователя при запуске, по роли устройства и состоянию сессии:
+ * - роль не выбрана → онбординг;
+ * - родитель без валидной Google-сессии → вход через Google; иначе → родительский режим;
+ * - ребёнок без привязки устройства → экран pairing-кода; иначе → детский режим.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
-    settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository,
+    authRepository: AuthRepository
 ) : ViewModel() {
 
     val startState: StateFlow<AppStartState> = combine(
         settingsRepository.setupCompleted,
-        settingsRepository.role
-    ) { completed, role ->
+        settingsRepository.role,
+        authRepository.hasValidSession,
+        authRepository.hasPairedDevice
+    ) { completed, role, hasValidSession, hasPairedDevice ->
         val route = when {
             !completed || role == null -> Destinations.ONBOARDING
-            role == Role.PARENT -> Destinations.PARENT
-            else -> Destinations.CHILD
+            role == Role.PARENT -> if (hasValidSession) Destinations.PARENT else Destinations.LOGIN
+            else -> if (hasPairedDevice) Destinations.CHILD else Destinations.PAIRING
         }
         AppStartState.Ready(route)
     }.stateIn(

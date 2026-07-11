@@ -7,6 +7,56 @@
     <string name="onboarding_role_parent">Это телефон родителя</string>
     <string name="onboarding_role_child">Это телефон ребёнка</string>
 
+    <!-- Вход через Google -->
+    <string name="signin_title">Вход через Google</string>
+    <string name="signin_subtitle">Нужен для синхронизации правил между устройствами родителей и ребёнка.</string>
+    <string name="signin_button">Войти через Google</string>
+    <string name="signin_loading">Выполняется вход…</string>
+    <string name="signin_consent_hint">Продолжая, вы соглашаетесь на использование Google-аккаунта для входа в KidGuard.</string>
+    <string name="signin_error">Не удалось войти. Проверьте подключение к интернету и попробуйте снова.</string>
+
+    <!-- Привязка детского устройства (pairing-код) -->
+    <string name="pairing_title">Введите код от родителя</string>
+    <string name="pairing_subtitle">Попросите родителя добавить вас в приложении KidGuard и продиктовать 6-значный код.</string>
+    <string name="pairing_button">Привязать</string>
+    <string name="pairing_loading">Привязываем устройство…</string>
+    <string name="pairing_hint">Код действует, пока родитель не создаст новый.</string>
+    <string name="pairing_error">Неверный код или он уже использован. Попросите родителя создать новый.</string>
+
+    <!-- Дети (родитель): список, добавление, pairing-код, второй родитель -->
+    <string name="children_add">Добавить ребёнка</string>
+    <string name="children_empty">Пока нет детей. Добавьте ребёнка и привяжите его устройство кодом.</string>
+    <string name="children_status_paired">Привязан</string>
+    <string name="children_status_waiting">Ждёт ввода кода</string>
+    <string name="children_load_error">Не удалось загрузить список. Проверьте подключение.</string>
+    <string name="add_child_title">Новый ребёнок</string>
+    <string name="add_child_name_label">Имя ребёнка</string>
+    <string name="add_child_avatar_label">Выберите аватар</string>
+    <string name="add_child_create">Создать</string>
+    <string name="child_code_title">Код для привязки</string>
+    <string name="child_code_subtitle">Продиктуйте код ребёнку — пусть введёт его на своём телефоне в KidGuard (режим «ребёнка»).</string>
+    <string name="child_code_hint">Код действует, пока ребёнок его не введёт.</string>
+    <string name="child_code_copy">Скопировать</string>
+    <string name="child_code_copied">Код скопирован</string>
+    <string name="child_code_new">Новый код</string>
+    <string name="child_code_get">Показать код для привязки</string>
+    <string name="child_coparent">Пригласить второго родителя</string>
+    <string name="edit_child_title">Редактировать профиль</string>
+    <string name="edit_child_save">Сохранить</string>
+    <string name="child_edit">Редактировать профиль</string>
+    <string name="child_delete">Удалить ребёнка</string>
+    <string name="delete_child_title">Удалить %1$s?</string>
+    <string name="delete_child_message">Профиль, правила и статистика ребёнка будут удалены безвозвратно. Привязанное устройство перестанет контролироваться.</string>
+    <string name="delete_child_confirm">Удалить</string>
+    <string name="coparent_title">Второй родитель</string>
+    <string name="coparent_subtitle">Введите email второго родителя. Он получит доступ к этому ребёнку после входа через Google.</string>
+    <string name="coparent_email_label">Email второго родителя</string>
+    <string name="coparent_invite">Пригласить</string>
+    <string name="coparent_linked">Родитель добавлен</string>
+    <string name="coparent_pending">Приглашение отправлено — родитель получит доступ после входа</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_error">Что-то пошло не так. Проверьте подключение и попробуйте снова.</string>
+
     <!-- Родитель: нижняя навигация -->
     <string name="parent_tab_children">Дети</string>
     <string name="parent_tab_rules">Правила</string>
@@ -14,7 +64,19 @@
 
     <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
     <string name="parent_children_placeholder">Здесь будет список детей</string>
-    <string name="parent_statistics_placeholder">Здесь будет статистика использования</string>
+
+    <!-- Статистика (родитель) -->
+    <string name="statistics_today_label">Экранное время сегодня</string>
+    <string name="statistics_today_limit">Лимит: %1$s · осталось %2$s</string>
+    <string name="statistics_today_limit_exceeded">Лимит: %1$s · исчерпан</string>
+    <string name="statistics_week_label">Последние 7 дней</string>
+    <string name="statistics_apps_label">По приложениям · сегодня</string>
+    <string name="statistics_empty">Пока нет данных. Статистика появится, когда ребёнок начнёт пользоваться телефоном.</string>
+    <string name="statistics_load_error">Не удалось загрузить статистику. Проверьте подключение.</string>
+    <string name="statistics_no_children">Сначала добавьте ребёнка на вкладке «Дети».</string>
+
+    <!-- Селектор активного ребёнка (веха 4.5) -->
+    <string name="child_selector_switch_error">Не удалось переключить профиль. Проверьте подключение.</string>
 
     <!-- Родитель: вкладка «Правила» -->
     <string name="rules_daily_limit_title">Дневной лимит</string>

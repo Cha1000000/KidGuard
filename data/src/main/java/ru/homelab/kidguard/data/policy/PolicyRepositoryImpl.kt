@@ -50,4 +50,16 @@ class PolicyRepositoryImpl @Inject constructor(
             policyDao.removeFromWhitelist(packageName)
         }
     }
+
+    override suspend fun replaceAll(
+        dailyLimits: Map<DayOfWeek, Int>,
+        appLimits: Map<String, Int>,
+        whitelist: Set<String>
+    ) {
+        policyDao.replaceAllPolicy(
+            dayLimits = dailyLimits.map { (day, minutes) -> DayLimitEntity(day.value, minutes) },
+            appLimits = appLimits.map { (pkg, minutes) -> AppLimitEntity(pkg, minutes) },
+            whitelist = whitelist.map { WhitelistedAppEntity(it) }
+        )
+    }
 }

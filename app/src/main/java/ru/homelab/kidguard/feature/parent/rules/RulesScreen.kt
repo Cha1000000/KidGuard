@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
+import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 
 /** Вкладка «Правила»: две карточки-ссылки — на дневной лимит и на белый список приложений. */
 @Composable
@@ -36,6 +37,7 @@ fun RulesScreen(
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_rules))
+        ChildSelectorChip()
         Column(
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)

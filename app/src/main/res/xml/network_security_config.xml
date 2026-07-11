@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cleartext (HTTP без TLS) разрешён ТОЧЕЧНО только для 10.0.2.2 — это алиас эмулятора Android
+    на localhost хост-машины, куда во время разработки указывает BASE_URL (см. NetworkModule
+    в :data): локальный dev-сервер KidGuard-server, ещё не задеплоенный на боевой AdminVPS.
+    Остальной трафик приложения — по умолчанию (HTTPS-only). После деплоя на поддомен с HTTPS
+    (шаг 4.6 вехи 4) этот domain-config нужно будет убрать.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

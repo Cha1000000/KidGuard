@@ -60,6 +60,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.timber)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     // Требуется сгенерированным Hilt-кодом при инъекции в Service (AGP 9 не тянет транзитивно).
     compileOnly(libs.error.prone.annotations)
     testImplementation(libs.junit)
