@@ -39,6 +39,11 @@ class ChildrenViewModel @Inject constructor(
 
     init {
         refresh()
+        // Live-обновление: детское устройство ввело pairing-код (WS child-paired) —
+        // статус на открытой вкладке меняется на «Привязан» без перезахода.
+        viewModelScope.launch {
+            syncRepository.childPaired.collect { refresh() }
+        }
     }
 
     fun refresh() {

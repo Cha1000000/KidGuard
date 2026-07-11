@@ -10,6 +10,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -79,12 +80,16 @@ class SyncRepositoryImpl @Inject constructor(
         runCatching { pullAndApply(resolveParentChildId() ?: return@runCatching) }
             .onFailure { Timber.tag(TAG).w(it, "Стартовый pull родителя не удался") }
 
-        // Push-канал: правка вторым родителем прилетает без перезахода (веха 4.6).
+        // Push-канал: правка вторым родителем и привязка устройства прилетают без перезахода.
         launch {
-            policySocket.events().collect { changedChildId ->
-                runCatching {
-                    if (changedChildId == activeChildId.first()) pullAndApply(changedChildId)
-                }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+            policySocket.events().collect { event ->
+                when (event) {
+                    is WsEvent.PolicyChanged -> runCatching {
+                        if (event.childId == activeChildId.first()) pullAndApply(event.childId)
+                    }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+
+                    is WsEvent.ChildPaired -> childPairedEvents.tryEmit(event.childId)
+                }
             }
         }
 
@@ -107,6 +112,12 @@ class SyncRepositoryImpl @Inject constructor(
 
     override val activeChildId: Flow<Int?> =
         context.syncDataStore.data.map { it[Keys.ACTIVE_CHILD_ID] }
+
+    // replay=0: событие интересно только открытым сейчас подписчикам (вкладка «Дети»),
+    // extraBufferCapacity — чтобы tryEmit из петли не терялся при медленном подписчике.
+    private val childPairedEvents = MutableSharedFlow<Int>(extraBufferCapacity = 8)
+
+    override val childPaired: Flow<Int> = childPairedEvents
 
     /**
      * Переключение активного ребёнка. Порядок важен: сперва тянем и применяем политику нового
@@ -139,9 +150,10 @@ class SyncRepositoryImpl @Inject constructor(
         // Push-канал: политика/бонус применяются почти мгновенно (веха 4.6);
         // периодический pull ниже остаётся страховкой на случай долгого разрыва WS.
         launch {
-            policySocket.events().collect { changedChildId ->
+            policySocket.events().collect { event ->
+                if (event !is WsEvent.PolicyChanged) return@collect
                 runCatching {
-                    if (changedChildId == authLocalStore.pairedChildId()) pullAndApply(changedChildId)
+                    if (event.childId == authLocalStore.pairedChildId()) pullAndApply(event.childId)
                 }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
             }
         }

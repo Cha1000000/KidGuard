@@ -33,6 +33,12 @@ interface SyncRepository {
     suspend fun switchActiveChild(childId: Int): Result<Unit>
 
     /**
+     * Live-событие «детское устройство ввело pairing-код» (childId) — прилетает по WS, пока
+     * работает [parentSyncLoop]. Открытая вкладка «Дети» обновляет статус без перезахода.
+     */
+    val childPaired: Flow<Int>
+
+    /**
      * Петля детского устройства, периодически: pull политики (применяется в Room целиком,
      * правила тут же исполняются офлайн-движком) + push статистики за сегодня и вчера.
      */

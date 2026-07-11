@@ -22,9 +22,18 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Событие push-канала сервера. */
+sealed interface WsEvent {
+    /** Политика ребёнка изменена — подписчик делает немедленный pull. */
+    data class PolicyChanged(val childId: Int) : WsEvent
+
+    /** Детское устройство ввело pairing-код — у ребёнка сменился статус привязки. */
+    data class ChildPaired(val childId: Int) : WsEvent
+}
+
 /**
  * WebSocket-клиент push-канала сервера (веха 4.6). Сервер шлёт `{type:"policy-changed", childId}`
- * при каждом сохранении политики — подписчик в ответ делает немедленный pull.
+ * при каждом сохранении политики и `{type:"child-paired", childId}` при привязке устройства.
  */
 @Singleton
 class PolicySocket @Inject constructor(
@@ -33,11 +42,11 @@ class PolicySocket @Inject constructor(
 ) {
 
     /**
-     * Поток childId из событий policy-changed. «Вечный»: сам переподключается с бэкоффом
-     * (5с → 60с) и живёт, пока жив собирающий scope (петли синхронизации). Периодический pull
-     * остаётся страховкой на случай долгого разрыва.
+     * Поток событий push-канала. «Вечный»: сам переподключается с бэкоффом (5с → 60с) и живёт,
+     * пока жив собирающий scope (петли синхронизации). Периодический pull остаётся страховкой
+     * на случай долгого разрыва.
      */
-    fun events(): Flow<Int> = callbackFlow {
+    fun events(): Flow<WsEvent> = callbackFlow {
         val connectionLoop = launch {
             var backoffMs = INITIAL_BACKOFF_MS
             while (isActive) {
@@ -56,7 +65,7 @@ class PolicySocket @Inject constructor(
                     }
 
                     override fun onMessage(webSocket: WebSocket, text: String) {
-                        parsePolicyChanged(text)?.let { trySend(it) }
+                        parseEvent(text)?.let { trySend(it) }
                     }
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -85,13 +94,14 @@ class PolicySocket @Inject constructor(
         awaitClose { connectionLoop.cancel() }
     }
 
-    /** `{type:"policy-changed", childId}` → childId; всё остальное игнорируем. */
-    private fun parsePolicyChanged(text: String): Int? = runCatching {
+    /** Разбирает `{type, childId}` в [WsEvent]; неизвестные типы игнорируем. */
+    private fun parseEvent(text: String): WsEvent? = runCatching {
         val obj = Json.parseToJsonElement(text).jsonObject
-        if (obj["type"]?.jsonPrimitive?.content == "policy-changed") {
-            obj["childId"]?.jsonPrimitive?.int
-        } else {
-            null
+        val childId = obj["childId"]?.jsonPrimitive?.int ?: return null
+        when (obj["type"]?.jsonPrimitive?.content) {
+            "policy-changed" -> WsEvent.PolicyChanged(childId)
+            "child-paired" -> WsEvent.ChildPaired(childId)
+            else -> null
         }
     }.getOrNull()
 
