@@ -13,6 +13,7 @@ import ru.homelab.kidguard.data.network.AuthApi
 import ru.homelab.kidguard.data.network.AuthTokenInterceptor
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.PolicyApi
+import ru.homelab.kidguard.data.network.ServerConfig
 import ru.homelab.kidguard.data.network.UsageApi
 import javax.inject.Singleton
 
@@ -20,11 +21,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // 10.0.2.2 — алиас эмулятора Android на localhost хост-машины: локальный dev-сервер
-    // KidGuard-server (см. ~/projects/KidGuard-server), ещё не задеплоенный на боевой AdminVPS.
-    // TODO(шаг 4.7): заменить на адрес поддомена после деплоя.
-    // internal — из BASE_URL производится и адрес WS-канала (PolicySocket).
-    internal const val BASE_URL = "http://10.0.2.2:3003/"
+    // Адрес сервера — в ServerConfig (:data/network): зависит от типа сборки.
 
     @Provides
     @Singleton
@@ -41,7 +38,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(ServerConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()

@@ -15,6 +15,21 @@ android {
         minSdk = 33
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
+    buildTypes {
+        // Адрес KidGuard-server (шаг 4.7): debug — локальный dev-сервер через алиас эмулятора,
+        // release — боевой AdminVPS (пока по IP:порт, HTTPS/поддомен — отдельно позже).
+        debug {
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3003/\"")
+        }
+        release {
+            buildConfigField("String", "BASE_URL", "\"http://157.22.172.217:3003/\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

@@ -17,7 +17,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import ru.homelab.kidguard.data.auth.AuthLocalStore
-import ru.homelab.kidguard.data.di.NetworkModule
+import ru.homelab.kidguard.data.network.ServerConfig
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -70,7 +70,7 @@ class PolicySocket @Inject constructor(
                     }
                 }
 
-                val request = Request.Builder().url("$WS_URL?token=$token").build()
+                val request = Request.Builder().url("${ServerConfig.WS_URL}?token=$token").build()
                 val socket = okHttpClient.newWebSocket(request, listener)
                 try {
                     closed.await()
@@ -99,8 +99,5 @@ class PolicySocket @Inject constructor(
         const val TAG = "KidGuardSync"
         const val INITIAL_BACKOFF_MS = 5_000L
         const val MAX_BACKOFF_MS = 60_000L
-
-        /** Push-канал на том же хосте, что HTTP API (см. NetworkModule.BASE_URL). */
-        val WS_URL = NetworkModule.BASE_URL.replaceFirst("http", "ws") + "ws"
     }
 }

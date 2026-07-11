@@ -26,6 +26,10 @@ android {
             optimization {
                 enable = false
             }
+            // Пока подписываем debug-ключом: приложение ставится вручную (.apk, своя семья),
+            // и SHA-1 debug-ключа зарегистрирован в Google OAuth — вход работает и в release.
+            // Отдельный релизный ключ заведём перед вехой 6 (защита/обкатка).
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
