@@ -6,6 +6,7 @@ import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
+import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 import java.time.DayOfWeek
@@ -25,6 +26,10 @@ class PolicyRepositoryImpl @Inject constructor(
 
     override val appLimits: Flow<Map<String, Int>> = policyDao.appLimits().map { rows ->
         rows.associate { it.packageName to it.minutes }
+    }
+
+    override val blockedApps: Flow<Set<String>> = policyDao.blockedApps().map { rows ->
+        rows.map { it.packageName }.toSet()
     }
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) {
@@ -51,15 +56,25 @@ class PolicyRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun setBlocked(packageName: String, blocked: Boolean) {
+        if (blocked) {
+            policyDao.addToBlocked(BlockedAppEntity(packageName))
+        } else {
+            policyDao.removeFromBlocked(packageName)
+        }
+    }
+
     override suspend fun replaceAll(
         dailyLimits: Map<DayOfWeek, Int>,
         appLimits: Map<String, Int>,
-        whitelist: Set<String>
+        whitelist: Set<String>,
+        blockedApps: Set<String>
     ) {
         policyDao.replaceAllPolicy(
             dayLimits = dailyLimits.map { (day, minutes) -> DayLimitEntity(day.value, minutes) },
             appLimits = appLimits.map { (pkg, minutes) -> AppLimitEntity(pkg, minutes) },
-            whitelist = whitelist.map { WhitelistedAppEntity(it) }
+            whitelist = whitelist.map { WhitelistedAppEntity(it) },
+            blockedApps = blockedApps.map { BlockedAppEntity(it) }
         )
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -27,11 +28,12 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 
-/** Вкладка «Правила»: две карточки-ссылки — на дневной лимит и на белый список приложений. */
+/** Вкладка «Правила»: карточки-ссылки на дневной лимит, лимиты приложений, запрет и белый список. */
 @Composable
 fun RulesScreen(
     onOpenDailyLimit: () -> Unit,
     onOpenAppLimits: () -> Unit,
+    onOpenBlockedApps: () -> Unit,
     onOpenWhitelist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -55,6 +57,13 @@ fun RulesScreen(
                 onClick = onOpenAppLimits
             )
             RuleCard(
+                icon = ImageVector.vectorResource(R.drawable.ic_block),
+                title = R.string.rules_blocked_apps_title,
+                subtitle = R.string.rules_blocked_apps_subtitle,
+                onClick = onOpenBlockedApps,
+                iconTint = MaterialTheme.colorScheme.error
+            )
+            RuleCard(
                 icon = Icons.Filled.CheckCircle,
                 title = R.string.rules_whitelist_title,
                 subtitle = R.string.rules_whitelist_subtitle,
@@ -70,7 +79,8 @@ private fun RuleCard(
     @StringRes title: Int,
     @StringRes subtitle: Int,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Row(
@@ -83,7 +93,7 @@ private fun RuleCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = iconTint,
                 modifier = Modifier.size(32.dp)
             )
             Column(modifier = Modifier.weight(1f)) {

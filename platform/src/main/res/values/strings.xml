@@ -14,6 +14,10 @@
     <string name="overlay_blocked_title">Время вышло</string>
     <string name="overlay_blocked_text">Время на сегодня закончилось</string>
 
+    <!-- Экран блокировки (оверлей) — приложение запрещено родителем (веха 4.1.2) -->
+    <string name="overlay_prohibited_title">Приложение недоступно</string>
+    <string name="overlay_prohibited_text">Это приложение запретил родитель</string>
+
     <!-- Предупреждение перед истечением лимита -->
     <string name="warning_channel_name">Предупреждения о времени</string>
     <string name="warning_title">Скоро конец времени</string>

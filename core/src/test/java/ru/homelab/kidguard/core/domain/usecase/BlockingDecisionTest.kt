@@ -6,7 +6,8 @@ import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.LimitState
 
 /**
- * Матрица приоритетов вехи 3: alwaysAllowed > пер-app лимит > белый список > общий лимит.
+ * Матрица приоритетов вехи 4.1.2: alwaysAllowed > запрет > пер-app лимит > белый список >
+ * общий лимит.
  */
 class BlockingDecisionTest {
 
@@ -16,8 +17,9 @@ class BlockingDecisionTest {
         pkg: String? = "com.game.app",
         limit: LimitState = LimitState.NoLimit,
         appLimit: LimitState = LimitState.NoLimit,
-        whitelist: Set<String> = emptySet()
-    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed)
+        whitelist: Set<String> = emptySet(),
+        blockedApps: Set<String> = emptySet()
+    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed, blockedApps)
 
     // --- Приоритет 1: alwaysAllowed ---
 
@@ -27,7 +29,49 @@ class BlockingDecisionTest {
         assertFalse(block(pkg = "com.android.launcher", limit = LimitState.Expired, appLimit = LimitState.Expired))
     }
 
-    // --- Приоритет 2: личный (пер-app) лимит ---
+    @Test
+    fun `alwaysAllowed сильнее запрета - не блокируем, даже если пакет в blockedApps`() {
+        assertFalse(block(pkg = "ru.homelab.kidguard", blockedApps = setOf("ru.homelab.kidguard")))
+    }
+
+    // --- Приоритет 2: запрет (blockedApps) ---
+
+    @Test
+    fun `приложение запрещено - блокируем при любых лимитах и белом списке`() {
+        assertTrue(
+            block(
+                blockedApps = setOf("com.game.app"),
+                limit = LimitState.NoLimit,
+                appLimit = LimitState.NoLimit,
+                whitelist = setOf("com.game.app")
+            )
+        )
+        assertTrue(
+            block(
+                blockedApps = setOf("com.game.app"),
+                limit = LimitState.Remaining(30),
+                appLimit = LimitState.Remaining(30)
+            )
+        )
+    }
+
+    @Test
+    fun `запрет бьёт белый список - блокируем, даже если приложение тоже в whitelist`() {
+        assertTrue(
+            block(
+                pkg = "com.android.dialer",
+                blockedApps = setOf("com.android.dialer"),
+                whitelist = setOf("com.android.dialer")
+            )
+        )
+    }
+
+    @Test
+    fun `приложение не в blockedApps - запрет не влияет`() {
+        assertFalse(block(blockedApps = setOf("com.other.app")))
+    }
+
+    // --- Приоритет 3: личный (пер-app) лимит ---
 
     @Test
     fun `личный лимит исчерпан - блокируем, даже если общий не исчерпан`() {
@@ -47,7 +91,7 @@ class BlockingDecisionTest {
         assertFalse(block(appLimit = LimitState.Remaining(10), limit = LimitState.Remaining(30)))
     }
 
-    // --- Приоритет 3: белый список ---
+    // --- Приоритет 4: белый список ---
 
     @Test
     fun `белый список - не блокируем даже при исчерпанном общем лимите`() {
@@ -56,7 +100,7 @@ class BlockingDecisionTest {
         )
     }
 
-    // --- Приоритет 4: общий дневной лимит ---
+    // --- Приоритет 5: общий дневной лимит ---
 
     @Test
     fun `общий лимит исчерпан и приложение не разрешено - блокируем`() {
@@ -69,7 +113,7 @@ class BlockingDecisionTest {
         assertTrue(block(limit = LimitState.Expired, appLimit = LimitState.Remaining(15)))
     }
 
-    // --- Приоритет 5: всё в норме ---
+    // --- Приоритет 6: всё в норме ---
 
     @Test
     fun `время ещё есть - не блокируем`() {

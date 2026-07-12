@@ -6,6 +6,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
+import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 
@@ -39,6 +40,15 @@ interface PolicyDao {
     @Query("DELETE FROM whitelisted_app WHERE packageName = :packageName")
     suspend fun removeFromWhitelist(packageName: String)
 
+    @Query("SELECT * FROM blocked_app")
+    fun blockedApps(): Flow<List<BlockedAppEntity>>
+
+    @Upsert
+    suspend fun addToBlocked(entity: BlockedAppEntity)
+
+    @Query("DELETE FROM blocked_app WHERE packageName = :packageName")
+    suspend fun removeFromBlocked(packageName: String)
+
     @Query("DELETE FROM day_limit")
     suspend fun deleteAllDayLimits()
 
@@ -47,6 +57,9 @@ interface PolicyDao {
 
     @Query("DELETE FROM whitelisted_app")
     suspend fun deleteAllWhitelist()
+
+    @Query("DELETE FROM blocked_app")
+    suspend fun deleteAllBlocked()
 
     /**
      * Транзакционно заменяет ВСЮ политику разом (применение серверного документа — веха 4.3):
@@ -57,13 +70,16 @@ interface PolicyDao {
     suspend fun replaceAllPolicy(
         dayLimits: List<DayLimitEntity>,
         appLimits: List<AppLimitEntity>,
-        whitelist: List<WhitelistedAppEntity>
+        whitelist: List<WhitelistedAppEntity>,
+        blockedApps: List<BlockedAppEntity>
     ) {
         deleteAllDayLimits()
         deleteAllAppLimits()
         deleteAllWhitelist()
+        deleteAllBlocked()
         dayLimits.forEach { upsertDayLimit(it) }
         appLimits.forEach { upsertAppLimit(it) }
         whitelist.forEach { addToWhitelist(it) }
+        blockedApps.forEach { addToBlocked(it) }
     }
 }

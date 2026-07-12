@@ -108,8 +108,9 @@ class SyncRepositoryImpl @Inject constructor(
             policyRepository.dailyLimits,
             policyRepository.appLimits,
             policyRepository.whitelist,
+            policyRepository.blockedApps,
             bonusRepository.observeAll()
-        ) { _, _, _, _ -> Unit }
+        ) { _, _, _, _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -140,7 +141,8 @@ class SyncRepositoryImpl @Inject constructor(
         val data = response.data ?: PolicyDocumentDto(
             dailyLimits = emptyMap(),
             appLimits = emptyMap(),
-            whitelist = emptyList()
+            whitelist = emptyList(),
+            blockedApps = emptyList()
         )
         applyDocument(data)
         context.syncDataStore.edit { prefs ->
@@ -238,7 +240,8 @@ class SyncRepositoryImpl @Inject constructor(
                 runCatching { DayOfWeek.valueOf(key) to minutes }.getOrNull()
             }.toMap(),
             appLimits = data.appLimits,
-            whitelist = data.whitelist.toSet()
+            whitelist = data.whitelist.toSet(),
+            blockedApps = data.blockedApps.toSet()
         )
         bonusRepository.replaceAll(
             data.bonuses.mapNotNull { dto ->
@@ -282,6 +285,7 @@ class SyncRepositoryImpl @Inject constructor(
             .mapKeys { it.key.name },
         appLimits = policyRepository.appLimits.first(),
         whitelist = policyRepository.whitelist.first().toList(),
+        blockedApps = policyRepository.blockedApps.first().toList(),
         // Бонусы датированы «на сегодня»: прошедшие дни в документ не тащим.
         bonuses = bonusRepository.observeAll().first()
             .filter { it.date == currentDateProvider.today() }
@@ -298,6 +302,7 @@ class SyncRepositoryImpl @Inject constructor(
             dailyLimits = document.dailyLimits.toSortedMap(),
             appLimits = document.appLimits.toSortedMap(),
             whitelist = document.whitelist.sorted(),
+            blockedApps = document.blockedApps.sorted(),
             bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName }))
         )
     )

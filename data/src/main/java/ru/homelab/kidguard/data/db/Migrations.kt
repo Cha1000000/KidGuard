@@ -45,3 +45,14 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+/** v4 → v5 (веха 4.1.2): список полностью запрещённых родителем приложений. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `blocked_app` (" +
+                "`packageName` TEXT NOT NULL, " +
+                "PRIMARY KEY(`packageName`))"
+        )
+    }
+}

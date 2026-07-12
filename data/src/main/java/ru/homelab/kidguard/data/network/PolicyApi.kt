@@ -16,6 +16,7 @@ data class PolicyDocumentDto(
     val dailyLimits: Map<String, Int> = emptyMap(),
     val appLimits: Map<String, Int> = emptyMap(),
     val whitelist: List<String> = emptyList(),
+    val blockedApps: List<String> = emptyList(),
     val bonuses: List<BonusEntryDto> = emptyList()
 )
 

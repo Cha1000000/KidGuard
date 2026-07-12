@@ -53,18 +53,28 @@ class BlockingController @Inject constructor(
             combine(
                 observeLimitStateUseCase(),
                 appLimitStateFlow,
-                policyRepository.whitelist
-            ) { limitState, appLimitState, whitelist ->
-                shouldBlock(activePackage, limitState, appLimitState, whitelist, alwaysAllowed)
+                policyRepository.whitelist,
+                policyRepository.blockedApps
+            ) { limitState, appLimitState, whitelist, blockedApps ->
+                val block = shouldBlock(activePackage, limitState, appLimitState, whitelist, alwaysAllowed, blockedApps)
+                // Причина для оверлея: если пакет в blockedApps (и не alwaysAllowed), матрица
+                // приоритетов гарантирует блокировку именно по запрету, независимо от лимитов —
+                // отдельного дублирования логики shouldBlock не требуется.
+                val reason = if (activePackage != null && activePackage !in alwaysAllowed && activePackage in blockedApps) {
+                    BlockReason.BLOCKED_BY_PARENT
+                } else {
+                    BlockReason.LIMIT_EXPIRED
+                }
+                block to reason
             }
-        }.distinctUntilChanged().collect { block ->
+        }.distinctUntilChanged().collect { (block, reason) ->
             // Скрытие оверлея сюда намеренно не добавляем: он закрывается только свайпом
             // самого ребёнка (см. OverlayManager). Иначе уход на домашний экран ниже сразу же
             // «снял» бы блокировку — лаунчер всегда разрешён.
             if (block) {
-                overlayManager.show()
+                overlayManager.show(reason)
                 sendHome()
-                Timber.tag(TAG).d("Блокировка активна")
+                Timber.tag(TAG).d("Блокировка активна (причина=%s)", reason)
             }
         }
     }

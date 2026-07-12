@@ -7,6 +7,7 @@ import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.AppScreenTimeEntity
+import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BonusGrantEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.ScreenTimeEntity
@@ -19,9 +20,10 @@ import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
         ScreenTimeEntity::class,
         AppLimitEntity::class,
         AppScreenTimeEntity::class,
-        BonusGrantEntity::class
+        BonusGrantEntity::class,
+        BlockedAppEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class KidGuardDatabase : RoomDatabase() {

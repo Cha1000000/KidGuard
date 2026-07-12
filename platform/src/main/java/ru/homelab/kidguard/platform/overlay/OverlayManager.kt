@@ -37,10 +37,14 @@ class OverlayManager @Inject constructor(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayView: View? = null
 
-    /** Показать блокирующий экран (idempotent). Закрывается только свайпом. Вызовы с любого потока. */
-    fun show() = mainHandler.post {
+    /**
+     * Показать блокирующий экран (idempotent — повторный вызов, пока оверлей уже показан, ничего
+     * не меняет, даже если [reason] другой: оверлей закрывается только свайпом). Вызовы с любого
+     * потока.
+     */
+    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED) = mainHandler.post {
         if (overlayView != null) return@post
-        val view = createOverlayView()
+        val view = createOverlayView(reason)
         windowManager?.addView(view, buildLayoutParams())
         overlayView = view
     }
@@ -52,15 +56,20 @@ class OverlayManager @Inject constructor(
         overlayView = null
     }
 
-    private fun createOverlayView(): View {
+    private fun createOverlayView(reason: BlockReason): View {
+        val (titleRes, textRes) = when (reason) {
+            BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title to R.string.overlay_blocked_text
+            BlockReason.BLOCKED_BY_PARENT ->
+                R.string.overlay_prohibited_title to R.string.overlay_prohibited_text
+        }
         val title = TextView(context).apply {
-            text = context.getString(R.string.overlay_blocked_title)
+            text = context.getString(titleRes)
             setTextColor(Color.WHITE)
             textSize = 28f
             gravity = Gravity.CENTER
         }
         val subtitle = TextView(context).apply {
-            text = context.getString(R.string.overlay_blocked_text)
+            text = context.getString(textRes)
             setTextColor(Color.LTGRAY)
             textSize = 16f
             gravity = Gravity.CENTER

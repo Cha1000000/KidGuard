@@ -19,6 +19,9 @@ interface PolicyRepository {
     /** Личные дневные лимиты приложений: пакет → минут/день (веха 3). */
     val appLimits: Flow<Map<String, Int>>
 
+    /** Пакеты приложений, полностью запрещённых родителем (веха 4.1.2) — блокируются всегда. */
+    val blockedApps: Flow<Set<String>>
+
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
 
@@ -28,6 +31,9 @@ interface PolicyRepository {
     /** Добавить/убрать приложение из белого списка. */
     suspend fun setWhitelisted(packageName: String, whitelisted: Boolean)
 
+    /** Добавить/убрать приложение из списка запрещённых. */
+    suspend fun setBlocked(packageName: String, blocked: Boolean)
+
     /**
      * Транзакционно заменить всю политику разом — применение серверного документа при
      * синхронизации (веха 4.3). Локальные правила полностью перезаписываются.
@@ -35,6 +41,7 @@ interface PolicyRepository {
     suspend fun replaceAll(
         dailyLimits: Map<DayOfWeek, Int>,
         appLimits: Map<String, Int>,
-        whitelist: Set<String>
+        whitelist: Set<String>,
+        blockedApps: Set<String>
     )
 }

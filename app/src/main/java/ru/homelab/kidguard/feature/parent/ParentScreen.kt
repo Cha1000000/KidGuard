@@ -20,6 +20,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
+import ru.homelab.kidguard.feature.parent.rules.BlockedAppsScreen
 import ru.homelab.kidguard.feature.parent.rules.DailyLimitScreen
 import ru.homelab.kidguard.feature.parent.rules.RulesScreen
 import ru.homelab.kidguard.feature.parent.rules.WhitelistScreen
@@ -28,6 +29,7 @@ import ru.homelab.kidguard.feature.parent.statistics.StatisticsScreen
 private const val ROUTE_RULES_LIMIT = "parent/rules/limit"
 private const val ROUTE_RULES_WHITELIST = "parent/rules/whitelist"
 private const val ROUTE_RULES_APP_LIMITS = "parent/rules/app-limits"
+private const val ROUTE_RULES_BLOCKED_APPS = "parent/rules/blocked-apps"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -79,6 +81,7 @@ fun ParentScreen(
                 RulesScreen(
                     onOpenDailyLimit = { navController.navigate(ROUTE_RULES_LIMIT) },
                     onOpenAppLimits = { navController.navigate(ROUTE_RULES_APP_LIMITS) },
+                    onOpenBlockedApps = { navController.navigate(ROUTE_RULES_BLOCKED_APPS) },
                     onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) }
                 )
             }
@@ -87,6 +90,9 @@ fun ParentScreen(
             }
             composable(ROUTE_RULES_APP_LIMITS) {
                 AppLimitsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RULES_BLOCKED_APPS) {
+                BlockedAppsScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_RULES_WHITELIST) {
                 WhitelistScreen(onBack = { navController.popBackStack() })

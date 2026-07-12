@@ -92,13 +92,16 @@ class ObserveAppLimitStateUseCaseTest {
         override val dailyLimits: Flow<DailyLimits> = flowOf(DailyLimits.EMPTY)
         override val whitelist: Flow<Set<String>> = flowOf(emptySet())
         override val appLimits: Flow<Map<String, Int>> = flowOf(appLimitsMap)
+        override val blockedApps: Flow<Set<String>> = flowOf(emptySet())
         override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
         override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
         override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
+        override suspend fun setBlocked(packageName: String, blocked: Boolean) = Unit
         override suspend fun replaceAll(
             dailyLimits: Map<DayOfWeek, Int>,
             appLimits: Map<String, Int>,
-            whitelist: Set<String>
+            whitelist: Set<String>,
+            blockedApps: Set<String>
         ) = Unit
     }
 
