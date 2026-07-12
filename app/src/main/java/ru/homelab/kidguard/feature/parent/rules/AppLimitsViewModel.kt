@@ -24,7 +24,7 @@ import javax.inject.Inject
 data class AppLimitUi(
     val packageName: String,
     val label: String,
-    val icon: ImageBitmap,
+    val icon: ImageBitmap?,
     /** Личный дневной лимит (минут), либо null, если не задан. */
     val limitMinutes: Int?,
     /** Израсходовано этим приложением сегодня (минут). */
@@ -35,21 +35,22 @@ data class AppLimitUi(
 
 @HiltViewModel
 class AppLimitsViewModel @Inject constructor(
-    private val installedAppsProvider: InstalledAppsProvider,
+    private val childAppsProvider: ChildAppsProvider,
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
     private val bonusRepository: BonusRepository,
     private val currentDateProvider: CurrentDateProvider
 ) : ViewModel() {
 
-    private val installedApps = flow {
-        emit(withContext(Dispatchers.Default) { installedAppsProvider.loadLaunchableApps() })
+    private val childApps = flow {
+        emit(withContext(Dispatchers.Default) { childAppsProvider.loadActiveChildApps() })
     }
 
-    val apps: StateFlow<List<AppLimitUi>> = flow {
+    /** `null` — список с сервера ещё грузится; пустой — устройство ребёнка его не прислало. */
+    val apps: StateFlow<List<AppLimitUi>?> = flow {
         val today = currentDateProvider.today()
         val combined = combine(
-            installedApps,
+            childApps,
             policyRepository.appLimits,
             usageRepository.appScreenTimeByPackage(today),
             bonusRepository.appBonusMinutes(today)
@@ -69,7 +70,7 @@ class AppLimitsViewModel @Inject constructor(
                 .sortedWith(compareBy({ it.limitMinutes == null }, { it.label.lowercase() }))
         }
         emitAll(combined)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setAppLimit(packageName: String, minutes: Int?) {
         viewModelScope.launch { policyRepository.setAppLimit(packageName, minutes) }

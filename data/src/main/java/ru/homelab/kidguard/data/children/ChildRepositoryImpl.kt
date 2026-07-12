@@ -1,9 +1,11 @@
 package ru.homelab.kidguard.data.children
 
+import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
 import ru.homelab.kidguard.core.domain.model.UsageEntry
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
+import ru.homelab.kidguard.data.network.AppsApi
 import ru.homelab.kidguard.data.network.ChildDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.CoParentRequest
@@ -17,7 +19,8 @@ import javax.inject.Singleton
 @Singleton
 class ChildRepositoryImpl @Inject constructor(
     private val childrenApi: ChildrenApi,
-    private val usageApi: UsageApi
+    private val usageApi: UsageApi,
+    private val appsApi: AppsApi
 ) : ChildRepository {
 
     override suspend fun createChild(name: String, avatar: Int): Result<ChildWithCode> = try {
@@ -70,6 +73,13 @@ class ChildRepositoryImpl @Inject constructor(
     override suspend fun deleteChild(childId: Int): Result<Unit> = try {
         childrenApi.deleteChild(childId)
         Result.success(Unit)
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
+
+    override suspend fun childApps(childId: Int): Result<List<AppInfo>> = try {
+        val response = appsApi.getApps(childId)
+        Result.success(response.apps.map { AppInfo(it.packageName, it.label) })
     } catch (error: Exception) {
         Result.failure(error)
     }

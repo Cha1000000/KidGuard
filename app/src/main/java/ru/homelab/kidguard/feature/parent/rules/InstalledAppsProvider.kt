@@ -1,44 +1,52 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
+import ru.homelab.kidguard.core.domain.repository.ChildRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import javax.inject.Inject
 
-/** Запускаемое приложение: пакет, название и иконка (для экранов белого списка и лимитов). */
+/**
+ * Приложение с устройства ребёнка: пакет, название и иконка (для экранов белого списка и лимитов).
+ * Иконки нет, если такое приложение не установлено на родительском телефоне — тогда экран рисует
+ * буквенный кружок.
+ */
 data class InstalledApp(
     val packageName: String,
     val label: String,
-    val icon: ImageBitmap
+    val icon: ImageBitmap?
 )
 
 /**
- * Загружает список запускаемых приложений (у которых есть LAUNCHER-активность — то есть иконка
- * в лаунчере, как в Family Link). Тяжёлая операция — вызывать на фоновом диспетчере.
- * Единая точка для экранов «Всегда доступные» и «Лимиты приложений».
+ * Список приложений АКТИВНОГО РЕБЁНКА с сервера (веха 4.1): детское устройство публикует свои
+ * запускаемые приложения, родитель выбирает из них лимиты/белый список/запреты. Иконок сервер
+ * не хранит — подставляем локальную, если тот же пакет установлен у родителя (частый случай для
+ * популярных приложений). Единая точка для экранов «Всегда доступные» и «Лимиты приложений».
  */
-class InstalledAppsProvider @Inject constructor(
-    @param:ApplicationContext private val context: Context
+class ChildAppsProvider @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+    private val childRepository: ChildRepository,
+    private val syncRepository: SyncRepository
 ) {
 
-    fun loadLaunchableApps(): List<InstalledApp> {
-        val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-            .distinctBy { it.activityInfo.packageName }
-            .map {
-                InstalledApp(
-                    packageName = it.activityInfo.packageName,
-                    label = it.loadLabel(pm).toString(),
-                    icon = it.loadIcon(pm).toBitmap(width = ICON_PX, height = ICON_PX).asImageBitmap()
-                )
-            }
+    /** Пустой список — ребёнок не выбран, устройство ещё не прислало приложения или сеть недоступна. */
+    suspend fun loadActiveChildApps(): List<InstalledApp> {
+        val childId = syncRepository.activeChildId.first() ?: return emptyList()
+        val apps = childRepository.childApps(childId).getOrDefault(emptyList())
+        return apps
+            .map { InstalledApp(it.packageName, it.label, localIcon(it.packageName)) }
             .sortedBy { it.label.lowercase() }
     }
+
+    private fun localIcon(packageName: String): ImageBitmap? = runCatching {
+        context.packageManager.getApplicationIcon(packageName)
+            .toBitmap(width = ICON_PX, height = ICON_PX)
+            .asImageBitmap()
+    }.getOrNull()
 
     private companion object {
         const val ICON_PX = 96

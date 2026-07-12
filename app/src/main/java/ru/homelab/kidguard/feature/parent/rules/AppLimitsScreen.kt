@@ -1,6 +1,5 @@
 package ru.homelab.kidguard.feature.parent.rules
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -35,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -56,7 +53,8 @@ fun AppLimitsScreen(
     // и открытый bottom-sheet реактивно показывает новое «Дополнительное время».
     var editingPackage by remember { mutableStateOf<String?>(null) }
     val filtered = remember(apps, query) {
-        if (query.isBlank()) apps else apps.filter { it.label.contains(query, ignoreCase = true) }
+        val list = apps.orEmpty()
+        if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
     Scaffold(
@@ -95,18 +93,22 @@ fun AppLimitsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            LazyColumn(
-                modifier = Modifier.padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(filtered, key = { it.packageName }) { app ->
-                    AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
+            when {
+                apps == null -> AppsLoadingState()
+                apps.orEmpty().isEmpty() -> AppsEmptyState()
+                else -> LazyColumn(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filtered, key = { it.packageName }) { app ->
+                        AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
+                    }
                 }
             }
         }
     }
 
-    val editingApp = apps.find { it.packageName == editingPackage }
+    val editingApp = apps.orEmpty().find { it.packageName == editingPackage }
     if (editingApp != null) {
         AppLimitEditorSheet(
             app = editingApp,
@@ -131,13 +133,7 @@ private fun AppLimitRow(app: AppLimitUi, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Image(
-            bitmap = app.icon,
-            contentDescription = null,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(MaterialTheme.shapes.small)
-        )
+        AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
         Column(modifier = Modifier.weight(1f)) {
             Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
             if (app.limitMinutes != null) {
@@ -175,13 +171,7 @@ private fun AppLimitEditorSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Image(
-                    bitmap = app.icon,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                )
+                AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
                 Text(app.label, style = MaterialTheme.typography.titleLarge)
             }
             Text(

@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.core.domain.repository
 
+import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
 import ru.homelab.kidguard.core.domain.model.UsageEntry
@@ -34,4 +35,10 @@ interface ChildRepository {
 
     /** Удалить ребёнка со всеми его данными на сервере (правила, статистика, приглашения). */
     suspend fun deleteChild(childId: Int): Result<Unit>
+
+    /**
+     * Список приложений, установленных на устройстве ребёнка (веха 4.1) — его публикует само
+     * детское устройство. Пустой список — устройство ещё не успело отправить свои приложения.
+     */
+    suspend fun childApps(childId: Int): Result<List<AppInfo>>
 }

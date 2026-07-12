@@ -22,12 +22,16 @@ import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
+import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthLocalStore
+import ru.homelab.kidguard.data.network.AppsApi
 import ru.homelab.kidguard.data.network.BonusEntryDto
+import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
+import ru.homelab.kidguard.data.network.PutAppsRequest
 import ru.homelab.kidguard.data.network.PolicyApi
 import ru.homelab.kidguard.data.network.PolicyDocumentDto
 import ru.homelab.kidguard.data.network.PutPolicyRequest
@@ -48,6 +52,8 @@ class SyncRepositoryImpl @Inject constructor(
     private val policyApi: PolicyApi,
     private val childrenApi: ChildrenApi,
     private val usageApi: UsageApi,
+    private val appsApi: AppsApi,
+    private val installedAppsSource: InstalledAppsSource,
     private val policyRepository: PolicyRepository,
     private val bonusRepository: BonusRepository,
     private val usageRepository: UsageRepository,
@@ -68,6 +74,9 @@ class SyncRepositoryImpl @Inject constructor(
 
         /** Выбранный родителем активный ребёнок (веха 4.5); null — выбор ещё не делался. */
         val ACTIVE_CHILD_ID = intPreferencesKey("active_child_id")
+
+        /** Снапшот последнего отправленного списка приложений устройства (веха 4.1). */
+        val LAST_SENT_APPS = stringPreferencesKey("last_sent_apps")
     }
 
     private val json = Json
@@ -165,9 +174,28 @@ class SyncRepositoryImpl @Inject constructor(
                     .onFailure { Timber.tag(TAG).w(it, "Pull политики не удался (повторим через интервал)") }
                 runCatching { pushUsage(childId) }
                     .onFailure { Timber.tag(TAG).w(it, "Отправка статистики не удалась (повторим через интервал)") }
+                runCatching { pushInstalledApps(childId) }
+                    .onFailure { Timber.tag(TAG).w(it, "Отправка списка приложений не удалась (повторим через интервал)") }
             }
             delay(CHILD_PULL_INTERVAL_MS)
         }
+    }
+
+    /**
+     * Публикует список запускаемых приложений устройства (веха 4.1) — родитель выбирает из него
+     * лимиты/белый список/запреты. Отправка только при изменении списка (снапшот в DataStore).
+     */
+    private suspend fun pushInstalledApps(childId: Int) {
+        val apps = installedAppsSource.launchableApps()
+            .map { ChildAppDto(it.packageName, it.label) }
+        val snapshot = json.encodeToString(
+            kotlinx.serialization.builtins.ListSerializer(ChildAppDto.serializer()),
+            apps.sortedBy { it.packageName }
+        )
+        if (snapshot == context.syncDataStore.data.first()[Keys.LAST_SENT_APPS]) return
+        appsApi.putApps(childId, PutAppsRequest(apps))
+        context.syncDataStore.edit { it[Keys.LAST_SENT_APPS] = snapshot }
+        Timber.tag(TAG).d("Список приложений отправлен (%d)", apps.size)
     }
 
     /**

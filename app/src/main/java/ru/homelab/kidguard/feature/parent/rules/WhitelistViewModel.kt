@@ -19,26 +19,27 @@ import javax.inject.Inject
 data class WhitelistAppUi(
     val packageName: String,
     val label: String,
-    val icon: ImageBitmap,
+    val icon: ImageBitmap?,
     val whitelisted: Boolean
 )
 
 @HiltViewModel
 class WhitelistViewModel @Inject constructor(
-    private val installedAppsProvider: InstalledAppsProvider,
+    private val childAppsProvider: ChildAppsProvider,
     private val policyRepository: PolicyRepository
 ) : ViewModel() {
 
-    private val installedApps = flow {
-        emit(withContext(Dispatchers.Default) { installedAppsProvider.loadLaunchableApps() })
+    private val childApps = flow {
+        emit(withContext(Dispatchers.Default) { childAppsProvider.loadActiveChildApps() })
     }
 
-    val apps: StateFlow<List<WhitelistAppUi>> =
-        combine(installedApps, policyRepository.whitelist) { apps, whitelist ->
+    /** `null` — список с сервера ещё грузится; пустой — устройство ребёнка его не прислало. */
+    val apps: StateFlow<List<WhitelistAppUi>?> =
+        combine(childApps, policyRepository.whitelist) { apps, whitelist ->
             apps.map { app ->
                 WhitelistAppUi(app.packageName, app.label, app.icon, app.packageName in whitelist)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setWhitelisted(packageName: String, whitelisted: Boolean) {
         viewModelScope.launch { policyRepository.setWhitelisted(packageName, whitelisted) }
