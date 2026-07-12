@@ -7,7 +7,12 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 
 @Serializable
-data class ChildAppDto(val packageName: String, val label: String)
+data class ChildAppDto(
+    val packageName: String,
+    val label: String,
+    /** Иконка приложения: WebP 96×96 в base64; null — устройство её не прислало. */
+    val icon: String? = null
+)
 
 @Serializable
 data class PutAppsRequest(val apps: List<ChildAppDto>)

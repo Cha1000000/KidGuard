@@ -187,7 +187,7 @@ class SyncRepositoryImpl @Inject constructor(
      */
     private suspend fun pushInstalledApps(childId: Int) {
         val apps = installedAppsSource.launchableApps()
-            .map { ChildAppDto(it.packageName, it.label) }
+            .map { ChildAppDto(it.packageName, it.label, it.iconBase64) }
         val snapshot = json.encodeToString(
             kotlinx.serialization.builtins.ListSerializer(ChildAppDto.serializer()),
             apps.sortedBy { it.packageName }

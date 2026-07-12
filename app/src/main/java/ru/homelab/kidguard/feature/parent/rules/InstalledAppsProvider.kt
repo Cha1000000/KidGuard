@@ -1,6 +1,8 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -12,8 +14,8 @@ import javax.inject.Inject
 
 /**
  * Приложение с устройства ребёнка: пакет, название и иконка (для экранов белого списка и лимитов).
- * Иконки нет, если такое приложение не установлено на родительском телефоне — тогда экран рисует
- * буквенный кружок.
+ * Иконки нет, только если устройство её не прислало и пакет не установлен у родителя — тогда
+ * экран рисует буквенный кружок.
  */
 data class InstalledApp(
     val packageName: String,
@@ -23,9 +25,10 @@ data class InstalledApp(
 
 /**
  * Список приложений АКТИВНОГО РЕБЁНКА с сервера (веха 4.1): детское устройство публикует свои
- * запускаемые приложения, родитель выбирает из них лимиты/белый список/запреты. Иконок сервер
- * не хранит — подставляем локальную, если тот же пакет установлен у родителя (частый случай для
- * популярных приложений). Единая точка для экранов «Всегда доступные» и «Лимиты приложений».
+ * запускаемые приложения вместе с иконками (WebP в base64), родитель выбирает из них
+ * лимиты/белый список/запреты. Приоритет иконки: серверная (именно детская версия) →
+ * локальная того же пакета → null (буквенный кружок на экране).
+ * Единая точка для экранов «Всегда доступные» и «Лимиты приложений».
  */
 class ChildAppsProvider @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -38,9 +41,21 @@ class ChildAppsProvider @Inject constructor(
         val childId = syncRepository.activeChildId.first() ?: return emptyList()
         val apps = childRepository.childApps(childId).getOrDefault(emptyList())
         return apps
-            .map { InstalledApp(it.packageName, it.label, localIcon(it.packageName)) }
+            .map {
+                InstalledApp(
+                    packageName = it.packageName,
+                    label = it.label,
+                    icon = decodeIcon(it.iconBase64) ?: localIcon(it.packageName)
+                )
+            }
             .sortedBy { it.label.lowercase() }
     }
+
+    private fun decodeIcon(base64: String?): ImageBitmap? = runCatching {
+        if (base64.isNullOrBlank()) return null
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    }.getOrNull()
 
     private fun localIcon(packageName: String): ImageBitmap? = runCatching {
         context.packageManager.getApplicationIcon(packageName)
