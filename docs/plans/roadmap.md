@@ -21,8 +21,9 @@
 | 2 | Точный учёт экранного времени + дневной лимит + белый список + блокировка | ✅ завершена, влита в main | `milestone-02-time-tracking-blocking.md` |
 | 3 | Пер-app лимиты (бонусное время → веха 3Б) | ✅ завершена, влита в main | `archive/milestone-03-per-app-limits.md` |
 | 3Б | Дополнительное время (бонусы: телефон + приложение) | ✅ завершена, влита в main | `archive/milestone-03b-bonus-time.md` |
-| 4 | Google Sign-In + связывание аккаунтов + бэкенд на AdminVPS + синхронизация | ⚪ черновик плана | `milestone-04-accounts-backend-sync.md` |
-| 5 | VPN-блокировка интернета после лимита | ⚪ черновик плана | `milestone-05-vpn-internet-block.md` |
+| 4 | Google Sign-In + связывание аккаунтов + бэкенд на AdminVPS + синхронизация | ✅ завершена, влита в main | `milestone-04-accounts-backend-sync.md` |
+| 4.1 | Детский UI «Сегодня» + запрет приложений (blocklist) + локальный аватар | ✅ завершена, влита в main | `milestone-04-1-child-ui-blocklist.md` |
+| 5 | VPN-блокировка интернета после лимита | 🟡 в работе (feature-ветка) | `milestone-05-vpn-internet-block.md` |
 | 6 | Обкатка на реальном Tecno + защита настроек от обхода PIN-ом | ⚪ черновик плана | `milestone-06-hardening-field-test.md` |
 
 ### Веха 1 — Каркас и фундамент
