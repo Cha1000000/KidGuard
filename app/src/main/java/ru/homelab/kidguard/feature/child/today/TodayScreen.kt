@@ -3,6 +3,8 @@ package ru.homelab.kidguard.feature.child.today
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +21,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
-import ru.homelab.kidguard.feature.parent.children.ChildAvatars
+import ru.homelab.kidguard.core.ui.components.ChildAvatars
 
 /**
  * Детский главный экран «Сегодня» (веха 4.1.3): приветствие, крупный остаток времени на сегодня
@@ -67,6 +73,9 @@ fun TodayScreen(
         return
     }
 
+    // Нижний лист выбора локального аватара (веха 4.1.5) — открывается по тапу на аватарку.
+    var showAvatarPicker by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -74,7 +83,11 @@ fun TodayScreen(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 24.dp)
     ) {
-        GreetingRow(name = ui.childName, avatar = ui.childAvatar)
+        GreetingRow(
+            name = ui.childName,
+            avatar = ui.childAvatar,
+            onAvatarClick = { showAvatarPicker = true }
+        )
 
         when (val time = ui.time) {
             is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
@@ -93,22 +106,54 @@ fun TodayScreen(
         )
         RulesSection(ui)
     }
+
+    if (showAvatarPicker) {
+        AvatarPickerSheet(
+            selected = ui.childAvatar,
+            onSelect = { viewModel.chooseAvatar(it) },
+            onReset = { viewModel.resetAvatar() },
+            onDismiss = { showAvatarPicker = false }
+        )
+    }
 }
 
 @Composable
-private fun GreetingRow(name: String, avatar: Int) {
+private fun GreetingRow(name: String, avatar: Int, onAvatarClick: () -> Unit) {
     Row(
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Image(
-            painter = painterResource(ChildAvatars.resFor(avatar)),
-            contentDescription = null,
+        Box(
             modifier = Modifier
-                .size(44.dp)
                 .clip(CircleShape)
-        )
+                .clickable(onClickLabel = stringResource(R.string.child_avatar_edit_cd), onClick = onAvatarClick)
+        ) {
+            Image(
+                painter = painterResource(ChildAvatars.resFor(avatar)),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+            )
+            // Бейдж-карандаш в правом нижнем углу аватарки — подсказывает, что аватар кликабельный.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_edit),
+                    contentDescription = stringResource(R.string.child_avatar_edit_cd),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
         Column {
             Text(
                 text = stringResource(R.string.child_greeting_hello),

@@ -33,7 +33,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Child
-import ru.homelab.kidguard.feature.parent.children.ChildAvatars
+import ru.homelab.kidguard.core.ui.components.ChildAvatars
 
 /**
  * Чип активного ребёнка (веха 4.5): аватарка + имя, по тапу — dropdown-меню с профилями

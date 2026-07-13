@@ -44,6 +44,9 @@ class AuthLocalStore @Inject constructor(
         val CHILD_ID = intPreferencesKey("child_id")
         val CHILD_NAME = stringPreferencesKey("child_name")
         val CHILD_AVATAR = intPreferencesKey("child_avatar")
+        // Локальный аватар ребёнка (веха 4.1.5) — выбирается на детском устройстве, на сервер не
+        // отправляется. Имеет приоритет над серверным CHILD_AVATAR при отображении.
+        val CHILD_LOCAL_AVATAR = intPreferencesKey("child_local_avatar")
     }
 
     val hasValidParentSession: Flow<Boolean> = context.authDataStore.data.map { prefs ->
@@ -60,7 +63,8 @@ class AuthLocalStore @Inject constructor(
     val childProfile: Flow<PairedChild?> = context.authDataStore.data.map { prefs ->
         val childId = prefs[Keys.CHILD_ID] ?: return@map null
         val childName = prefs[Keys.CHILD_NAME] ?: return@map null
-        PairedChild(id = childId, name = childName, avatar = prefs[Keys.CHILD_AVATAR] ?: 0)
+        val avatar = prefs[Keys.CHILD_LOCAL_AVATAR] ?: prefs[Keys.CHILD_AVATAR] ?: 0
+        PairedChild(id = childId, name = childName, avatar = avatar)
     }
 
     suspend fun saveParentSession(token: String, expiresAtMillis: Long, userId: Int, email: String, displayName: String?) {
@@ -94,4 +98,14 @@ class AuthLocalStore @Inject constructor(
 
     /** id привязанного ребёнка (детская сессия), либо null, если устройство не привязано. */
     suspend fun pairedChildId(): Int? = context.authDataStore.data.first()[Keys.CHILD_ID]
+
+    /** Сохранить локальный (только на этом устройстве) выбор аватара ребёнка. */
+    suspend fun setLocalAvatar(index: Int) {
+        context.authDataStore.edit { it[Keys.CHILD_LOCAL_AVATAR] = index }
+    }
+
+    /** Сбросить локальный аватар — снова показывать выбранный родителем (серверный). */
+    suspend fun clearLocalAvatar() {
+        context.authDataStore.edit { it.remove(Keys.CHILD_LOCAL_AVATAR) }
+    }
 }

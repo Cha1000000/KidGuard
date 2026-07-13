@@ -161,6 +161,11 @@
     <string name="child_rules_limited_expired">%1$s — лимит исчерпан</string>
     <string name="child_rules_blocked_name">Запрещённые</string>
     <string name="child_rules_none">—</string>
+    <!-- Локальный аватар ребёнка (веха 4.1.5) -->
+    <string name="child_avatar_edit_cd">Сменить аватар</string>
+    <string name="child_avatar_picker_title">Выбери свой аватар</string>
+    <string name="child_avatar_picker_subtitle">Он будет только на твоём телефоне. У родителей ты останешься с прежним.</string>
+    <string name="child_avatar_reset">Как выбрал родитель</string>
 
     <!-- Мастер выдачи разрешений (детский режим) -->
     <string name="permissions_title">Настройка разрешений</string>

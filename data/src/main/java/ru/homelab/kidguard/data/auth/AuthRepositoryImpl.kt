@@ -56,6 +56,10 @@ class AuthRepositoryImpl @Inject constructor(
         Result.failure(error)
     }
 
+    override suspend fun setChildLocalAvatar(index: Int) = authLocalStore.setLocalAvatar(index)
+
+    override suspend fun clearChildLocalAvatar() = authLocalStore.clearLocalAvatar()
+
     /**
      * Читает поле `exp` (Unix-секунды) из тела JWT БЕЗ проверки подписи — нужно только для
      * локальной оценки «сессия ещё жива?» (см. [AuthLocalStore.hasValidParentSession]). Подпись и

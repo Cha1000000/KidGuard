@@ -34,4 +34,10 @@ interface AuthRepository {
      * детскую сессию. `Result.failure` — код неверный/использован или сеть недоступна.
      */
     suspend fun pairDeviceWithCode(code: String): Result<PairedChild>
+
+    /** Сменить локальный (только на этом устройстве) аватар ребёнка — на сервер не уходит. */
+    suspend fun setChildLocalAvatar(index: Int)
+
+    /** Сбросить локальный аватар — снова показывать выбранный родителем (серверный). */
+    suspend fun clearChildLocalAvatar()
 }

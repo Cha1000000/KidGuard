@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#EEF4F6; --surface:#F6FAFB; --container:#DCEAEF; --container-high:#D2E3E9;
+    --primary:#2E6B7E; --on-primary:#fff; --on-surface:#16232A; --on-variant:#5B6B72; --outline:#C9DDE4;
+    --gold:#E0A73C; --gold-bg:#F7ECD0; --error:#B3383E; --error-bg:#F5DEDF; --secondary-c:#DCEDF2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#25343a;padding:44px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .caption{color:#cfe0e6;font-size:20px;font-weight:600;max-width:400px;text-align:center;}
+  .phone{width:400px;height:860px;background:var(--bg);border-radius:42px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;}
+  .status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .hello{display:flex;align-items:center;gap:12px;padding:14px 20px 6px;}
+  .av-wrap{position:relative;width:44px;height:44px;}
+  .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f7d7a8,#e8b4d8);display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .pencil{position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:50%;background:var(--primary);
+    border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+  .hello .t1{font-size:13px;color:var(--on-variant);}
+  .hello .t2{font-size:19px;font-weight:700;color:var(--on-surface);}
+  .ring-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 0 8px;}
+  .ring{width:200px;height:200px;border-radius:50%;background:conic-gradient(var(--primary) 0 92%, var(--container-high) 92% 100%);display:flex;align-items:center;justify-content:center;}
+  .ring .inner{width:164px;height:164px;border-radius:50%;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+  .ring .big{font-size:30px;font-weight:800;color:var(--primary);}
+  .ring .sub{font-size:13px;color:var(--on-variant);}
+  .guard{display:flex;align-items:center;gap:8px;justify-content:center;padding:14px 0 4px;font-size:13px;color:var(--on-variant);}
+  .rules-title{font-size:15px;font-weight:700;color:var(--on-surface);margin:10px 20px 8px;}
+  .rule-row{display:flex;align-items:center;gap:12px;margin:0 16px 8px;background:var(--container);border-radius:14px;padding:11px 14px;}
+  .rule-ic{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .rule-info{flex:1;}
+  .rule-name{font-size:14px;font-weight:600;color:var(--on-surface);}
+  .rule-sub{font-size:12px;color:var(--on-variant);}
+  .rule-count{font-size:13px;font-weight:700;color:var(--primary);}
+
+  /* Нижний лист выбора аватара */
+  .scrim{position:absolute;inset:0;background:rgba(10,20,24,.45);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:26px 26px 0 0;padding:10px 20px 24px;box-shadow:0 -12px 40px rgba(0,0,0,.3);}
+  .grabber{width:38px;height:5px;border-radius:3px;background:var(--outline);margin:4px auto 14px;}
+  .sheet-title{font-size:20px;font-weight:700;color:var(--on-surface);}
+  .sheet-sub{font-size:13px;color:var(--on-variant);margin:2px 0 14px;}
+  .reset-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.6px solid var(--outline);border-radius:14px;
+    padding:12px;font-size:14px;font-weight:600;color:var(--primary);margin-bottom:16px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .a-cell{aspect-ratio:1;border-radius:50%;background:linear-gradient(135deg,#f7d7a8,#e8b4d8);display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .a-cell.sel{outline:3px solid var(--primary);outline-offset:2px;}
+  .a-cell.v2{background:linear-gradient(135deg,#bfe3d0,#a8cfe8);}
+  .a-cell.v3{background:linear-gradient(135deg,#e8c8f0,#c8b4e8);}
+  .a-cell.v4{background:linear-gradient(135deg,#f0d8a8,#e8b4b4);}
+</style>
+</head>
+<body>
+
+<!-- 1: экран «Сегодня» с бейджем-карандашом на аватаре -->
+<div class="col">
+  <div class="caption">1 · Экран «Сегодня»: у аватарки появился бейдж-карандаш (тап → выбор своего аватара)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="hello">
+      <div class="av-wrap">
+        <div class="av">👧</div>
+        <div class="pencil">✏</div>
+      </div>
+      <div><div class="t1">Привет,</div><div class="t2">Alina!</div></div>
+    </div>
+    <div class="ring-wrap">
+      <div class="ring"><div class="inner"><div class="big">1 ч 50 мин</div><div class="sub">осталось из 2 ч</div></div></div>
+    </div>
+    <div class="guard">🛡 Телефон под присмотром KidGuard</div>
+    <div class="rules-title">Мои правила</div>
+    <div class="rule-row"><div class="rule-ic" style="background:#DCEFDD;">✅</div>
+      <div class="rule-info"><div class="rule-name">Всегда доступные</div><div class="rule-sub">KidGuard, Maps, Календарь</div></div>
+      <div class="rule-count">10</div></div>
+    <div class="rule-row"><div class="rule-ic" style="background:#DCE6EF;">⏱</div>
+      <div class="rule-info"><div class="rule-name">С лимитом</div><div class="rule-sub">—</div></div>
+      <div class="rule-count">0</div></div>
+    <div class="rule-row"><div class="rule-ic" style="background:var(--error-bg);">🚫</div>
+      <div class="rule-info"><div class="rule-name">Запрещённые</div><div class="rule-sub">YouTube, YT Music</div></div>
+      <div class="rule-count">2</div></div>
+  </div>
+</div>
+
+<!-- 2: открытый нижний лист выбора аватара -->
+<div class="col">
+  <div class="caption">2 · Тап по аватарке → нижний лист: сетка 24 аватарок, выбранная обведена, сверху «Как у родителя» (сброс)</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>📶 🔋</span></div>
+    <div class="hello">
+      <div class="av-wrap"><div class="av">👧</div><div class="pencil">✏</div></div>
+      <div><div class="t1">Привет,</div><div class="t2">Alina!</div></div>
+    </div>
+    <div class="ring-wrap" style="opacity:.35;">
+      <div class="ring"><div class="inner"><div class="big">1 ч 50 мин</div><div class="sub">осталось из 2 ч</div></div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grabber"></div>
+      <div class="sheet-title">Выбери свой аватар</div>
+      <div class="sheet-sub">Он будет только на твоём телефоне. У родителей ты останешься с прежним.</div>
+      <div class="reset-btn">↩ Как выбрал родитель</div>
+      <div class="grid">
+        <div class="a-cell">🐻</div>
+        <div class="a-cell v2">🎮</div>
+        <div class="a-cell sel">👧</div>
+        <div class="a-cell v3">🎨</div>
+        <div class="a-cell v4">🧑‍💻</div>
+        <div class="a-cell v2">🧚</div>
+        <div class="a-cell">🤖</div>
+        <div class="a-cell v3">🎧</div>
+        <div class="a-cell v4">🧜</div>
+        <div class="a-cell">🛹</div>
+        <div class="a-cell v2">🚀</div>
+        <div class="a-cell v3">🦖</div>
+        <div class="a-cell">🐺</div>
+        <div class="a-cell v4">🦄</div>
+        <div class="a-cell v2">📷</div>
+        <div class="a-cell">🐧</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-package ru.homelab.kidguard.feature.parent.children
+package ru.homelab.kidguard.core.ui.components
 
 import androidx.annotation.DrawableRes
 import ru.homelab.kidguard.R

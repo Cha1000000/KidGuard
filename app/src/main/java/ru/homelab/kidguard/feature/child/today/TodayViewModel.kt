@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
@@ -75,7 +76,7 @@ data class TodayUiState(
  */
 @HiltViewModel
 class TodayViewModel @Inject constructor(
-    authRepository: AuthRepository,
+    private val authRepository: AuthRepository,
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
     private val bonusRepository: BonusRepository,
@@ -134,6 +135,16 @@ class TodayViewModel @Inject constructor(
         }
         emitAll(combined)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Ребёнок выбрал свой аватар (веха 4.1.5) — сохраняется локально, на сервер не уходит. */
+    fun chooseAvatar(index: Int) {
+        viewModelScope.launch { authRepository.setChildLocalAvatar(index) }
+    }
+
+    /** Сброс к аватару, который выбрал родитель (серверному). */
+    fun resetAvatar() {
+        viewModelScope.launch { authRepository.clearChildLocalAvatar() }
+    }
 
     private fun computeTime(
         limits: DailyLimits,
