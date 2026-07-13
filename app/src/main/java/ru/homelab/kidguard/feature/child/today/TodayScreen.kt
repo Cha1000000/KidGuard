@@ -3,7 +3,6 @@ package ru.homelab.kidguard.feature.child.today
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -124,36 +122,15 @@ private fun GreetingRow(name: String, avatar: Int, onAvatarClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
+        // Аватар кликабелен (тап → выбор своего аватара, веха 4.1.5); визуального бейджа нет.
+        Image(
+            painter = painterResource(ChildAvatars.resFor(avatar)),
+            contentDescription = null,
             modifier = Modifier
+                .size(44.dp)
                 .clip(CircleShape)
                 .clickable(onClickLabel = stringResource(R.string.child_avatar_edit_cd), onClick = onAvatarClick)
-        ) {
-            Image(
-                painter = painterResource(ChildAvatars.resFor(avatar)),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-            )
-            // Бейдж-карандаш в правом нижнем углу аватарки — подсказывает, что аватар кликабельный.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .border(1.5.dp, MaterialTheme.colorScheme.background, CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_edit),
-                    contentDescription = stringResource(R.string.child_avatar_edit_cd),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
-        }
+        )
         Column {
             Text(
                 text = stringResource(R.string.child_greeting_hello),
