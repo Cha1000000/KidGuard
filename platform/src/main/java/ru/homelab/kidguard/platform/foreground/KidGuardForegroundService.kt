@@ -21,6 +21,7 @@ import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.overlay.BlockingController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
+import ru.homelab.kidguard.platform.vpn.VpnController
 import ru.homelab.kidguard.platform.warning.WarningController
 import timber.log.Timber
 import javax.inject.Inject
@@ -43,12 +44,16 @@ class KidGuardForegroundService : Service() {
     lateinit var warningController: WarningController
 
     @Inject
+    lateinit var vpnController: VpnController
+
+    @Inject
     lateinit var syncRepository: SyncRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
     private var warningJob: Job? = null
+    private var vpnJob: Job? = null
     private var policySyncJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -66,6 +71,11 @@ class KidGuardForegroundService : Service() {
         }
         if (warningJob == null) {
             warningJob = scope.launch { warningController.run() }
+        }
+        if (vpnJob == null) {
+            // Веха 5: blackhole-VPN — блокирует интернет всем, кроме KidGuard и белого списка,
+            // когда общий дневной лимит исчерпан.
+            vpnJob = scope.launch { vpnController.run() }
         }
         if (policySyncJob == null) {
             // Периодический pull единой политики с сервера (веха 4.3) — правила родителя

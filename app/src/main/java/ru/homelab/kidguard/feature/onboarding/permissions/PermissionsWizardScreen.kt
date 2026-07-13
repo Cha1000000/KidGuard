@@ -1,5 +1,7 @@
 package ru.homelab.kidguard.feature.onboarding.permissions
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
@@ -80,11 +82,48 @@ fun PermissionsWizardScreen(
             )
         }
         item {
+            AlwaysOnVpnCard(
+                onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
+            )
+        }
+        item {
             Button(
                 onClick = onFinished,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.permissions_continue))
+            }
+        }
+    }
+}
+
+/**
+ * Информационная карточка про always-on VPN (веха 5.4). Не входит в список [DevicePermission] —
+ * это не проверяемое разрешение, а ручной шаг в системных настройках (без Device Owner его нельзя
+ * форсить программно): включив always-on + «блокировать соединения без VPN», родитель защищает
+ * блокировку от обхода простым отключением VPN.
+ */
+@Composable
+private fun AlwaysOnVpnCard(
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.always_on_vpn_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.always_on_vpn_desc),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            OutlinedButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                Text(stringResource(R.string.always_on_vpn_open_settings))
             }
         }
     }

@@ -54,6 +54,21 @@
                 android:value="parental_control" />
         </service>
 
+        <!-- Blackhole-VPN (веха 5): режет интернет всем, кроме KidGuard и белого списка, когда
+             общий дневной лимит исчерпан. Поднимается/снимается VpnController. -->
+        <service
+            android:name="ru.homelab.kidguard.platform.vpn.KidGuardVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="parental_control" />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <!-- Автозапуск сервиса после перезагрузки (только на детском устройстве). -->
         <receiver
             android:name="ru.homelab.kidguard.platform.foreground.BootReceiver"

@@ -39,6 +39,10 @@ class PlatformInstalledAppsSource @Inject constructor(
             .sortedBy { it.label.lowercase() }
     }
 
+    override suspend fun installedPackageNames(): List<String> = withContext(Dispatchers.IO) {
+        context.packageManager.getInstalledApplications(0).map { it.packageName }
+    }
+
     private fun android.graphics.drawable.Drawable.toIconBase64(): String {
         val stream = ByteArrayOutputStream()
         toBitmap(width = ICON_PX, height = ICON_PX)
