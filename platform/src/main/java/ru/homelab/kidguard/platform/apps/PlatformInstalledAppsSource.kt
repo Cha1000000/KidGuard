@@ -1,13 +1,19 @@
 package ru.homelab.kidguard.platform.apps
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Base64
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
@@ -40,8 +46,30 @@ class PlatformInstalledAppsSource @Inject constructor(
     }
 
     override suspend fun installedPackageNames(): List<String> = withContext(Dispatchers.IO) {
-        context.packageManager.getInstalledApplications(0).map { it.packageName }
+        currentInstalledPackageNames()
     }
+
+    override fun observeInstalledPackageNames(): Flow<List<String>> = callbackFlow {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                trySend(currentInstalledPackageNames())
+            }
+        }
+        // PACKAGE_ADDED/REMOVED/REPLACED — protected system broadcasts, поэтому receiver
+        // регистрируем как NOT_EXPORTED. Схема "package" обязательна для этих действий.
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        trySend(currentInstalledPackageNames()) // начальный снимок
+        awaitClose { context.unregisterReceiver(receiver) }
+    }
+
+    private fun currentInstalledPackageNames(): List<String> =
+        context.packageManager.getInstalledApplications(0).map { it.packageName }
 
     private fun android.graphics.drawable.Drawable.toIconBase64(): String {
         val stream = ByteArrayOutputStream()

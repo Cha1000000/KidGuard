@@ -22,8 +22,8 @@ import javax.inject.Singleton
  * интернет, когда VPN не активен, поэтому снимать tun по лимиту больше нельзя. Вместо этого
  * режим переключается набором disallowed-приложений: `Expired` → только KidGuard и белый
  * список обходят tun (блокировка), иначе → обходят вообще все установленные пакеты
- * (pass-through, интернет у всех). Смена лимита или белого списка на лету пересоздаёт tun
- * с новым disallowed-набором. Запускается foreground-сервисом, как и
+ * (pass-through, интернет у всех). Смена лимита, белого списка или набора установленных
+ * приложений на лету пересоздаёт tun с новым disallowed-набором. Запускается foreground-сервисом, как и
  * [ru.homelab.kidguard.platform.overlay.BlockingController].
  */
 @Singleton
@@ -36,14 +36,15 @@ class VpnController @Inject constructor(
 
     suspend fun run() {
         Timber.tag(TAG).d("Контроллер VPN запущен")
-        // Список установленных пакетов меняется редко — читаем один раз при старте контроллера,
-        // а не на каждое изменение лимита/whitelist.
-        val allInstalled = installedAppsSource.installedPackageNames().toSet()
+        // Список установленных пакетов наблюдаем реактивно (эмитит при установке/удалении приложения),
+        // чтобы pass-through сразу подхватил только что установленное приложение и не оставил его без
+        // интернета до перезапуска сервиса.
         combine(
             observeLimitStateUseCase(),
-            policyRepository.whitelist
-        ) { limitState, whitelist ->
-            vpnDisallowedFor(limitState, whitelist, allInstalled, context.packageName)
+            policyRepository.whitelist,
+            installedAppsSource.observeInstalledPackageNames()
+        ) { limitState, whitelist, installed ->
+            vpnDisallowedFor(limitState, whitelist, installed.toSet(), context.packageName)
         }.distinctUntilChanged().collect { disallowed ->
             startVpn(disallowed)
         }

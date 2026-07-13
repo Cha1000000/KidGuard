@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.core.domain.repository
 
+import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.AppInfo
 
 /**
@@ -14,4 +15,11 @@ interface InstalledAppsSource {
 
     /** Все установленные пакеты устройства — для pass-through режима VPN (веха 5.4). */
     suspend fun installedPackageNames(): List<String>
+
+    /**
+     * Реактивный список всех установленных пакетов: эмитит текущий набор сразу и при каждой
+     * установке/удалении приложения (веха 5.4). Нужен, чтобы pass-through VPN сразу подхватывал
+     * только что установленное приложение и не оставлял его без интернета до перезапуска сервиса.
+     */
+    fun observeInstalledPackageNames(): Flow<List<String>>
 }
