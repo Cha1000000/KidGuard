@@ -18,3 +18,18 @@ fun shouldBlockInternet(limitState: LimitState): Boolean = limitState is LimitSt
  */
 fun vpnDisallowedPackages(whitelist: Set<String>, ownPackageName: String): Set<String> =
     whitelist + ownPackageName
+
+/**
+ * disallowed-набор для VPN (веха 5.4). VPN активен всегда; режим переключается набором:
+ * Expired → только whitelist + own (блокировка), иначе → все установленные (pass-through).
+ */
+fun vpnDisallowedFor(
+    limitState: LimitState,
+    whitelist: Set<String>,
+    allInstalled: Set<String>,
+    ownPackageName: String
+): Set<String> = if (shouldBlockInternet(limitState)) {
+    vpnDisallowedPackages(whitelist, ownPackageName)
+} else {
+    allInstalled + ownPackageName
+}

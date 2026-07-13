@@ -11,4 +11,7 @@ interface InstalledAppsSource {
 
     /** Запускаемые приложения устройства (есть иконка в лаунчере), отсортированы по имени. */
     suspend fun launchableApps(): List<AppInfo>
+
+    /** Все установленные пакеты устройства — для pass-through режима VPN (веха 5.4). */
+    suspend fun installedPackageNames(): List<String>
 }

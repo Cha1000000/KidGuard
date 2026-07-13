@@ -14,9 +14,10 @@ import timber.log.Timber
 /**
  * Blackhole-VPN (веха 5.2): поднимает tun-интерфейс, заворачивающий весь трафик устройства, и
  * ничего из него не читает/не пишет — трафик просто дропается ядром. Приложения из
- * [EXTRA_DISALLOWED] (само KidGuard + белый список) добавлены как `addDisallowedApplication` и
- * обходят VPN, ходя в сеть напрямую. Поднимается/снимается контроллером [VpnController] в
- * зависимости от состояния дневного лимита.
+ * [EXTRA_DISALLOWED] добавлены как `addDisallowedApplication` и обходят VPN, ходя в сеть
+ * напрямую — остальные попадают в tun и теряют интернет. С вехи 5.4 сам VPN активен всегда
+ * (совместимость с always-on/lockdown), а между блокировкой и pass-through (интернет у всех)
+ * переключает состав [EXTRA_DISALLOWED], который пересчитывает [VpnController].
  */
 class KidGuardVpnService : VpnService() {
 

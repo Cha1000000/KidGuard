@@ -186,7 +186,10 @@
     <string name="permission_notifications_title">Уведомления</string>
     <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
-    <string name="permission_vpn_desc">Понадобится для блокировки сети после лимита. Полноценно включим на вехе 5.</string>
+    <string name="permission_vpn_desc">Нужен, чтобы блокировать интернет всем приложениям, кроме KidGuard и белого списка, после исчерпания лимита.</string>
+    <string name="always_on_vpn_title">Постоянный VPN</string>
+    <string name="always_on_vpn_desc">Чтобы ребёнок не смог обойти блокировку простым отключением VPN, включите в системных настройках always-on VPN для KidGuard и опцию «Блокировать соединения без VPN». Тогда без активного VPN устройство вообще останется без интернета.</string>
+    <string name="always_on_vpn_open_settings">Открыть настройки VPN</string>
 
     <!-- Список приложений с устройства ребёнка (веха 4.1) -->
     <string name="child_apps_empty">Список приложений с телефона ребёнка ещё не получен.\nУбедитесь, что устройство привязано и подключено к интернету, и загляните сюда чуть позже.</string>

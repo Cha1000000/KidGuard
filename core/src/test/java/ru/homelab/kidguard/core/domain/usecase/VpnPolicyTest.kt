@@ -50,4 +50,32 @@ class VpnPolicyTest {
         val result = vpnDisallowedPackages(setOf("ru.homelab.kidguard"), "ru.homelab.kidguard")
         assertEquals(1, result.size)
     }
+
+    // --- vpnDisallowedFor (веха 5.4) ---
+
+    @Test
+    fun `лимит исчерпан - disallowed это whitelist плюс собственный пакет`() {
+        val whitelist = setOf("com.android.dialer")
+        val allInstalled = setOf("com.android.dialer", "com.example.game", "com.example.social")
+        val result = vpnDisallowedFor(LimitState.Expired, whitelist, allInstalled, "ru.homelab.kidguard")
+        assertEquals(setOf("com.android.dialer", "ru.homelab.kidguard"), result)
+    }
+
+    @Test
+    fun `время ещё есть - disallowed это все установленные плюс собственный пакет`() {
+        val whitelist = setOf("com.android.dialer")
+        val allInstalled = setOf("com.android.dialer", "com.example.game", "com.example.social")
+        val result = vpnDisallowedFor(LimitState.Remaining(10), whitelist, allInstalled, "ru.homelab.kidguard")
+        assertEquals(
+            setOf("com.android.dialer", "com.example.game", "com.example.social", "ru.homelab.kidguard"),
+            result
+        )
+    }
+
+    @Test
+    fun `лимит не задан - disallowed это все установленные плюс собственный пакет`() {
+        val allInstalled = setOf("com.example.game")
+        val result = vpnDisallowedFor(LimitState.NoLimit, emptySet(), allInstalled, "ru.homelab.kidguard")
+        assertEquals(setOf("com.example.game", "ru.homelab.kidguard"), result)
+    }
 }
