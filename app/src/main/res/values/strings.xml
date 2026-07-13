@@ -87,7 +87,10 @@
     <string name="rules_app_limits_subtitle">Свой лимит на отдельные приложения</string>
     <string name="rules_blocked_apps_title">Запрет приложений</string>
     <string name="rules_blocked_apps_subtitle">Полностью недоступные ребёнку приложения</string>
+    <string name="rules_pin_title">PIN-защита</string>
+    <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
     <string name="common_back">Назад</string>
+    <string name="common_save">Сохранить</string>
 
     <!-- Дневной лимит -->
     <string name="daily_limit_subtitle">Сколько времени в день ребёнок может пользоваться телефоном</string>
@@ -193,4 +196,17 @@
 
     <!-- Список приложений с устройства ребёнка (веха 4.1) -->
     <string name="child_apps_empty">Список приложений с телефона ребёнка ещё не получен.\nУбедитесь, что устройство привязано и подключено к интернету, и загляните сюда чуть позже.</string>
+
+    <!-- PIN-защита (веха 6.1): установка/смена PIN у родителя -->
+    <string name="pin_setup_title">PIN-защита</string>
+    <string name="pin_setup_intro">Придумайте PIN — его нужно будет ввести на телефоне ребёнка, чтобы открыть системные настройки или удалить KidGuard.</string>
+    <string name="pin_setup_enter">Придумайте PIN</string>
+    <string name="pin_setup_confirm">Повторите PIN</string>
+    <string name="pin_setup_mismatch">PIN не совпадает</string>
+    <string name="pin_setup_active_title">PIN установлен</string>
+    <string name="pin_setup_active_subtitle">Он защищает системные настройки на телефоне ребёнка от отключения</string>
+    <string name="pin_setup_change">Сменить PIN</string>
+    <string name="pin_setup_remove">Убрать PIN</string>
+    <string name="pin_backspace">Стереть цифру</string>
+    <string name="pin_backspace_glyph">⌫</string>
 </resources>

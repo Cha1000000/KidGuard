@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
+import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -94,15 +95,20 @@ class ObserveLimitStateUseCaseTest {
         override val whitelist: Flow<Set<String>> = flowOf(emptySet())
         override val appLimits: Flow<Map<String, Int>> = flowOf(emptyMap())
         override val blockedApps: Flow<Set<String>> = flowOf(emptySet())
+        override val pinProtection: Flow<PinProtection?> = flowOf(null)
         override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
         override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
         override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
         override suspend fun setBlocked(packageName: String, blocked: Boolean) = Unit
+        override suspend fun setPin(hash: String, salt: String) = Unit
+        override suspend fun clearPin() = Unit
         override suspend fun replaceAll(
             dailyLimits: Map<DayOfWeek, Int>,
             appLimits: Map<String, Int>,
             whitelist: Set<String>,
-            blockedApps: Set<String>
+            blockedApps: Set<String>,
+            pinHash: String?,
+            pinSalt: String?
         ) = Unit
     }
 

@@ -17,7 +17,11 @@ data class PolicyDocumentDto(
     val appLimits: Map<String, Int> = emptyMap(),
     val whitelist: List<String> = emptyList(),
     val blockedApps: List<String> = emptyList(),
-    val bonuses: List<BonusEntryDto> = emptyList()
+    val bonuses: List<BonusEntryDto> = emptyList(),
+    // PIN-защита (веха 6.1): хеш + соль, сырой PIN сюда никогда не попадает. Оба null — PIN не задан.
+    // Nullable с дефолтом null — обратная совместимость со старыми документами без PIN.
+    val pinHash: String? = null,
+    val pinSalt: String? = null
 )
 
 /** Бонус «Дополнительное время» за день; `packageName = ""` — бонус на весь телефон. */

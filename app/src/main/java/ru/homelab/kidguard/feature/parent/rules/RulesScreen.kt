@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.Card
@@ -35,6 +36,7 @@ fun RulesScreen(
     onOpenAppLimits: () -> Unit,
     onOpenBlockedApps: () -> Unit,
     onOpenWhitelist: () -> Unit,
+    onOpenPinProtection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -62,6 +64,12 @@ fun RulesScreen(
                 subtitle = R.string.rules_blocked_apps_subtitle,
                 onClick = onOpenBlockedApps,
                 iconTint = MaterialTheme.colorScheme.error
+            )
+            RuleCard(
+                icon = Icons.Filled.Lock,
+                title = R.string.rules_pin_title,
+                subtitle = R.string.rules_pin_subtitle,
+                onClick = onOpenPinProtection
             )
             RuleCard(
                 icon = Icons.Filled.CheckCircle,

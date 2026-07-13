@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
+import ru.homelab.kidguard.data.db.entity.PinEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 
 @Dao
@@ -61,6 +62,16 @@ interface PolicyDao {
     @Query("DELETE FROM blocked_app")
     suspend fun deleteAllBlocked()
 
+    /** Родительский PIN (веха 6.1) — single-row таблица, `id = 0`; null-строка означает «PIN не задан». */
+    @Query("SELECT * FROM pin_protection WHERE id = 0")
+    fun pin(): Flow<PinEntity?>
+
+    @Upsert
+    suspend fun upsertPin(entity: PinEntity)
+
+    @Query("DELETE FROM pin_protection")
+    suspend fun deletePin()
+
     /**
      * Транзакционно заменяет ВСЮ политику разом (применение серверного документа — веха 4.3):
      * либо применяется целиком, либо не применяется вовсе — исполнители (блокировка/учёт)
@@ -71,7 +82,8 @@ interface PolicyDao {
         dayLimits: List<DayLimitEntity>,
         appLimits: List<AppLimitEntity>,
         whitelist: List<WhitelistedAppEntity>,
-        blockedApps: List<BlockedAppEntity>
+        blockedApps: List<BlockedAppEntity>,
+        pin: PinEntity?
     ) {
         deleteAllDayLimits()
         deleteAllAppLimits()
@@ -81,5 +93,6 @@ interface PolicyDao {
         appLimits.forEach { upsertAppLimit(it) }
         whitelist.forEach { addToWhitelist(it) }
         blockedApps.forEach { addToBlocked(it) }
+        if (pin != null) upsertPin(pin) else deletePin()
     }
 }

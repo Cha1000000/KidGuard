@@ -22,6 +22,7 @@ import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
 import ru.homelab.kidguard.feature.parent.rules.BlockedAppsScreen
 import ru.homelab.kidguard.feature.parent.rules.DailyLimitScreen
+import ru.homelab.kidguard.feature.parent.rules.PinSetupScreen
 import ru.homelab.kidguard.feature.parent.rules.RulesScreen
 import ru.homelab.kidguard.feature.parent.rules.WhitelistScreen
 import ru.homelab.kidguard.feature.parent.statistics.StatisticsScreen
@@ -30,6 +31,7 @@ private const val ROUTE_RULES_LIMIT = "parent/rules/limit"
 private const val ROUTE_RULES_WHITELIST = "parent/rules/whitelist"
 private const val ROUTE_RULES_APP_LIMITS = "parent/rules/app-limits"
 private const val ROUTE_RULES_BLOCKED_APPS = "parent/rules/blocked-apps"
+private const val ROUTE_RULES_PIN = "parent/rules/pin"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -82,7 +84,8 @@ fun ParentScreen(
                     onOpenDailyLimit = { navController.navigate(ROUTE_RULES_LIMIT) },
                     onOpenAppLimits = { navController.navigate(ROUTE_RULES_APP_LIMITS) },
                     onOpenBlockedApps = { navController.navigate(ROUTE_RULES_BLOCKED_APPS) },
-                    onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) }
+                    onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) },
+                    onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) }
                 )
             }
             composable(ROUTE_RULES_LIMIT) {
@@ -96,6 +99,9 @@ fun ParentScreen(
             }
             composable(ROUTE_RULES_WHITELIST) {
                 WhitelistScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RULES_PIN) {
+                PinSetupScreen(onBack = { navController.popBackStack() })
             }
             composable(ParentTab.STATISTICS.route) { StatisticsScreen() }
         }
