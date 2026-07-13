@@ -42,7 +42,7 @@ data class CoParentResponse(val status: String)
 data class DevicePairRequest(val code: String)
 
 @Serializable
-data class DevicePairChildDto(val id: Int, val name: String)
+data class DevicePairChildDto(val id: Int, val name: String, val avatar: Int = 0)
 
 @Serializable
 data class DevicePairResponse(val token: String, val child: DevicePairChildDto)

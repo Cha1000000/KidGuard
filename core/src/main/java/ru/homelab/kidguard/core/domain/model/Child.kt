@@ -14,8 +14,9 @@ data class ChildWithCode(
     val code: String
 )
 
-/** Профиль ребёнка после успешной привязки устройства (веха 4.2). */
+/** Профиль ребёнка после успешной привязки устройства (веха 4.2). `avatar` — индекс аватарки. */
 data class PairedChild(
     val id: Int,
-    val name: String
+    val name: String,
+    val avatar: Int = 0
 )

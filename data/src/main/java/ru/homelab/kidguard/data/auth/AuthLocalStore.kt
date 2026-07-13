@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import ru.homelab.kidguard.core.domain.model.PairedChild
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +43,7 @@ class AuthLocalStore @Inject constructor(
         val DEVICE_TOKEN = stringPreferencesKey("device_token")
         val CHILD_ID = intPreferencesKey("child_id")
         val CHILD_NAME = stringPreferencesKey("child_name")
+        val CHILD_AVATAR = intPreferencesKey("child_avatar")
     }
 
     val hasValidParentSession: Flow<Boolean> = context.authDataStore.data.map { prefs ->
@@ -54,6 +56,13 @@ class AuthLocalStore @Inject constructor(
         !prefs[Keys.DEVICE_TOKEN].isNullOrBlank()
     }
 
+    /** Профиль привязанного ребёнка (имя, аватар), либо `null`, если устройство не привязано. */
+    val childProfile: Flow<PairedChild?> = context.authDataStore.data.map { prefs ->
+        val childId = prefs[Keys.CHILD_ID] ?: return@map null
+        val childName = prefs[Keys.CHILD_NAME] ?: return@map null
+        PairedChild(id = childId, name = childName, avatar = prefs[Keys.CHILD_AVATAR] ?: 0)
+    }
+
     suspend fun saveParentSession(token: String, expiresAtMillis: Long, userId: Int, email: String, displayName: String?) {
         context.authDataStore.edit { prefs ->
             prefs[Keys.TOKEN] = token
@@ -64,11 +73,12 @@ class AuthLocalStore @Inject constructor(
         }
     }
 
-    suspend fun saveDeviceSession(deviceToken: String, childId: Int, childName: String) {
+    suspend fun saveDeviceSession(deviceToken: String, childId: Int, childName: String, childAvatar: Int) {
         context.authDataStore.edit { prefs ->
             prefs[Keys.DEVICE_TOKEN] = deviceToken
             prefs[Keys.CHILD_ID] = childId
             prefs[Keys.CHILD_NAME] = childName
+            prefs[Keys.CHILD_AVATAR] = childAvatar
         }
     }
 

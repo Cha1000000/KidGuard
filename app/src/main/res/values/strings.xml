@@ -97,6 +97,7 @@
     <string name="daily_limit_apply_all">Установить на все дни недели</string>
     <string name="daily_limit_save">Сохранить</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
+    <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>
 
     <!-- Дни недели -->
@@ -137,9 +138,29 @@
     <string name="bonus_other">Другое…</string>
     <string name="bonus_add_action">Добавить +%1$s</string>
 
-    <!-- Ребёнок: главный экран -->
+    <!-- Ребёнок: главный экран «Сегодня» (веха 4.1.3) -->
     <string name="child_today_title">Сегодня</string>
-    <string name="child_time_left_placeholder">Здесь будет доступное время</string>
+    <string name="child_greeting_hello">Привет,</string>
+    <string name="child_greeting_name">%1$s!</string>
+    <string name="child_greeting_name_fallback">друг</string>
+    <!-- Кольцо остатка времени -->
+    <string name="child_time_remaining_of">осталось из %1$s</string>
+    <string name="child_bonus_chip">🎁 +%1$s от родителей</string>
+    <string name="child_guard_status">🛡 Телефон под присмотром KidGuard</string>
+    <!-- Состояние «время вышло» -->
+    <string name="child_time_expired_title">Время вышло</string>
+    <string name="child_time_expired_sub">Израсходовано %1$s из %1$s.\nДоступны только «всегда доступные» приложения.</string>
+    <!-- Состояние «без лимита» -->
+    <string name="child_time_nolimit_title">Без лимита</string>
+    <string name="child_time_nolimit_sub">Сегодня свободный день — пользуйся без ограничений.</string>
+    <!-- Раздел «Мои правила» -->
+    <string name="child_rules_title">Мои правила</string>
+    <string name="child_rules_allowed_name">Всегда доступные</string>
+    <string name="child_rules_limited_name">С лимитом</string>
+    <string name="child_rules_limited_preview">%1$s — осталось %2$s</string>
+    <string name="child_rules_limited_expired">%1$s — лимит исчерпан</string>
+    <string name="child_rules_blocked_name">Запрещённые</string>
+    <string name="child_rules_none">—</string>
 
     <!-- Мастер выдачи разрешений (детский режим) -->
     <string name="permissions_title">Настройка разрешений</string>

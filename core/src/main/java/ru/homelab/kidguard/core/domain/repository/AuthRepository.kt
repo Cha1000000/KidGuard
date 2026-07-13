@@ -18,6 +18,12 @@ interface AuthRepository {
     val hasPairedDevice: Flow<Boolean>
 
     /**
+     * Профиль привязанного ребёнка (имя, аватар) — для детского приветствия на экране «Сегодня».
+     * `null`, если устройство не привязано.
+     */
+    val childProfile: Flow<PairedChild?>
+
+    /**
      * Обменивает Google ID-token на JWT сервера, сохраняет родительскую сессию локально.
      * `Result.failure` — сеть недоступна, сервер отклонил токен и т.п.
      */

@@ -27,6 +27,8 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val hasPairedDevice: Flow<Boolean> = authLocalStore.hasPairedDevice
 
+    override val childProfile: Flow<PairedChild?> = authLocalStore.childProfile
+
     override suspend fun signInWithGoogleIdToken(googleIdToken: String): Result<AuthUser> = try {
         val response = authApi.signInWithGoogle(GoogleAuthRequest(googleIdToken))
         authLocalStore.saveParentSession(
@@ -46,9 +48,10 @@ class AuthRepositoryImpl @Inject constructor(
         authLocalStore.saveDeviceSession(
             deviceToken = response.token,
             childId = response.child.id,
-            childName = response.child.name
+            childName = response.child.name,
+            childAvatar = response.child.avatar
         )
-        Result.success(PairedChild(response.child.id, response.child.name))
+        Result.success(PairedChild(response.child.id, response.child.name, response.child.avatar))
     } catch (error: Exception) {
         Result.failure(error)
     }
