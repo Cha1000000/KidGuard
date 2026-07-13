@@ -45,3 +45,10 @@ val DarkSurfaceVariant = Color(0xFF1E353C)
 val DarkOnBackground = Color(0xFFE6EEF0)
 val DarkOnSurface = Color(0xFFE6EEF0)
 val DarkOnSurfaceVariant = Color(0xFF9DB2B8)
+// Тёмно-бирюзовые surface-контейнеры (карточки, панели) в тон Deep Teal — чтобы тёмная тема была
+// единой и в родительской, и в детской части (без них карточки берут дефолтные Material-цвета).
+val DarkSurfaceContainerLowest = Color(0xFF0A161A)
+val DarkSurfaceContainerLow = Color(0xFF13252B)
+val DarkSurfaceContainer = Color(0xFF17282E)
+val DarkSurfaceContainerHigh = Color(0xFF1E353C)
+val DarkSurfaceContainerHighest = Color(0xFF264048)
