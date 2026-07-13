@@ -22,5 +22,10 @@
     <string name="warning_channel_name">Предупреждения о времени</string>
     <string name="warning_title">Скоро конец времени</string>
     <string name="warning_text">Осталось %1$d мин</string>
+
+    <!-- Blackhole-VPN (веха 5) -->
+    <string name="vpn_channel_name">Блокировка интернета</string>
+    <string name="vpn_notification_title">Интернет ограничен</string>
+    <string name="vpn_notification_text">Время на сегодня вышло — интернет доступен только KidGuard</string>
 </resources>
 
