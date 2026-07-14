@@ -67,7 +67,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
         foregroundAppMonitor.update(packageName)
         Timber.tag(TAG).d("Активное приложение: %s", packageName)
 
-        val criticalScreen = detectCriticalScreen(event, packageName)
+        val title = screenTitle(event)
+        // Диагностический лог (только debug — Timber-дерево плантится лишь в debug-сборке): по нему
+        // сверяем фактические заголовки критичных системных экранов с ключевыми словами детекта.
+        // Пригодится при обкатке на реальном HiOS/других прошивках (часть 6В), где заголовки могут
+        // отличаться.
+        Timber.tag(TAG).d("Заголовок окна [%s]: %s", packageName, title)
+
+        val criticalScreen = detectCriticalScreen(packageName, title)
         if (criticalScreen != null) {
             maybeInterceptWithPin(criticalScreen)
             return
@@ -92,6 +99,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
         scope.launch {
             if (policyRepository.pinProtection.first() == null) {
                 // PIN не задан родителем — защита не настроена, не перехватываем.
+                Timber.tag(TAG).d("Критичный экран %s, но PIN не задан — пропускаю", screen)
                 return@launch
             }
             Timber.tag(TAG).d("Критичный экран %s — показываю PIN-оверлей", screen)
@@ -110,18 +118,38 @@ class KidGuardAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Детект критичных экранов — по ТЕКСТУ ЗАГОЛОВКА окна (`event.text`), а не по имени
-     * класса активности. Класс у системных настроек прошивко-зависим (на Android 14+ многие
-     * экраны идут через общий `SpaActivity`/`Settings`), а вот заголовок окна («Настройки VPN»,
-     * «Специальные возможности») стабилен на разных устройствах и вендорах — поэтому детект
-     * универсален (Tecno, Xiaomi, Samsung и т.д.), а не подогнан под одну модель.
+     * Заголовок текущего экрана из НАДЁЖНОГО источника — `title` окна, к которому относится
+     * событие (`getWindows()` по `event.windowId`, фолбэк — активное окно), ПЛЮС `event.text`
+     * как дополнение.
      *
-     * `event.text` для `TYPE_WINDOW_STATE_CHANGED` — это заголовок/подпись окна, а не пункты
-     * списка, поэтому главный экран настроек (где «Спец. возможности» — лишь строка меню) под
-     * PIN не попадает: там заголовок «Настройки».
+     * Почему не только `event.text`: для части системных экранов `event.text` возвращает не
+     * заголовок, а подпись случайного элемента (на экране «Администраторы устройства» приходило
+     * «Значок приложения»), и детект по нему промахивался. `AccessibilityWindowInfo.getTitle()`
+     * же отдаёт стабильный заголовок окна («Приложения администратора устройства», «Настройки
+     * VPN», «Специальные возможности») — кросс-вендорно, без привязки к классу активности.
+     * Требует `canRetrieveWindowContent` + `flagRetrieveInteractiveWindows` (заданы в конфиге).
      */
-    private fun detectCriticalScreen(event: AccessibilityEvent, packageName: String): CriticalScreen? {
-        val title = event.text.joinToString(" ").lowercase()
+    private fun screenTitle(event: AccessibilityEvent): String {
+        val fromWindow = try {
+            val ws = windows
+            (ws.firstOrNull { it.id == event.windowId } ?: ws.firstOrNull { it.isActive })
+                ?.title?.toString().orEmpty()
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Не удалось прочитать заголовок окна")
+            ""
+        }
+        val fromEvent = event.text.joinToString(" ")
+        return "$fromWindow $fromEvent".trim().lowercase()
+    }
+
+    /**
+     * Детект критичных экранов — по ЗАГОЛОВКУ окна (см. [screenTitle]), а не по имени класса
+     * активности. Класс у системных настроек прошивко-зависим (на Android 14+ многие экраны идут
+     * через общий `SpaActivity`/`Settings`), а заголовок окна стабилен на разных устройствах и
+     * вендорах — поэтому детект универсален (Tecno, Xiaomi, Samsung и т.д.), а не подогнан под
+     * одну модель. Главный экран настроек под PIN не попадает: там заголовок «Настройки».
+     */
+    private fun detectCriticalScreen(packageName: String, title: String): CriticalScreen? {
         if (title.isBlank()) return null
         return when {
             packageName == SETTINGS_PACKAGE && VPN_KEYWORDS.any { title.contains(it) } ->
@@ -179,8 +207,15 @@ class KidGuardAccessibilityService : AccessibilityService() {
         val ACCESSIBILITY_KEYWORDS = listOf(
             "специальные возможности", "спец. возможности", "спец возможности", "accessibility"
         )
+        // Экран Device Admin в разных прошивках и падежах называется по-разному:
+        // «Администратор устройства», «Приложение администратор‑А устройства» (детальный экран,
+        // родительный падеж), «Приложения для администрир‑ОВАНИЯ устройства» (список). Раньше
+        // ключом было «администратор устройства» — оно НЕ ловится как подстрока в «администратора
+        // устройства» (после «администратор» идёт «а», а не пробел), поэтому детальный экран
+        // деактивации проскакивал без PIN. Матчим по ОСНОВАМ слова, а не по точным фразам —
+        // так ловятся все падежи и кросс-вендорные варианты.
         val DEVICE_ADMIN_KEYWORDS = listOf(
-            "администратор устройства", "администрирования устройства", "device admin"
+            "администратор", "администрир", "device admin", "device administrator"
         )
     }
 }
