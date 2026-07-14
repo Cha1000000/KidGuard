@@ -18,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,23 +54,19 @@ fun DailyLimitScreen(
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.rules_daily_limit_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
+    Column(modifier = modifier) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.rules_daily_limit_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.common_back)
+                    )
                 }
-            )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp)) {
+            }
+        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text(
                 text = stringResource(R.string.daily_limit_subtitle),
                 style = MaterialTheme.typography.bodyMedium,

@@ -15,7 +15,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -56,25 +55,20 @@ fun PinSetupScreen(
     var wizardActive by rememberSaveable { mutableStateOf(false) }
     val showWizard = wizardActive || pinProtection == null
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.pin_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
+    Column(modifier = modifier) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.pin_setup_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.common_back)
+                    )
                 }
-            )
-        }
-    ) { innerPadding ->
+            }
+        )
         if (showWizard) {
             PinWizard(
-                modifier = Modifier.padding(innerPadding),
                 onCompleted = { pin ->
                     viewModel.setPin(pin)
                     wizardActive = false
@@ -82,7 +76,6 @@ fun PinSetupScreen(
             )
         } else {
             PinActiveState(
-                modifier = Modifier.padding(innerPadding),
                 onChangeClick = { wizardActive = true },
                 onRemoveClick = { viewModel.clearPin() }
             )
