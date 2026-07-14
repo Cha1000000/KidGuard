@@ -34,5 +34,8 @@
     <string name="pin_overlay_wrong">Неверный PIN</string>
     <string name="pin_overlay_back">Назад</string>
     <string name="pin_overlay_backspace_glyph">⌫</string>
+
+    <!-- Device Admin (веха 6.3) -->
+    <string name="device_admin_disable_warning">Отключение защитит телефон от KidGuard-контроля. Для отключения нужен родительский PIN.</string>
 </resources>
 

@@ -23,14 +23,13 @@ import javax.inject.Inject
  *
  * 1. Определяет активное (foreground) приложение по событиям смены окна и публикует его в
  *    [ForegroundAppMonitor] — фундамент под учёт экранного времени и блокировку (вехи 2–3).
- * 2. Точечно перехватывает открытие критичных системных экранов (веха 6, шаг 6.2): настройки VPN,
- *    «Специальные возможности» (чтобы ребёнок не отключил сам этот сервис) и удаление именно
- *    приложения KidGuard (другие приложения, включая игры, ребёнок удаляет свободно — «чистит
- *    мусор»). Детект — по ЗАГОЛОВКУ окна (`event.text`), кросс-вендорно; накрывает экран
+ * 2. Точечно перехватывает открытие критичных системных экранов (веха 6, шаги 6.2–6.3): настройки
+ *    VPN, «Специальные возможности» (чтобы ребёнок не отключил сам этот сервис), экран
+ *    администратора устройства (деактивация Device Admin снимает защиту от удаления) и удаление
+ *    именно приложения KidGuard (другие приложения, включая игры, ребёнок удаляет свободно —
+ *    «чистит мусор»). Детект — по ЗАГОЛОВКУ окна (`event.text`), кросс-вендорно; накрывает экран
  *    PIN-оверлеем типа `TYPE_ACCESSIBILITY_OVERLAY` (обычный оверлей на этих защищённых экранах
  *    система скрывает). Верный PIN пропускает на короткое окно, «Назад» уводит.
- *
- * Защита деактивации Device Admin — следующий шаг 6.3.
  */
 @AndroidEntryPoint
 class KidGuardAccessibilityService : AccessibilityService() {
@@ -131,6 +130,11 @@ class KidGuardAccessibilityService : AccessibilityService() {
             packageName == SETTINGS_PACKAGE && ACCESSIBILITY_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.ACCESSIBILITY_SETTINGS
 
+            // Экран администратора устройства (веха 6.3): деактивация Device Admin снимает
+            // системную защиту от удаления — под PIN. Заголовок стабилен кросс-вендорно.
+            packageName == SETTINGS_PACKAGE && DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
+                CriticalScreen.DEVICE_ADMIN
+
             // Удаление приложения: окно пакет-инсталлера с названием ИМЕННО нашего приложения
             // (другие приложения ребёнок удаляет свободно — «чистит мусор»). Название берём у
             // системы, чтобы не хардкодить строку и не путать с приложениями, где «kidguard» —
@@ -158,7 +162,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private enum class CriticalScreen { VPN_SETTINGS, ACCESSIBILITY_SETTINGS, KIDGUARD_UNINSTALL }
+    private enum class CriticalScreen { VPN_SETTINGS, ACCESSIBILITY_SETTINGS, DEVICE_ADMIN, KIDGUARD_UNINSTALL }
 
     private companion object {
         const val TAG = "KidGuardA11y"
@@ -174,6 +178,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
         val VPN_KEYWORDS = listOf("vpn")
         val ACCESSIBILITY_KEYWORDS = listOf(
             "специальные возможности", "спец. возможности", "спец возможности", "accessibility"
+        )
+        val DEVICE_ADMIN_KEYWORDS = listOf(
+            "администратор устройства", "администрирования устройства", "device admin"
         )
     }
 }
