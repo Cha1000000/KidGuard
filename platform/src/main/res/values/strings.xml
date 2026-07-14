@@ -27,5 +27,12 @@
     <string name="vpn_channel_name">Блокировка интернета</string>
     <string name="vpn_notification_title">Интернет ограничен</string>
     <string name="vpn_notification_text">Время на сегодня вышло — интернет доступен только KidGuard</string>
+
+    <!-- PIN-оверлей на критичных системных экранах (веха 6, шаг 6.2) -->
+    <string name="pin_overlay_title">Введите PIN</string>
+    <string name="pin_overlay_subtitle">Эту настройку защитил родитель</string>
+    <string name="pin_overlay_wrong">Неверный PIN</string>
+    <string name="pin_overlay_back">Назад</string>
+    <string name="pin_overlay_backspace_glyph">⌫</string>
 </resources>
 
