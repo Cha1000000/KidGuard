@@ -7,22 +7,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -38,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -55,16 +51,9 @@ fun DailyLimitScreen(
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
     Column(modifier = modifier) {
-        TopAppBar(
-            title = { Text(stringResource(R.string.rules_daily_limit_title)) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.common_back)
-                    )
-                }
-            }
+        CompactTopBar(
+            title = stringResource(R.string.rules_daily_limit_title),
+            onBack = onBack
         )
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text(
