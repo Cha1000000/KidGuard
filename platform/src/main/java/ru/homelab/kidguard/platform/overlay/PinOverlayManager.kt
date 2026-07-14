@@ -195,6 +195,20 @@ class PinOverlayManager @Inject constructor(
                 dismiss(container)
                 onCancel()
             }
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        v.animate().alpha(0.5f).setDuration(80).start()
+                        false
+                    }
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        v.animate().alpha(1f).setDuration(120).start()
+                        false
+                    }
+                    else -> false
+                }
+            }
         }
 
         val content = LinearLayout(context).apply {
@@ -262,6 +276,21 @@ class PinOverlayManager @Inject constructor(
         gravity = Gravity.CENTER
         background = circleDrawable(Color.parseColor(KEY_BACKGROUND_COLOR))
         setOnClickListener { onClick() }
+        // Анимация нажатия: уменьшение + затемнение при касании
+        setOnTouchListener { v, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    v.animate().scaleX(0.85f).scaleY(0.85f).alpha(0.6f).setDuration(80).start()
+                    false // не потребляем, чтобы click сработал
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(120).start()
+                    false
+                }
+                else -> false
+            }
+        }
     }
 
     private fun buildDotView(): View = View(context).apply {
