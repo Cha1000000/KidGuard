@@ -77,8 +77,13 @@ class PinOverlayManager @Inject constructor(
         if (overlayView != null) return@post
         enteredDigits.clear()
         val view = createOverlayView(verifyPin, onUnlocked, onCancel)
-        windowManager?.addView(view, buildLayoutParams())
-        overlayView = view
+        try {
+            windowManager?.addView(view, buildLayoutParams())
+            overlayView = view
+            android.util.Log.d("PinOverlay", "PIN-оверлей добавлен в WindowManager")
+        } catch (e: Exception) {
+            android.util.Log.e("PinOverlay", "Ошибка добавления оверлея", e)
+        }
     }
 
     /**

@@ -46,12 +46,12 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
-     * elapsedRealtime() последней успешной проверки PIN. Пока разница с текущим временем меньше
-     * [UNLOCK_WINDOW_MS], повторный показ критичного экрана не требует PIN снова — родитель
-     * успевает довести настройку до конца (например, реально отключить/включить VPN-тумблер).
+     * elapsedRealtime() последней успешной проверки PIN для каждого типа критичного экрана.
+     * Пока разница с текущим временем меньше [UNLOCK_WINDOW_MS], повторный показ ТОГО ЖЕ
+     * типа экрана не требует PIN снова — родитель успевает довести настройку до конца.
+     * Разные типы экранов (VPN, accessibility, device admin) требуют отдельного ввода PIN.
      */
-    @Volatile
-    private var lastUnlockedAt = 0L
+    private val lastUnlockedAt = mutableMapOf<CriticalScreen, Long>()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -92,7 +92,8 @@ class KidGuardAccessibilityService : AccessibilityService() {
     }
 
     private fun maybeInterceptWithPin(screen: CriticalScreen) {
-        if (SystemClock.elapsedRealtime() - lastUnlockedAt < UNLOCK_WINDOW_MS) {
+        val lastUnlocked = lastUnlockedAt[screen] ?: 0L
+        if (SystemClock.elapsedRealtime() - lastUnlocked < UNLOCK_WINDOW_MS) {
             Timber.tag(TAG).d("Критичный экран %s в окне разблокировки — без PIN", screen)
             return
         }
@@ -105,7 +106,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
             Timber.tag(TAG).d("Критичный экран %s — показываю PIN-оверлей", screen)
             pinOverlayManager.show(
                 verifyPin = ::verifyPin,
-                onUnlocked = { lastUnlockedAt = SystemClock.elapsedRealtime() },
+                onUnlocked = { lastUnlockedAt[screen] = SystemClock.elapsedRealtime() },
                 onCancel = { performGlobalAction(GLOBAL_ACTION_BACK) }
             )
         }
@@ -163,6 +164,15 @@ class KidGuardAccessibilityService : AccessibilityService() {
             packageName == SETTINGS_PACKAGE && DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DEVICE_ADMIN
 
+            // Диалог-подтверждение деактивации Device Admin (Android показывает перед
+            // «Активировать приложение администратора?»). Заголовок НЕ содержит «администратор» —
+            // содержит текст вида «Отключение защитит телефон от KidGuard-контроля. Для отключения
+            // нужен родительский PIN». Ловим по «kidguard» в заголовке + «отключ» или «disable».
+            packageName == SETTINGS_PACKAGE &&
+                title.contains("kidguard") &&
+                DEACTIVATION_DIALOG_KEYWORDS.any { title.contains(it) } ->
+                CriticalScreen.DEVICE_ADMIN
+
             // Удаление приложения: окно пакет-инсталлера с названием ИМЕННО нашего приложения
             // (другие приложения ребёнок удаляет свободно — «чистит мусор»). Название берём у
             // системы, чтобы не хардкодить строку и не путать с приложениями, где «kidguard» —
@@ -194,7 +204,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     private companion object {
         const val TAG = "KidGuardA11y"
-        const val UNLOCK_WINDOW_MS = 60_000L
+        const val UNLOCK_WINDOW_MS = 20_000L
         const val SETTINGS_PACKAGE = "com.android.settings"
         val PACKAGE_INSTALLER_PACKAGES =
             setOf("com.google.android.packageinstaller", "com.android.packageinstaller")
@@ -217,5 +227,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
         val DEVICE_ADMIN_KEYWORDS = listOf(
             "администратор", "администрир", "device admin", "device administrator"
         )
+        // Диалог-подтверждение деактивации KidGuard Device Admin.
+        // Заголовок: «Отключение защитит телефон от KidGuard-контроля. Для отключения нужен
+        // родительский PIN. Отмена ОК». Не содержит «администратор».
+        // Требуется ОДНОВРЕМЕННО «kidguard» в заголовке (проверяется отдельно).
+        val DEACTIVATION_DIALOG_KEYWORDS = listOf("отключ", "disable")
     }
 }
