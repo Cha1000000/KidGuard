@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KidGuard Stats - Light Glass</title>
+    <style>
+        :root {
+            --bg-main: #EEF4F6;
+            --accent: #2E6B7E;
+            --accent-glow: rgba(46, 107, 126, 0.2);
+            --glass-bg: rgba(220, 234, 239, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --text-main: #16232A;
+            --text-secondary: #5B6B72;
+            --shadow: 0 10px 30px rgba(46, 107, 126, 0.08);
+        }
+
+        body {
+            margin: 0;
+            background: #D8E2E6;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-main);
+        }
+
+        .phone-frame {
+            width: 360px;
+            height: 740px;
+            background: radial-gradient(circle at top left, #FFFFFF 0%, var(--bg-main) 100%);
+            border-radius: 44px;
+            border: 8px solid #FFF;
+            position: relative;
+            overflow: hidden;
+            padding: 24px;
+            box-sizing: border-box;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.08);
+        }
+
+        .header {
+            margin-top: 20px;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--accent);
+        }
+
+        .summary-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 28px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        .summary-info .label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .summary-info .value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-top: 2px;
+            color: var(--accent);
+        }
+
+        .chart-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 28px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-header {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 110px;
+            padding: 0 5px;
+        }
+
+        .bar-item {
+            width: 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bar-fill {
+            width: 100%;
+            background: rgba(46, 107, 126, 0.08);
+            border-radius: 6px;
+        }
+
+        .bar-fill.active {
+            background: var(--accent);
+            box-shadow: 0 4px 10px var(--accent-glow);
+        }
+
+        .bar-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .app-list h3 {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .app-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            background: var(--glass-bg);
+            padding: 12px;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+        }
+
+        .app-icon {
+            width: 38px;
+            height: 38px;
+            background: #FFF;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.03);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .app-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--accent);
+        }
+
+        .app-details {
+            flex: 1;
+        }
+
+        .app-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .app-usage {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .app-percent {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <div class="header">
+            <h1>Статистика</h1>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-info">
+                <div class="label">Всего сегодня</div>
+                <div class="value">3ч 45м</div>
+            </div>
+            <div style="width: 44px; height: 44px; background: rgba(46, 107, 126, 0.05); border-radius: 14px; display: flex; justify-content: center; align-items: center;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="#2E6B7E"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-header">Активность за неделю</div>
+            <div class="bars">
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 40%;"></div>
+                    <div class="bar-label">Пн</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 60%;"></div>
+                    <div class="bar-label">Вт</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 85%;"></div>
+                    <div class="bar-label">Ср</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill active" style="height: 70%;"></div>
+                    <div class="bar-label">Чт</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 30%;"></div>
+                    <div class="bar-label">Пт</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 90%;"></div>
+                    <div class="bar-label">Сб</div>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-fill" style="height: 50%;"></div>
+                    <div class="bar-label">Вс</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-list">
+            <h3>Популярное</h3>
+            <div class="app-item">
+                <div class="app-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77.42-1.56.42-4.81.42-4.81s0-3.25-.42-4.81zM10 15V9l5.2 3L10 15z"/></svg>
+                </div>
+                <div class="app-details">
+                    <div class="app-name">YouTube</div>
+                    <div class="app-usage">1ч 20м</div>
+                </div>
+                <div class="app-percent">35%</div>
+            </div>
+            <div class="app-item">
+                <div class="app-icon">
+                    <svg viewBox="0 0 24 24"><path d="M13 13v8h8v-8h-8zM3 21h8v-8H3v8zM3 3v8h8V3H3zm13.66 2L13 11h8l-4.34-6z"/></svg>
+                </div>
+                <div class="app-details">
+                    <div class="app-name">Roblox</div>
+                    <div class="app-usage">45м</div>
+                </div>
+                <div class="app-percent">20%</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

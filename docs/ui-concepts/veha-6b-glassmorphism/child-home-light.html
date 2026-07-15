@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KidGuard Child Home - Light Glass</title>
+    <style>
+        :root {
+            --bg-main: #EEF4F6;
+            --accent: #2E6B7E;
+            --accent-glow: rgba(46, 107, 126, 0.2);
+            --glass-bg: rgba(220, 234, 239, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --text-main: #16232A;
+            --text-secondary: #5B6B72;
+            --shadow: 0 10px 30px rgba(46, 107, 126, 0.08);
+        }
+
+        body {
+            margin: 0;
+            background: #D8E2E6;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-main);
+        }
+
+        .phone-frame {
+            width: 360px;
+            height: 740px;
+            background: radial-gradient(circle at top right, #FFFFFF 0%, var(--bg-main) 100%);
+            border-radius: 44px;
+            border: 8px solid #FFF;
+            position: relative;
+            overflow: hidden;
+            padding: 24px;
+            box-sizing: border-box;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.08);
+        }
+
+        .greeting {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .avatar-glow {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #FFF;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .greeting-text h2 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .greeting-text p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .main-timer {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            margin: 0 auto 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .timer-ring-svg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .timer-bg {
+            fill: none;
+            stroke: rgba(46, 107, 126, 0.05);
+            stroke-width: 12;
+        }
+
+        .timer-bar {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 754; /* 2 * PI * 120 */
+            stroke-dashoffset: 200;
+        }
+
+        .timer-time {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -1px;
+        }
+
+        .timer-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            background: var(--accent);
+            color: #FFF;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 12px;
+            box-shadow: 0 4px 10px var(--accent-glow);
+        }
+
+        .rules-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .rule-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 18px;
+            border-radius: 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .icon-box {
+            width: 34px;
+            height: 34px;
+            background: #FFF;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .icon-box svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--accent);
+        }
+
+        .rule-card .title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .rule-card .value {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .footer-shield {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--glass-bg);
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+        }
+
+        .footer-shield svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--text-secondary);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <div class="greeting">
+            <div class="avatar-glow">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" width="60" alt="avatar">
+            </div>
+            <div class="greeting-text">
+                <h2>Привет, Володя!</h2>
+                <p>Всё под контролем</p>
+            </div>
+        </div>
+
+        <div class="main-timer">
+            <svg class="timer-ring-svg" viewBox="0 0 260 260">
+                <circle class="timer-bg" cx="130" cy="130" r="120"></circle>
+                <circle class="timer-bar" cx="130" cy="130" r="120" style="stroke-dashoffset: 150;"></circle>
+            </svg>
+            <div class="timer-label">Осталось</div>
+            <div class="timer-time">02:30</div>
+            <div class="status-badge">KIDGUARD АКТИВЕН</div>
+        </div>
+
+        <div class="rules-grid">
+            <div class="rule-card">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                </div>
+                <span class="title">Лимиты</span>
+                <span class="value">4 приложения</span>
+            </div>
+            <div class="rule-card">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                </div>
+                <span class="title">Запрещено</span>
+                <span class="value">12 приложений</span>
+            </div>
+            <div class="rule-card">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                </div>
+                <span class="title">Всегда можно</span>
+                <span class="value">Телефон, СМС</span>
+            </div>
+            <div class="rule-card">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                </div>
+                <span class="title">Статистика</span>
+                <span class="value">1ч 45м</span>
+            </div>
+        </div>
+
+        <div class="footer-shield">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            Защищено KidGuard
+        </div>
+    </div>
+
+</body>
+</html>
