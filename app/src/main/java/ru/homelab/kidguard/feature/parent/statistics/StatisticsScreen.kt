@@ -21,12 +21,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -37,6 +41,7 @@ import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
+import ru.homelab.kidguard.feature.parent.rules.AppIconImage
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -237,25 +242,21 @@ private fun WeekChartCard(week: List<DayUsage>) {
 
 @Composable
 private fun AppUsageRow(app: AppUsage) {
+    val context = LocalContext.current
+    val icon = remember(app.packageName) {
+        runCatching {
+            context.packageManager.getApplicationIcon(app.packageName)
+                .toBitmap(width = 96, height = 96)
+                .asImageBitmap()
+        }.getOrNull()
+    }
+
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            ) {
-                Text(
-                    text = app.label.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            AppIconImage(icon = icon, label = app.label, packageName = app.packageName)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.label,
