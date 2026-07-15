@@ -63,7 +63,7 @@ fun GlassToggle(
 
     // Анимация позиции бегунка
     val thumbOffset by animateDpAsState(
-        targetValue = if (checked) width - thumbSize - 3.dp else 3.dp,
+        targetValue = if (checked) width - thumbSize - 6.dp else 2.dp,
         animationSpec = tween(durationMillis = 300),
         label = "thumbOffset"
     )
