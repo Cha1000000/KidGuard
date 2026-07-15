@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -54,7 +55,7 @@ fun GlassDockBar(
                 .height(64.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(
-                    color = if (isDarkTheme()) {
+                    color = if (isSystemInDarkTheme()) {
                         Color(0xFF17282E).copy(alpha = 0.85f)
                     } else {
                         Color.White.copy(alpha = 0.85f)

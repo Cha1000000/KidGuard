@@ -6,9 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -34,22 +34,22 @@ import androidx.compose.ui.unit.dp
 fun GlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
-    glassAlpha: Float = if (isDarkTheme()) 0.15f else 0.7f,
+    glassAlpha: Float = if (isSystemInDarkTheme()) 0.15f else 0.7f,
     borderAlpha: Float = 0.2f,
-    showShadow: Boolean = !isDarkTheme(),
+    showShadow: Boolean = !isSystemInDarkTheme(),
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
     // Цвета для glassmorphism
-    val glassColor = if (isDarkTheme()) {
+    val glassColor = if (isSystemInDarkTheme()) {
         Color(0xFF17282E).copy(alpha = glassAlpha)
     } else {
         Color(0xFFDCEAEF).copy(alpha = 0.9f)
     }
 
-    val borderColor = if (isDarkTheme()) {
+    val borderColor = if (isSystemInDarkTheme()) {
         Color.White.copy(alpha = borderAlpha)
     } else {
         Color(0xFF2E6B7E).copy(alpha = 0.12f)
@@ -99,17 +99,4 @@ fun GlassCard(
     )
 }
 
-/**
- * Проверяет, используется ли тёмная тема.
- */
-@Composable
-internal fun isDarkTheme(): Boolean {
-    return MaterialTheme.colorScheme.background.luminance() < 0.5f
-}
 
-/**
- * Вычисляет яркость цвета (luminance).
- */
-private fun Color.luminance(): Float {
-    return 0.299f * red + 0.587f * green + 0.114f * blue
-}
