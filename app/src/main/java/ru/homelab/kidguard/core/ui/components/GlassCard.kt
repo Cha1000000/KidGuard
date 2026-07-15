@@ -46,10 +46,14 @@ fun GlassCard(
     val glassColor = if (isDarkTheme()) {
         Color(0xFF17282E).copy(alpha = glassAlpha)
     } else {
-        Color(0xFFDCEAEF).copy(alpha = glassAlpha)
+        Color(0xFFDCEAEF).copy(alpha = 0.9f)
     }
 
-    val borderColor = Color.White.copy(alpha = borderAlpha)
+    val borderColor = if (isDarkTheme()) {
+        Color.White.copy(alpha = borderAlpha)
+    } else {
+        Color(0xFF2E6B7E).copy(alpha = 0.12f)
+    }
 
     // Тень для светлой темы
     val shadowModifier = if (showShadow) {
