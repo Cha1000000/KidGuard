@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.PinPad
 
 private const val PIN_LENGTH = 4
@@ -53,23 +54,25 @@ fun PinSetupScreen(
     var wizardActive by rememberSaveable { mutableStateOf(false) }
     val showWizard = wizardActive || pinProtection == null
 
-    Column(modifier = modifier) {
-        CompactTopBar(
-            title = stringResource(R.string.pin_setup_title),
-            onBack = onBack
-        )
-        if (showWizard) {
-            PinWizard(
-                onCompleted = { pin ->
-                    viewModel.setPin(pin)
-                    wizardActive = false
-                }
+    GlassBackground(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CompactTopBar(
+                title = stringResource(R.string.pin_setup_title),
+                onBack = onBack
             )
-        } else {
-            PinActiveState(
-                onChangeClick = { wizardActive = true },
-                onRemoveClick = { viewModel.clearPin() }
-            )
+            if (showWizard) {
+                PinWizard(
+                    onCompleted = { pin ->
+                        viewModel.setPin(pin)
+                        wizardActive = false
+                    }
+                )
+            } else {
+                PinActiveState(
+                    onChangeClick = { wizardActive = true },
+                    onRemoveClick = { viewModel.clearPin() }
+                )
+            }
         }
     }
 }
