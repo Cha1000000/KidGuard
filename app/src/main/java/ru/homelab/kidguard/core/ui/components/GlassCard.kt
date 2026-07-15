@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -21,11 +20,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Стеклянная карточка (Glassmorphism) — полупрозрачный фон с блюром и тонкой светлой границей.
+ * Стеклянная карточка (Glassmorphism) — полупрозрачный фон с тонкой светлой границей.
  *
  * @param modifier модификатор для внешнего контейнера
  * @param cornerRadius скругление углов (по умолчанию 24dp)
- * @param blurRadius радиус блюра фона (по умолчанию 20dp)
  * @param glassAlpha прозрачность фона (0.0–1.0, по умолчанию 0.15 для тёмной, 0.7 для светлой)
  * @param borderAlpha прозрачность границы (по умолчанию 0.2)
  * @param showShadow показывать ли тень (для светлой темы)
@@ -36,7 +34,6 @@ import androidx.compose.ui.unit.dp
 fun GlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
-    blurRadius: Dp = 20.dp,
     glassAlpha: Float = if (isDarkTheme()) 0.15f else 0.7f,
     borderAlpha: Float = 0.2f,
     showShadow: Boolean = !isDarkTheme(),
@@ -82,7 +79,6 @@ fun GlassCard(
             .then(shadowModifier)
             .clip(shape)
             .background(glassColor)
-            .blur(blurRadius)
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
