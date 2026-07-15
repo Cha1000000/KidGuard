@@ -75,15 +75,17 @@ fun DailyLimitScreen(
                     )
                 }
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
-                    val days = DayOfWeek.entries
-                    days.forEachIndexed { index, day ->
-                        DayRow(
-                            day = day,
-                            minutes = limits.limitFor(day),
-                            isToday = day == today,
-                            onClick = { editingDay = day }
-                        )
-                        if (index < days.lastIndex) HorizontalDivider()
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        val days = DayOfWeek.entries
+                        days.forEachIndexed { index, day ->
+                            DayRow(
+                                day = day,
+                                minutes = limits.limitFor(day),
+                                isToday = day == today,
+                                onClick = { editingDay = day }
+                            )
+                            if (index < days.lastIndex) HorizontalDivider()
+                        }
                     }
                 }
             }
