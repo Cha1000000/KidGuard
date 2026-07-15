@@ -51,11 +51,13 @@ fun ParentScreen(
     // Скрываем DockBar на под-экранах Правил (лимит, белый список и т.д.)
     val showDockBar = ParentTab.entries.any { currentRoute?.startsWith(it.route) == true }
 
-    Box(modifier = modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    Box(modifier = modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = ParentTab.CHILDREN.route,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
             composable(ParentTab.CHILDREN.route) { ChildrenScreen() }
             composable(ParentTab.RULES.route) {
