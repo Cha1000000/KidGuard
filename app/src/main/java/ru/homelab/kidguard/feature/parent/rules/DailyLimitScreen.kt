@@ -113,7 +113,7 @@ private fun DayRow(day: DayOfWeek, minutes: Int?, isToday: Boolean, onClick: () 
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
