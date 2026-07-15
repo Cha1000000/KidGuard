@@ -99,7 +99,7 @@ fun GlassCard(
  * Проверяет, используется ли тёмная тема.
  */
 @Composable
-private fun isDarkTheme(): Boolean {
+internal fun isDarkTheme(): Boolean {
     return MaterialTheme.colorScheme.background.luminance() < 0.5f
 }
 
