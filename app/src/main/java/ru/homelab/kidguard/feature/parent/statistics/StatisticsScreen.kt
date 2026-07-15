@@ -31,6 +31,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CenteredMessage
+import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 import java.time.format.TextStyle
@@ -48,26 +50,28 @@ fun StatisticsScreen(
     // и без этого показывала бы устаревшие данные.
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        ScreenTitle(stringResource(R.string.parent_tab_statistics))
-        if (!uiState.noChildren) ChildSelectorChip()
+    GlassBackground(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            ScreenTitle(stringResource(R.string.parent_tab_statistics))
+            if (!uiState.noChildren) ChildSelectorChip()
 
-        when {
-            uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            when {
+                uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+
+                uiState.noChildren -> CenteredMessage(
+                    text = stringResource(R.string.statistics_no_children),
+                    modifier = Modifier.weight(1f)
+                )
+
+                uiState.error -> CenteredMessage(
+                    text = stringResource(R.string.statistics_load_error),
+                    modifier = Modifier.weight(1f)
+                )
+
+                else -> StatisticsContent(uiState)
             }
-
-            uiState.noChildren -> CenteredMessage(
-                text = stringResource(R.string.statistics_no_children),
-                modifier = Modifier.weight(1f)
-            )
-
-            uiState.error -> CenteredMessage(
-                text = stringResource(R.string.statistics_load_error),
-                modifier = Modifier.weight(1f)
-            )
-
-            else -> StatisticsContent(uiState)
         }
     }
 }
@@ -107,8 +111,8 @@ private fun StatisticsContent(state: StatisticsUiState) {
 
 @Composable
 private fun TodayCard(state: StatisticsUiState) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.statistics_today_label),
                 style = MaterialTheme.typography.bodySmall,
@@ -146,12 +150,12 @@ private fun WeekChartCard(week: List<DayUsage>) {
     val maxSeconds = (week.maxOfOrNull { it.seconds } ?: 0).coerceAtLeast(1)
     val lastIndex = week.lastIndex
 
-    Card(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.statistics_week_label),
                 style = MaterialTheme.typography.bodySmall,
