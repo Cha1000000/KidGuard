@@ -33,6 +33,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassToggle
 
 /** Экран «Запрещённые» (веха 4.1.2): полный запрет приложений ребёнка, вне зависимости от лимитов. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,42 +52,44 @@ fun BlockedAppsScreen(
         if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
-    Column(modifier = modifier) {
-        CompactTopBar(
-            title = stringResource(R.string.blocked_apps_title),
-            onBack = onBack
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.blocked_apps_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 12.dp)
+    GlassBackground(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CompactTopBar(
+                title = stringResource(R.string.blocked_apps_title),
+                onBack = onBack
             )
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = { Text(stringResource(R.string.blocked_apps_search)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            when {
-                apps == null -> AppsLoadingState()
-                apps.orEmpty().isEmpty() -> AppsEmptyState()
-                else -> LazyColumn(
-                    modifier = Modifier.padding(top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        AppRow(
-                            app = app,
-                            onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
-                        )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.blocked_apps_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(stringResource(R.string.blocked_apps_search)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                when {
+                    apps == null -> AppsLoadingState()
+                    apps.orEmpty().isEmpty() -> AppsEmptyState()
+                    else -> LazyColumn(
+                        modifier = Modifier.padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(filtered, key = { it.packageName }) { app ->
+                            AppRow(
+                                app = app,
+                                onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
+                            )
+                        }
                     }
                 }
             }
@@ -94,37 +99,39 @@ fun BlockedAppsScreen(
 
 @Composable
 private fun AppRow(app: BlockedAppUi, onToggle: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        if (app.blocked) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
             Text(
-                text = stringResource(R.string.blocked_apps_badge),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(999.dp)
-                    )
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                text = app.label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            if (app.blocked) {
+                Text(
+                    text = stringResource(R.string.blocked_apps_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(999.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                )
+            }
+            GlassToggle(
+                checked = app.blocked,
+                onCheckedChange = onToggle,
+                accentColor = MaterialTheme.colorScheme.error
             )
         }
-        Checkbox(
-            checked = app.blocked,
-            onCheckedChange = onToggle,
-            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.error)
-        )
     }
 }
