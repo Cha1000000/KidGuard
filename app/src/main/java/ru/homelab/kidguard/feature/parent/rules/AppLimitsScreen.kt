@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.GlassCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,39 +56,41 @@ fun AppLimitsScreen(
         if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
-    Column(modifier = modifier) {
-        CompactTopBar(
-            title = stringResource(R.string.rules_app_limits_title),
-            onBack = onBack
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.app_limits_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 12.dp)
+    GlassBackground(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CompactTopBar(
+                title = stringResource(R.string.rules_app_limits_title),
+                onBack = onBack
             )
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = { Text(stringResource(R.string.app_limits_search)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            when {
-                apps == null -> AppsLoadingState()
-                apps.orEmpty().isEmpty() -> AppsEmptyState()
-                else -> LazyColumn(
-                    modifier = Modifier.padding(top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.app_limits_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(stringResource(R.string.app_limits_search)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                when {
+                    apps == null -> AppsLoadingState()
+                    apps.orEmpty().isEmpty() -> AppsEmptyState()
+                    else -> LazyColumn(
+                        modifier = Modifier.padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(filtered, key = { it.packageName }) { app ->
+                            AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
+                        }
                     }
                 }
             }
@@ -110,33 +114,35 @@ fun AppLimitsScreen(
 
 @Composable
 private fun AppLimitRow(app: AppLimitUi, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    GlassCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
-            if (app.limitMinutes != null) {
-                Text(
-                    text = stringResource(R.string.app_limits_spent, app.spentMinutes, app.limitMinutes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
+                if (app.limitMinutes != null) {
+                    Text(
+                        text = stringResource(R.string.app_limits_spent, app.spentMinutes, app.limitMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
+            Text(
+                text = app.limitMinutes?.let { formatLimit(it) }
+                    ?: stringResource(R.string.app_limits_no_limit),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
+                color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Text(
-            text = app.limitMinutes?.let { formatLimit(it) }
-                ?: stringResource(R.string.app_limits_no_limit),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
-            color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
