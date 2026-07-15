@@ -130,7 +130,7 @@ private fun AppRow(app: BlockedAppUi, onToggle: (Boolean) -> Unit) {
             GlassToggle(
                 checked = app.blocked,
                 onCheckedChange = onToggle,
-                accentColor = MaterialTheme.colorScheme.error
+                accentColor = Color(0xFFE53935) // насыщенный красный для обеих тем
             )
         }
     }
