@@ -19,7 +19,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,8 +39,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -201,29 +206,29 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
 @Composable
 private fun ExpiredCard(time: TodayTimeState.Expired) {
     StateCard(
-        background = MaterialTheme.colorScheme.errorContainer,
-        emoji = "⏰",
+        iconTint = MaterialTheme.colorScheme.error,
         title = stringResource(R.string.child_time_expired_title),
         titleColor = MaterialTheme.colorScheme.error,
-        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes))
+        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes)),
+        icon = ImageVector.vectorResource(R.drawable.ic_timer)
     )
 }
 
 @Composable
 private fun NoLimitCard() {
     StateCard(
-        background = MaterialTheme.colorScheme.surfaceContainer,
-        emoji = "🌤",
+        iconTint = MaterialTheme.colorScheme.primary,
         title = stringResource(R.string.child_time_nolimit_title),
         titleColor = MaterialTheme.colorScheme.primary,
-        subtitle = stringResource(R.string.child_time_nolimit_sub)
+        subtitle = stringResource(R.string.child_time_nolimit_sub),
+        icon = Icons.Filled.CheckCircle
     )
 }
 
 @Composable
 private fun StateCard(
-    background: Color,
-    emoji: String,
+    iconTint: Color,
+    icon: ImageVector,
     title: String,
     titleColor: Color,
     subtitle: String
@@ -238,7 +243,12 @@ private fun StateCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text = emoji, fontSize = 40.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(40.dp)
+            )
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
@@ -274,22 +284,25 @@ private fun RulesSection(ui: TodayUiState) {
     val noneText = stringResource(R.string.child_rules_none)
 
     RuleRow(
-        emoji = "✅",
-        emojiBackground = MaterialTheme.colorScheme.secondaryContainer,
+        icon = Icons.Filled.CheckCircle,
+        iconTint = Color(0xFF2E7D32),
+        iconBackground = MaterialTheme.colorScheme.secondaryContainer,
         name = stringResource(R.string.child_rules_allowed_name),
         subtitle = ui.alwaysAllowed.previewLabels.joinToString(", ").ifEmpty { noneText },
         count = ui.alwaysAllowed.count
     )
     RuleRow(
-        emoji = "⏱",
-        emojiBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
+        icon = ImageVector.vectorResource(R.drawable.ic_timer),
+        iconTint = MaterialTheme.colorScheme.primary,
+        iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
         name = stringResource(R.string.child_rules_limited_name),
         subtitle = limitedSubtitle(ui.limited, noneText),
         count = ui.limited.count
     )
     RuleRow(
-        emoji = "🚫",
-        emojiBackground = MaterialTheme.colorScheme.errorContainer,
+        icon = ImageVector.vectorResource(R.drawable.ic_block),
+        iconTint = MaterialTheme.colorScheme.error,
+        iconBackground = MaterialTheme.colorScheme.errorContainer,
         name = stringResource(R.string.child_rules_blocked_name),
         subtitle = ui.blocked.previewLabels.joinToString(", ").ifEmpty { noneText },
         count = ui.blocked.count
@@ -309,8 +322,9 @@ private fun limitedSubtitle(limited: LimitedGroup, noneText: String): String {
 
 @Composable
 private fun RuleRow(
-    emoji: String,
-    emojiBackground: Color,
+    icon: ImageVector,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface,
+    iconBackground: Color = MaterialTheme.colorScheme.surfaceContainer,
     name: String,
     subtitle: String,
     count: Int
@@ -329,10 +343,15 @@ private fun RuleRow(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(emojiBackground),
+                    .background(iconBackground),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = emoji, fontSize = 17.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
