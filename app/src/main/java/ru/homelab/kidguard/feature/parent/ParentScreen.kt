@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -50,7 +51,7 @@ fun ParentScreen(
     // Скрываем DockBar на под-экранах Правил (лимит, белый список и т.д.)
     val showDockBar = ParentTab.entries.any { currentRoute?.startsWith(it.route) == true }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         NavHost(
             navController = navController,
             startDestination = ParentTab.CHILDREN.route,
