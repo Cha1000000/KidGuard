@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassDockBar
 import ru.homelab.kidguard.core.ui.components.GlassDockItem
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
@@ -51,7 +52,7 @@ fun ParentScreen(
     // Скрываем DockBar на под-экранах Правил (лимит, белый список и т.д.)
     val showDockBar = ParentTab.entries.any { currentRoute?.startsWith(it.route) == true }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    GlassBackground(modifier = modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = ParentTab.CHILDREN.route,
