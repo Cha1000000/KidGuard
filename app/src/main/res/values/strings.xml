@@ -62,9 +62,6 @@
     <string name="parent_tab_rules">Правила</string>
     <string name="parent_tab_statistics">Статистика</string>
 
-    <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
-    <string name="parent_children_placeholder">Здесь будет список детей</string>
-
     <!-- Статистика (родитель) -->
     <string name="statistics_today_label">Экранное время сегодня</string>
     <string name="statistics_today_limit">Лимит: %1$s · осталось %2$s</string>
@@ -142,7 +139,6 @@
     <string name="bonus_add_action">Добавить +%1$s</string>
 
     <!-- Ребёнок: главный экран «Сегодня» (веха 4.1.3) -->
-    <string name="child_today_title">Сегодня</string>
     <string name="child_greeting_hello">Привет,</string>
     <string name="child_greeting_name">%1$s!</string>
     <string name="child_greeting_name_fallback">друг</string>
