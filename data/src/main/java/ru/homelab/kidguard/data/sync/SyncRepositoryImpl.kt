@@ -104,13 +104,16 @@ class SyncRepositoryImpl @Inject constructor(
 
         // Наблюдаем локальные правки (включая бонусы) и пушим с дебаунсом. combine эмитит и после
         // pull-apply, но pushIfChanged сравнит со снапшотом и промолчит.
+        // combine() с типизированными флоу ограничен 5 аргументами — шестой (bonuses) добавляем
+        // отдельным combine() поверх, чтобы не переходить на нетипизированный vararg-Array вариант.
         combine(
             policyRepository.dailyLimits,
             policyRepository.appLimits,
             policyRepository.whitelist,
             policyRepository.blockedApps,
-            bonusRepository.observeAll()
+            policyRepository.pinProtection
         ) { _, _, _, _, _ -> Unit }
+            .combine(bonusRepository.observeAll()) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -241,7 +244,9 @@ class SyncRepositoryImpl @Inject constructor(
             }.toMap(),
             appLimits = data.appLimits,
             whitelist = data.whitelist.toSet(),
-            blockedApps = data.blockedApps.toSet()
+            blockedApps = data.blockedApps.toSet(),
+            pinHash = data.pinHash,
+            pinSalt = data.pinSalt
         )
         bonusRepository.replaceAll(
             data.bonuses.mapNotNull { dto ->
@@ -280,17 +285,22 @@ class SyncRepositoryImpl @Inject constructor(
         return fallbackId
     }
 
-    private suspend fun currentLocalDocument(): PolicyDocumentDto = PolicyDocumentDto(
-        dailyLimits = policyRepository.dailyLimits.first().minutesByDay
-            .mapKeys { it.key.name },
-        appLimits = policyRepository.appLimits.first(),
-        whitelist = policyRepository.whitelist.first().toList(),
-        blockedApps = policyRepository.blockedApps.first().toList(),
-        // Бонусы датированы «на сегодня»: прошедшие дни в документ не тащим.
-        bonuses = bonusRepository.observeAll().first()
-            .filter { it.date == currentDateProvider.today() }
-            .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) }
-    )
+    private suspend fun currentLocalDocument(): PolicyDocumentDto {
+        val pin = policyRepository.pinProtection.first()
+        return PolicyDocumentDto(
+            dailyLimits = policyRepository.dailyLimits.first().minutesByDay
+                .mapKeys { it.key.name },
+            appLimits = policyRepository.appLimits.first(),
+            whitelist = policyRepository.whitelist.first().toList(),
+            blockedApps = policyRepository.blockedApps.first().toList(),
+            // Бонусы датированы «на сегодня»: прошедшие дни в документ не тащим.
+            bonuses = bonusRepository.observeAll().first()
+                .filter { it.date == currentDateProvider.today() }
+                .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) },
+            pinHash = pin?.hash,
+            pinSalt = pin?.salt
+        )
+    }
 
     /**
      * Стабильное строковое представление документа для сравнения содержимого: map/list
@@ -303,7 +313,11 @@ class SyncRepositoryImpl @Inject constructor(
             appLimits = document.appLimits.toSortedMap(),
             whitelist = document.whitelist.sorted(),
             blockedApps = document.blockedApps.sorted(),
-            bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName }))
+            bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName })),
+            // Скаляры — сортировать нечего, но включаем как есть, иначе разница в PIN не попадёт
+            // в снапшот сравнения и push/pull будут пинг-понговать.
+            pinHash = document.pinHash,
+            pinSalt = document.pinSalt
         )
     )
 

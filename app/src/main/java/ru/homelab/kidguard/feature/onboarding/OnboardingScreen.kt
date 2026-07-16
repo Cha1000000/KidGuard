@@ -1,6 +1,5 @@
 package ru.homelab.kidguard.feature.onboarding
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Role
+import ru.homelab.kidguard.core.ui.components.GlassBackground
 
 /**
  * Экран первичной настройки: выбор роли устройства. Выбор **единоразовый** — приложение
@@ -34,58 +34,56 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            // Theme.KidGuard — фиксированная светлая системная тема (статичный windowBackground);
-            // без Scaffold (у него уже встроено через containerColor) экран красит фон сам,
-            // иначе в тёмной теме будет просвечивать светлый фон окна.
-            .background(MaterialTheme.colorScheme.background)
-            .safeDrawingPadding()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = stringResource(R.string.onboarding_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = stringResource(R.string.onboarding_subtitle),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 12.dp, bottom = 40.dp)
-        )
-        // Крупные, слабо скруглённые кнопки выбора роли (прямоугольные со скруглёнными углами).
-        val roleButtonShape = RoundedCornerShape(16.dp)
-        Button(
-            onClick = { viewModel.chooseRole(Role.PARENT, onRoleChosen) },
-            shape = roleButtonShape,
+    GlassBackground(modifier = modifier) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.onboarding_role_parent),
-                style = MaterialTheme.typography.titleLarge
+                text = stringResource(R.string.onboarding_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
             )
-        }
-        OutlinedButton(
-            onClick = { viewModel.chooseRole(Role.CHILD, onRoleChosen) },
-            shape = roleButtonShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp)
-                .height(64.dp)
-        ) {
             Text(
-                text = stringResource(R.string.onboarding_role_child),
-                style = MaterialTheme.typography.titleLarge
+                text = stringResource(R.string.onboarding_subtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 12.dp, bottom = 40.dp)
             )
+            // Крупные, слабо скруглённые кнопки выбора роли (прямоугольные со скруглёнными углами).
+            val roleButtonShape = RoundedCornerShape(16.dp)
+            Button(
+                onClick = { viewModel.chooseRole(Role.PARENT, onRoleChosen) },
+                shape = roleButtonShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.onboarding_role_parent),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.chooseRole(Role.CHILD, onRoleChosen) },
+                shape = roleButtonShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .height(64.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.onboarding_role_child),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
         }
     }
 }

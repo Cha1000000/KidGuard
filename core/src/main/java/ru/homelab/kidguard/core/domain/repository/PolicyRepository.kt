@@ -2,6 +2,7 @@ package ru.homelab.kidguard.core.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.PinProtection
 import java.time.DayOfWeek
 
 /**
@@ -22,6 +23,9 @@ interface PolicyRepository {
     /** Пакеты приложений, полностью запрещённых родителем (веха 4.1.2) — блокируются всегда. */
     val blockedApps: Flow<Set<String>>
 
+    /** Родительский PIN (соль + хеш), защищающий критичные настройки (веха 6.1); null — PIN не задан. */
+    val pinProtection: Flow<PinProtection?>
+
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
 
@@ -34,6 +38,12 @@ interface PolicyRepository {
     /** Добавить/убрать приложение из списка запрещённых. */
     suspend fun setBlocked(packageName: String, blocked: Boolean)
 
+    /** Задать родительский PIN — хеш и соль уже посчитаны вызывающей стороной ([PinHasher][ru.homelab.kidguard.core.domain.security.PinHasher]). */
+    suspend fun setPin(hash: String, salt: String)
+
+    /** Убрать PIN-защиту. */
+    suspend fun clearPin()
+
     /**
      * Транзакционно заменить всю политику разом — применение серверного документа при
      * синхронизации (веха 4.3). Локальные правила полностью перезаписываются.
@@ -42,6 +52,8 @@ interface PolicyRepository {
         dailyLimits: Map<DayOfWeek, Int>,
         appLimits: Map<String, Int>,
         whitelist: Set<String>,
-        blockedApps: Set<String>
+        blockedApps: Set<String>,
+        pinHash: String?,
+        pinSalt: String?
     )
 }

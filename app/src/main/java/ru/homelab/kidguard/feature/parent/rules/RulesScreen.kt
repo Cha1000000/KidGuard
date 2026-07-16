@@ -12,9 +12,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 
@@ -35,13 +37,14 @@ fun RulesScreen(
     onOpenAppLimits: () -> Unit,
     onOpenBlockedApps: () -> Unit,
     onOpenWhitelist: () -> Unit,
+    onOpenPinProtection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_rules))
         ChildSelectorChip()
         Column(
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = GlassDockBarReservedHeight),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             RuleCard(
@@ -64,6 +67,12 @@ fun RulesScreen(
                 iconTint = MaterialTheme.colorScheme.error
             )
             RuleCard(
+                icon = Icons.Filled.Lock,
+                title = R.string.rules_pin_title,
+                subtitle = R.string.rules_pin_subtitle,
+                onClick = onOpenPinProtection
+            )
+            RuleCard(
                 icon = Icons.Filled.CheckCircle,
                 title = R.string.rules_whitelist_title,
                 subtitle = R.string.rules_whitelist_subtitle,
@@ -82,11 +91,13 @@ private fun RuleCard(
     modifier: Modifier = Modifier,
     iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
-    Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+    GlassCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
+    ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -112,3 +123,4 @@ private fun RuleCard(
         }
     }
 }
+

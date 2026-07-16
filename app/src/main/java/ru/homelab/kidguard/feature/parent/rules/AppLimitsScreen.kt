@@ -10,21 +10,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +35,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,25 +55,13 @@ fun AppLimitsScreen(
         if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.rules_app_limits_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    Column(modifier = modifier.fillMaxSize()) {
+        CompactTopBar(
+            title = stringResource(R.string.rules_app_limits_title),
+            onBack = onBack
+        )
         Column(
             modifier = Modifier
-                .padding(innerPadding)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
@@ -125,33 +111,35 @@ fun AppLimitsScreen(
 
 @Composable
 private fun AppLimitRow(app: AppLimitUi, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    GlassCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
-            if (app.limitMinutes != null) {
-                Text(
-                    text = stringResource(R.string.app_limits_spent, app.spentMinutes, app.limitMinutes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
+                if (app.limitMinutes != null) {
+                    Text(
+                        text = stringResource(R.string.app_limits_spent, app.spentMinutes, app.limitMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
+            Text(
+                text = app.limitMinutes?.let { formatLimit(it) }
+                    ?: stringResource(R.string.app_limits_no_limit),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
+                color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Text(
-            text = app.limitMinutes?.let { formatLimit(it) }
-                ?: stringResource(R.string.app_limits_no_limit),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
-            color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

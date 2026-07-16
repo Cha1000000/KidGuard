@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +32,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.GlassCard
 
 /**
  * Мастер выдачи разрешений детского режима. По каждому разрешению показывает статус и кнопку
@@ -56,42 +58,44 @@ fun PermissionsWizardScreen(
         onPauseOrDispose { }
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Text(
-                text = stringResource(R.string.permissions_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = stringResource(R.string.permissions_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-        items(DevicePermission.entries) { permission ->
-            PermissionRow(
-                permission = permission,
-                granted = statuses[permission] == true,
-                onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
-            )
-        }
-        item {
-            AlwaysOnVpnCard(
-                onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
-            )
-        }
-        item {
-            Button(
-                onClick = onFinished,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.permissions_continue))
+    GlassBackground(modifier = modifier) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.permissions_title),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = stringResource(R.string.permissions_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            items(DevicePermission.entries) { permission ->
+                PermissionRow(
+                    permission = permission,
+                    granted = statuses[permission] == true,
+                    onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
+                )
+            }
+            item {
+                AlwaysOnVpnCard(
+                    onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
+                )
+            }
+            item {
+                Button(
+                    onClick = onFinished,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.permissions_continue))
+                }
             }
         }
     }
@@ -108,8 +112,8 @@ private fun AlwaysOnVpnCard(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    GlassCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.always_on_vpn_title),
                 style = MaterialTheme.typography.titleMedium
@@ -136,11 +140,9 @@ private fun PermissionRow(
     onGrant: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    GlassCard(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {

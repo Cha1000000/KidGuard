@@ -5,25 +5,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -55,48 +51,39 @@ fun DailyLimitScreen(
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.rules_daily_limit_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp)) {
+    Column(modifier = modifier.fillMaxSize()) {
+        CompactTopBar(
+            title = stringResource(R.string.rules_daily_limit_title),
+            onBack = onBack
+        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text(
                 text = stringResource(R.string.daily_limit_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
-            Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                 BonusSection(
                     activeBonusMinutes = phoneBonus,
                     subtitleRes = R.string.bonus_subtitle_phone,
                     onAdd = { viewModel.addPhoneBonus(it) },
                     onClear = { viewModel.clearPhoneBonus() },
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                val days = DayOfWeek.entries
-                days.forEachIndexed { index, day ->
-                    DayRow(
-                        day = day,
-                        minutes = limits.limitFor(day),
-                        isToday = day == today,
-                        onClick = { editingDay = day }
-                    )
-                    if (index < days.lastIndex) HorizontalDivider()
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    val days = DayOfWeek.entries
+                    days.forEachIndexed { index, day ->
+                        DayRow(
+                            day = day,
+                            minutes = limits.limitFor(day),
+                            isToday = day == today,
+                            onClick = { editingDay = day }
+                        )
+                        if (index < days.lastIndex) HorizontalDivider()
+                    }
                 }
             }
         }
@@ -125,7 +112,7 @@ private fun DayRow(day: DayOfWeek, minutes: Int?, isToday: Boolean, onClick: () 
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

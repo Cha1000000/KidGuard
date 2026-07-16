@@ -20,10 +20,12 @@ android {
     }
 
     buildTypes {
-        // Адрес KidGuard-server (шаг 4.7): debug — локальный dev-сервер через алиас эмулятора,
-        // release — боевой AdminVPS (пока по IP:порт, HTTPS/поддомен — отдельно позже).
+        // Адрес KidGuard-server (шаг 4.7): debug и release — боевой AdminVPS.
+        // Для локальной отладки: ./gradlew assembleDebug -Pkidguard.serverUrl=http://10.0.2.2:3003/
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3003/\"")
+            val debugServerUrl =
+                (project.findProperty("kidguard.serverUrl") as String?) ?: "http://157.22.172.217:3003/"
+            buildConfigField("String", "BASE_URL", "\"$debugServerUrl\"")
         }
         release {
             buildConfigField("String", "BASE_URL", "\"http://157.22.172.217:3003/\"")

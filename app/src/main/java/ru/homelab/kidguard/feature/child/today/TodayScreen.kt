@@ -1,6 +1,5 @@
 package ru.homelab.kidguard.feature.child.today
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,7 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,13 +33,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +46,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
+import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.NeonProgress
 
 /**
  * Детский главный экран «Сегодня» (веха 4.1.3): приветствие, крупный остаток времени на сегодня
@@ -74,35 +77,37 @@ fun TodayScreen(
     // Нижний лист выбора локального аватара (веха 4.1.5) — открывается по тапу на аватарку.
     var showAvatarPicker by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 24.dp)
-    ) {
-        GreetingRow(
-            name = ui.childName,
-            avatar = ui.childAvatar,
-            onAvatarClick = { showAvatarPicker = true }
-        )
+    GlassBackground(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp)
+        ) {
+            GreetingRow(
+                name = ui.childName,
+                avatar = ui.childAvatar,
+                onAvatarClick = { showAvatarPicker = true }
+            )
 
-        when (val time = ui.time) {
-            is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
-            is TodayTimeState.Expired -> ExpiredCard(time)
-            TodayTimeState.NoLimit -> NoLimitCard()
+            when (val time = ui.time) {
+                is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
+                is TodayTimeState.Expired -> ExpiredCard(time)
+                TodayTimeState.NoLimit -> NoLimitCard()
+            }
+
+            GuardStatus()
+
+            Text(
+                text = stringResource(R.string.child_rules_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+            )
+            RulesSection(ui)
         }
-
-        GuardStatus()
-
-        Text(
-            text = stringResource(R.string.child_rules_title),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
-        )
-        RulesSection(ui)
     }
 
     if (showAvatarPicker) {
@@ -182,111 +187,77 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
     val fraction = if (totalMinutes > 0) {
         (minutesLeft.toFloat() / totalMinutes).coerceIn(0f, 1f)
     } else 0f
-    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-    val progressColor = MaterialTheme.colorScheme.primary
-    Box(
-        modifier = Modifier.size(220.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 20.dp.toPx()
-            val inset = strokeWidth / 2f
-            val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
-            val topLeft = Offset(inset, inset)
-            drawArc(
-                color = trackColor,
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-            drawArc(
-                color = progressColor,
-                startAngle = -90f,
-                sweepAngle = 360f * fraction,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = formatDuration(minutesLeft),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = stringResource(R.string.child_time_remaining_of, formatDuration(totalMinutes)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+
+    NeonProgress(
+        progress = fraction,
+        size = 220.dp,
+        strokeWidth = 12.dp,
+        glowRadius = 4.dp,
+        valueText = formatDuration(minutesLeft),
+        subtitleText = stringResource(R.string.child_time_remaining_of, formatDuration(totalMinutes))
+    )
 }
 
 @Composable
 private fun ExpiredCard(time: TodayTimeState.Expired) {
     StateCard(
-        background = MaterialTheme.colorScheme.errorContainer,
-        emoji = "⏰",
+        iconTint = MaterialTheme.colorScheme.error,
         title = stringResource(R.string.child_time_expired_title),
         titleColor = MaterialTheme.colorScheme.error,
-        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes))
+        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes)),
+        icon = ImageVector.vectorResource(R.drawable.ic_timer)
     )
 }
 
 @Composable
 private fun NoLimitCard() {
     StateCard(
-        background = MaterialTheme.colorScheme.surfaceContainer,
-        emoji = "🌤",
+        iconTint = MaterialTheme.colorScheme.primary,
         title = stringResource(R.string.child_time_nolimit_title),
         titleColor = MaterialTheme.colorScheme.primary,
-        subtitle = stringResource(R.string.child_time_nolimit_sub)
+        subtitle = stringResource(R.string.child_time_nolimit_sub),
+        icon = Icons.Filled.CheckCircle
     )
 }
 
 @Composable
 private fun StateCard(
-    background: Color,
-    emoji: String,
+    iconTint: Color,
+    icon: ImageVector,
     title: String,
     titleColor: Color,
     subtitle: String
 ) {
-    Column(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 16.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(background)
-            .padding(horizontal = 20.dp, vertical = 30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(text = emoji, fontSize = 40.sp)
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = titleColor,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(40.dp)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = titleColor,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -308,22 +279,25 @@ private fun RulesSection(ui: TodayUiState) {
     val noneText = stringResource(R.string.child_rules_none)
 
     RuleRow(
-        emoji = "✅",
-        emojiBackground = MaterialTheme.colorScheme.secondaryContainer,
+        icon = Icons.Filled.CheckCircle,
+        iconTint = Color(0xFF2E7D32),
+        iconBackground = MaterialTheme.colorScheme.secondaryContainer,
         name = stringResource(R.string.child_rules_allowed_name),
         subtitle = ui.alwaysAllowed.previewLabels.joinToString(", ").ifEmpty { noneText },
         count = ui.alwaysAllowed.count
     )
     RuleRow(
-        emoji = "⏱",
-        emojiBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
+        icon = ImageVector.vectorResource(R.drawable.ic_timer),
+        iconTint = MaterialTheme.colorScheme.primary,
+        iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
         name = stringResource(R.string.child_rules_limited_name),
         subtitle = limitedSubtitle(ui.limited, noneText),
         count = ui.limited.count
     )
     RuleRow(
-        emoji = "🚫",
-        emojiBackground = MaterialTheme.colorScheme.errorContainer,
+        icon = ImageVector.vectorResource(R.drawable.ic_block),
+        iconTint = MaterialTheme.colorScheme.error,
+        iconBackground = MaterialTheme.colorScheme.errorContainer,
         name = stringResource(R.string.child_rules_blocked_name),
         subtitle = ui.blocked.previewLabels.joinToString(", ").ifEmpty { noneText },
         count = ui.blocked.count
@@ -343,50 +317,57 @@ private fun limitedSubtitle(limited: LimitedGroup, noneText: String): String {
 
 @Composable
 private fun RuleRow(
-    emoji: String,
-    emojiBackground: Color,
+    icon: ImageVector,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface,
+    iconBackground: Color = MaterialTheme.colorScheme.surfaceContainer,
     name: String,
     subtitle: String,
     count: Int
 ) {
-    Row(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(emojiBackground),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = emoji, fontSize = 17.sp)
-        }
-        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Text(
-                text = name,
+                text = count.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
         }
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
     }
     Spacer(modifier = Modifier.height(4.dp))
 }

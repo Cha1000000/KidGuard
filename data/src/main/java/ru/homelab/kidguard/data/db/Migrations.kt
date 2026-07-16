@@ -56,3 +56,16 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+/** v5 → v6 (веха 6.1): родительский PIN — single-row таблица (соль + хеш, сырой PIN не хранится). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `pin_protection` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`pinHash` TEXT, " +
+                "`pinSalt` TEXT, " +
+                "PRIMARY KEY(`id`))"
+        )
+    }
+}

@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,8 +32,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CenteredMessage
+import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
+import ru.homelab.kidguard.feature.parent.rules.AppIconImage
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -79,6 +83,8 @@ private fun StatisticsContent(state: StatisticsUiState) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
+            // Резерв снизу — плавающий GlassDockBar лежит поверх этого экрана.
+            .padding(bottom = GlassDockBarReservedHeight)
     ) {
         if (!state.hasData) {
             CenteredMessage(
@@ -107,20 +113,24 @@ private fun StatisticsContent(state: StatisticsUiState) {
 
 @Composable
 private fun TodayCard(state: StatisticsUiState) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.statistics_today_label),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = formatMinutes(state.todaySeconds / 60),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            state.todayLimitMinutes?.let { limit ->
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.statistics_today_label),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = formatMinutes(state.todaySeconds / 60),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                state.todayLimitMinutes?.let { limit ->
                 val leftMinutes = limit - state.todaySeconds / 60
                 Text(
                     text = if (leftMinutes > 0) {
@@ -137,6 +147,24 @@ private fun TodayCard(state: StatisticsUiState) {
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
+            }
+            // Иконка часов справа (как на мокапе)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_timer),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -146,12 +174,12 @@ private fun WeekChartCard(week: List<DayUsage>) {
     val maxSeconds = (week.maxOfOrNull { it.seconds } ?: 0).coerceAtLeast(1)
     val lastIndex = week.lastIndex
 
-    Card(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.statistics_week_label),
                 style = MaterialTheme.typography.bodySmall,
@@ -214,20 +242,7 @@ private fun AppUsageRow(app: AppUsage) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            ) {
-                Text(
-                    text = app.label.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.label,

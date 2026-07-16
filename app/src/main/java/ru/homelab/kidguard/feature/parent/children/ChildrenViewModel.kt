@@ -120,7 +120,14 @@ class ChildrenViewModel @Inject constructor(
                             syncRepository.switchActiveChild(next.id)
                                 .onFailure { Timber.tag(TAG).w(it, "switch_active_child_after_delete_failed") }
                         } else {
-                            policyRepository.replaceAll(emptyMap(), emptyMap(), emptySet(), emptySet())
+                            policyRepository.replaceAll(
+                                dailyLimits = emptyMap(),
+                                appLimits = emptyMap(),
+                                whitelist = emptySet(),
+                                blockedApps = emptySet(),
+                                pinHash = null,
+                                pinSalt = null
+                            )
                         }
                     }
                     refresh()

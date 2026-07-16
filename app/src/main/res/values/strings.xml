@@ -38,7 +38,7 @@
     <string name="child_code_hint">Код действует, пока ребёнок его не введёт.</string>
     <string name="child_code_copy">Скопировать</string>
     <string name="child_code_copied">Код скопирован</string>
-    <string name="child_code_new">Новый код</string>
+    <string name="child_code_new">Сгенерировать новый код</string>
     <string name="child_code_get">Показать код для привязки</string>
     <string name="child_coparent">Пригласить второго родителя</string>
     <string name="edit_child_title">Редактировать профиль</string>
@@ -62,9 +62,6 @@
     <string name="parent_tab_rules">Правила</string>
     <string name="parent_tab_statistics">Статистика</string>
 
-    <!-- Родитель: заглушки вкладок (наполним на следующих вехах) -->
-    <string name="parent_children_placeholder">Здесь будет список детей</string>
-
     <!-- Статистика (родитель) -->
     <string name="statistics_today_label">Экранное время сегодня</string>
     <string name="statistics_today_limit">Лимит: %1$s · осталось %2$s</string>
@@ -87,7 +84,10 @@
     <string name="rules_app_limits_subtitle">Свой лимит на отдельные приложения</string>
     <string name="rules_blocked_apps_title">Запрет приложений</string>
     <string name="rules_blocked_apps_subtitle">Полностью недоступные ребёнку приложения</string>
+    <string name="rules_pin_title">PIN-защита</string>
+    <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
     <string name="common_back">Назад</string>
+    <string name="common_save">Сохранить</string>
 
     <!-- Дневной лимит -->
     <string name="daily_limit_subtitle">Сколько времени в день ребёнок может пользоваться телефоном</string>
@@ -139,7 +139,6 @@
     <string name="bonus_add_action">Добавить +%1$s</string>
 
     <!-- Ребёнок: главный экран «Сегодня» (веха 4.1.3) -->
-    <string name="child_today_title">Сегодня</string>
     <string name="child_greeting_hello">Привет,</string>
     <string name="child_greeting_name">%1$s!</string>
     <string name="child_greeting_name_fallback">друг</string>
@@ -193,4 +192,17 @@
 
     <!-- Список приложений с устройства ребёнка (веха 4.1) -->
     <string name="child_apps_empty">Список приложений с телефона ребёнка ещё не получен.\nУбедитесь, что устройство привязано и подключено к интернету, и загляните сюда чуть позже.</string>
+
+    <!-- PIN-защита (веха 6.1): установка/смена PIN у родителя -->
+    <string name="pin_setup_title">PIN-защита</string>
+    <string name="pin_setup_intro">Придумайте PIN — его нужно будет ввести на телефоне ребёнка, чтобы открыть системные настройки или удалить KidGuard.</string>
+    <string name="pin_setup_enter">Придумайте PIN</string>
+    <string name="pin_setup_confirm">Повторите PIN</string>
+    <string name="pin_setup_mismatch">PIN не совпадает</string>
+    <string name="pin_setup_active_title">PIN установлен</string>
+    <string name="pin_setup_active_subtitle">Он защищает системные настройки на телефоне ребёнка от отключения</string>
+    <string name="pin_setup_change">Сменить PIN</string>
+    <string name="pin_setup_remove">Убрать PIN</string>
+    <string name="pin_backspace">Стереть цифру</string>
+    <string name="pin_backspace_glyph">⌫</string>
 </resources>
