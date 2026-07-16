@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.homelab.kidguard.data.network.AppsApi
+import ru.homelab.kidguard.data.network.DeviceHealthApi
 import ru.homelab.kidguard.data.network.AuthApi
 import ru.homelab.kidguard.data.network.AuthTokenInterceptor
 import ru.homelab.kidguard.data.network.ChildrenApi
@@ -63,4 +64,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAppsApi(retrofit: Retrofit): AppsApi = retrofit.create(AppsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceHealthApi(retrofit: Retrofit): DeviceHealthApi =
+        retrofit.create(DeviceHealthApi::class.java)
 }

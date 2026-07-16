@@ -22,6 +22,7 @@ import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
+import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
@@ -31,9 +32,12 @@ import ru.homelab.kidguard.data.network.AppsApi
 import ru.homelab.kidguard.data.network.BonusEntryDto
 import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
-import ru.homelab.kidguard.data.network.PutAppsRequest
+import ru.homelab.kidguard.data.network.DeviceHealthApi
+import ru.homelab.kidguard.data.network.DeviceHealthDto
+import ru.homelab.kidguard.data.network.DeviceHealthRequest
 import ru.homelab.kidguard.data.network.PolicyApi
 import ru.homelab.kidguard.data.network.PolicyDocumentDto
+import ru.homelab.kidguard.data.network.PutAppsRequest
 import ru.homelab.kidguard.data.network.PutPolicyRequest
 import ru.homelab.kidguard.data.network.UsageApi
 import ru.homelab.kidguard.data.network.UsageBatchRequest
@@ -53,7 +57,9 @@ class SyncRepositoryImpl @Inject constructor(
     private val childrenApi: ChildrenApi,
     private val usageApi: UsageApi,
     private val appsApi: AppsApi,
+    private val deviceHealthApi: DeviceHealthApi,
     private val installedAppsSource: InstalledAppsSource,
+    private val deviceHealthSource: DeviceHealthSource,
     private val policyRepository: PolicyRepository,
     private val bonusRepository: BonusRepository,
     private val usageRepository: UsageRepository,
@@ -181,9 +187,36 @@ class SyncRepositoryImpl @Inject constructor(
                     .onFailure { Timber.tag(TAG).w(it, "Отправка статистики не удалась (повторим через интервал)") }
                 runCatching { pushInstalledApps(childId) }
                     .onFailure { Timber.tag(TAG).w(it, "Отправка списка приложений не удалась (повторим через интервал)") }
+                runCatching { pushHealth() }
+                    .onFailure { Timber.tag(TAG).w(it, "Отправка heartbeat не удалась (повторим через интервал)") }
             }
             delay(CHILD_PULL_INTERVAL_MS)
         }
+    }
+
+    /**
+     * Heartbeat: «я жив + вот моё здоровье» (watchdog, веха 6). Шлём на КАЖДОМ тике, в отличие от
+     * списка приложений: важна не только смена флагов, но и сам факт доставки — по молчанию
+     * родитель узнаёт, что сервис убит целиком (вендором, очисткой данных, force-stop) и доложить
+     * о себе уже не может. Поэтому «отправлять только при изменении» здесь было бы ошибкой.
+     *
+     * childId не нужен — сервер берёт его из device-токена.
+     */
+    private suspend fun pushHealth() {
+        val health = deviceHealthSource.current()
+        deviceHealthApi.sendHealth(
+            DeviceHealthRequest(
+                DeviceHealthDto(
+                    accessibility = health.accessibility,
+                    usageAccess = health.usageAccess,
+                    overlay = health.overlay,
+                    deviceAdmin = health.deviceAdmin,
+                    vpn = health.vpn,
+                    batteryOptimization = health.batteryOptimization
+                )
+            )
+        )
+        Timber.tag(TAG).d("Heartbeat отправлен, всё в порядке: %s", health.isHealthy)
     }
 
     /**
