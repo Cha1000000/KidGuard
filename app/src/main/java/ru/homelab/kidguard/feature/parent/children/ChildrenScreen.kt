@@ -348,12 +348,16 @@ private fun ChildActionsSheet(
                 onClick = onEdit,
                 modifier = Modifier.padding(top = 12.dp)
             )
+            // Красный «Удалить» намеренно НЕ завязан на MaterialTheme.colorScheme.error: в тёмной
+            // теме M3-токен ошибки светлый розовый (#F2B8B5) и на тёмном фоне выглядит блёкло —
+            // фиксируем цвет светлой темы для обеих (по просьбе Володи, светлая уже устраивала).
+            val deleteColor = Color(0xFFB3261E)
             ActionButton(
                 icon = Icons.Filled.Delete,
                 label = stringResource(R.string.child_delete),
                 onClick = onDelete,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = deleteColor),
+                border = BorderStroke(1.dp, deleteColor.copy(alpha = 0.5f)),
                 modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)
             )
         }
@@ -368,7 +372,7 @@ private fun ActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
-    border: BorderStroke = ButtonDefaults.outlinedButtonBorder(enabled = true)
+    border: BorderStroke = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
 ) {
     OutlinedButton(
         onClick = onClick,
