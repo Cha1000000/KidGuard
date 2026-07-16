@@ -140,11 +140,11 @@ class PermissionsManager @Inject constructor(
          * приложений ребёнка), поэтому отдельные `<queries>` не нужны.
          */
         val VENDOR_AUTOSTART_COMPONENTS = listOf(
-            // Transsion (HiOS — наш Tecno Spark 30 Pro; а также Infinix, itel): менеджер
-            // энергопотребления PhoneMaster. Конкретную активность уточняем на обкатке — если ни
-            // одна не совпала, сработает фолбэк на «О приложении».
+            // Transsion (HiOS — наш Tecno; а также Infinix, itel): менеджер энергопотребления
+            // PhoneMaster. ПРОВЕРЕНО 2026-07-16 на TECNO CM7 (Android 16, PhoneMaster 6.2.2):
+            // активность существует, экспортирована, открывает экран «Управление автозапуском».
+            // На детском Spark 30 Pro (Android 14) перепроверить — версия PhoneMaster другая.
             ComponentName("com.transsion.phonemaster", "com.cyin.himgr.autostart.AutoStartActivity"),
-            ComponentName("com.transsion.phonemaster", "com.transsion.autostart.AutoStartActivity"),
             // Xiaomi MIUI / HyperOS
             ComponentName(
                 "com.miui.securitycenter",
