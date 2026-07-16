@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -92,15 +93,33 @@ fun BonusSection(
             }
         }
 
+        // Три кнопки делят ширину поровну (weight), поэтому дефолтный contentPadding кнопки
+        // (24dp по бокам = 48dp из ~92dp на кнопку при ширине экрана 360dp) не оставляет тексту
+        // места, и «Другое…» переносится на вторую строку, ломая высоту ряда. Проверено на
+        // TECNO CM7 (360dp — самая ходовая ширина); на эмуляторе 411dp баг не проявлялся.
+        // Ужимаем боковые отступы и запрещаем перенос — на совсем узких экранах текст лучше
+        // подрежется многоточием, чем сломает вёрстку.
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { onAdd(QUICK_ADD_1) }, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.bonus_quick_add, QUICK_ADD_1))
+            OutlinedButton(
+                onClick = { onAdd(QUICK_ADD_1) },
+                contentPadding = CompactButtonPadding,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.bonus_quick_add, QUICK_ADD_1), maxLines = 1)
             }
-            OutlinedButton(onClick = { onAdd(QUICK_ADD_2) }, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.bonus_quick_add, QUICK_ADD_2))
+            OutlinedButton(
+                onClick = { onAdd(QUICK_ADD_2) },
+                contentPadding = CompactButtonPadding,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.bonus_quick_add, QUICK_ADD_2), maxLines = 1)
             }
-            OutlinedButton(onClick = { pickerExpanded = !pickerExpanded }, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.bonus_other))
+            OutlinedButton(
+                onClick = { pickerExpanded = !pickerExpanded },
+                contentPadding = CompactButtonPadding,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.bonus_other), maxLines = 1)
             }
         }
 
@@ -142,6 +161,9 @@ private fun formatMinutes(minutes: Int): String = when {
     minutes >= 60 -> stringResource(R.string.limit_value_hm, minutes / 60, minutes % 60)
     else -> stringResource(R.string.limit_value_m, minutes)
 }
+
+/** Боковые отступы ужаты против дефолтных 24dp: три кнопки делят ряд поровну (см. Row выше). */
+private val CompactButtonPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
 
 private const val QUICK_ADD_1 = 15
 private const val QUICK_ADD_2 = 30
