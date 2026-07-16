@@ -3,6 +3,7 @@ package ru.homelab.kidguard.data.children
 import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
+import ru.homelab.kidguard.core.domain.model.DeviceHealth
 import ru.homelab.kidguard.core.domain.model.UsageEntry
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.data.network.AppsApi
@@ -10,8 +11,11 @@ import ru.homelab.kidguard.data.network.ChildDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.CoParentRequest
 import ru.homelab.kidguard.data.network.CreateChildRequest
+import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.UpdateChildRequest
 import ru.homelab.kidguard.data.network.UsageApi
+import timber.log.Timber
+import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -84,5 +88,31 @@ class ChildRepositoryImpl @Inject constructor(
         Result.failure(error)
     }
 
-    private fun ChildDto.toDomain() = Child(id = id, name = name, avatar = avatar, paired = paired)
+    private fun ChildDto.toDomain() = Child(
+        id = id,
+        name = name,
+        avatar = avatar,
+        paired = paired,
+        lastSeenAt = parseLastSeen(lastSeenAt),
+        health = health?.toDomain()
+    )
+
+    /**
+     * Кривую метку времени от сервера глотаем: список детей — основной экран родителя, ронять его
+     * из-за необязательного watchdog-поля нельзя. Родитель увидит «нет данных», а не ошибку.
+     */
+    private fun parseLastSeen(raw: String?): Instant? = raw?.let {
+        runCatching { Instant.parse(it) }
+            .onFailure { e -> Timber.w(e, "Не разобрал lastSeenAt: %s", raw) }
+            .getOrNull()
+    }
+
+    private fun DeviceHealthDto.toDomain() = DeviceHealth(
+        accessibility = accessibility,
+        usageAccess = usageAccess,
+        overlay = overlay,
+        deviceAdmin = deviceAdmin,
+        vpn = vpn,
+        batteryOptimization = batteryOptimization
+    )
 }

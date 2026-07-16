@@ -20,8 +20,19 @@ data class UpdateChildResponse(val child: ChildDto)
 @Serializable
 data class DeleteChildResponse(val ok: Boolean = true)
 
+/**
+ * `lastSeenAt`/`health` — watchdog (веха 6). Оба с дефолтом null: приходят только от сервера с
+ * поддержкой heartbeat, и остаются null, пока детское устройство не прислало ни одного отчёта.
+ */
 @Serializable
-data class ChildDto(val id: Int, val name: String, val avatar: Int = 0, val paired: Boolean = false)
+data class ChildDto(
+    val id: Int,
+    val name: String,
+    val avatar: Int = 0,
+    val paired: Boolean = false,
+    val lastSeenAt: String? = null,
+    val health: DeviceHealthDto? = null
+)
 
 @Serializable
 data class CreateChildResponse(val child: ChildDto, val code: String)
