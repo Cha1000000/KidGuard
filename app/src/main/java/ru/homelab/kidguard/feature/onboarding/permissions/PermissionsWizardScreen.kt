@@ -58,42 +58,44 @@ fun PermissionsWizardScreen(
         onPauseOrDispose { }
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Text(
-                text = stringResource(R.string.permissions_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = stringResource(R.string.permissions_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-        items(DevicePermission.entries) { permission ->
-            PermissionRow(
-                permission = permission,
-                granted = statuses[permission] == true,
-                onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
-            )
-        }
-        item {
-            AlwaysOnVpnCard(
-                onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
-            )
-        }
-        item {
-            Button(
-                onClick = onFinished,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.permissions_continue))
+    GlassBackground(modifier = modifier) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.permissions_title),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = stringResource(R.string.permissions_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            items(DevicePermission.entries) { permission ->
+                PermissionRow(
+                    permission = permission,
+                    granted = statuses[permission] == true,
+                    onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
+                )
+            }
+            item {
+                AlwaysOnVpnCard(
+                    onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
+                )
+            }
+            item {
+                Button(
+                    onClick = onFinished,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.permissions_continue))
+                }
             }
         }
     }

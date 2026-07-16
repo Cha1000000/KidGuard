@@ -2,6 +2,7 @@ package ru.homelab.kidguard.feature.pairing
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.ui.components.GlassBackground
 
 /**
  * Экран привязки детского устройства (веха 4.2): ребёнок вводит 6-значный код от родителя.
@@ -62,88 +64,89 @@ fun PairingScreen(
         focusRequester.requestFocus()
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .safeDrawingPadding()
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(84.dp)
+    GlassBackground(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_link),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(44.dp)
-                )
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(84.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_link),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
             }
-        }
-        Text(
-            text = stringResource(R.string.pairing_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 22.dp)
-        )
-        Text(
-            text = stringResource(R.string.pairing_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp, bottom = 30.dp)
-        )
-
-        CodeInput(
-            code = code,
-            enabled = uiState !is PairingUiState.Loading,
-            onCodeChange = viewModel::onCodeChange,
-            onImeDone = viewModel::submit,
-            focusRequester = focusRequester
-        )
-
-        if (uiState is PairingUiState.Error) {
             Text(
-                text = stringResource(R.string.pairing_error),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                text = stringResource(R.string.pairing_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = 22.dp)
             )
-        }
-
-        if (uiState is PairingUiState.Loading) {
-            CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
             Text(
-                text = stringResource(R.string.pairing_loading),
+                text = stringResource(R.string.pairing_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        } else {
-            Button(
-                onClick = viewModel::submit,
-                enabled = code.length == PAIRING_CODE_LENGTH,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 28.dp)
-            ) {
-                Text(stringResource(R.string.pairing_button))
-            }
-            Text(
-                text = stringResource(R.string.pairing_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 18.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 30.dp)
             )
+
+            CodeInput(
+                code = code,
+                enabled = uiState !is PairingUiState.Loading,
+                onCodeChange = viewModel::onCodeChange,
+                onImeDone = viewModel::submit,
+                focusRequester = focusRequester
+            )
+
+            if (uiState is PairingUiState.Error) {
+                Text(
+                    text = stringResource(R.string.pairing_error),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+
+            if (uiState is PairingUiState.Loading) {
+                CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
+                Text(
+                    text = stringResource(R.string.pairing_loading),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            } else {
+                Button(
+                    onClick = viewModel::submit,
+                    enabled = code.length == PAIRING_CODE_LENGTH,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 28.dp)
+                ) {
+                    Text(stringResource(R.string.pairing_button))
+                }
+                Text(
+                    text = stringResource(R.string.pairing_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 18.dp)
+                )
+            }
         }
     }
 }
@@ -185,16 +188,24 @@ private fun CodeInput(
 
 @Composable
 private fun CodeCell(char: String, focused: Boolean) {
-    val borderColor = if (focused || char.isNotEmpty()) {
-        MaterialTheme.colorScheme.primary
+    // Полупрозрачная стеклянная ячейка (та же формула цвета, что у GlassCard) — сплошной
+    // colorScheme.surface на градиентном GlassBackground выглядел бы плашкой из другого дизайна.
+    val isDark = isSystemInDarkTheme()
+    val glassColor = if (isDark) {
+        Color(0xFF17282E).copy(alpha = 0.4f)
     } else {
-        MaterialTheme.colorScheme.outline
+        Color(0xFFDCEAEF).copy(alpha = 0.9f)
+    }
+    val borderColor = when {
+        focused || char.isNotEmpty() -> MaterialTheme.colorScheme.primary
+        isDark -> Color.White.copy(alpha = 0.2f)
+        else -> Color(0xFF2E6B7E).copy(alpha = 0.2f)
     }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(width = 46.dp, height = 58.dp)
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .background(glassColor, RoundedCornerShape(12.dp))
             .border(2.dp, borderColor, RoundedCornerShape(12.dp))
     ) {
         Text(
