@@ -2,7 +2,10 @@ package ru.homelab.kidguard.platform.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,9 +30,13 @@ import javax.inject.Inject
  *    VPN, «Специальные возможности» (чтобы ребёнок не отключил сам этот сервис), экран
  *    администратора устройства (деактивация Device Admin снимает защиту от удаления) и удаление
  *    именно приложения KidGuard (другие приложения, включая игры, ребёнок удаляет свободно —
- *    «чистит мусор»). Детект — по ЗАГОЛОВКУ окна (`event.text`), кросс-вендорно; накрывает экран
- *    PIN-оверлеем типа `TYPE_ACCESSIBILITY_OVERLAY` (обычный оверлей на этих защищённых экранах
- *    система скрывает). Верный PIN пропускает на короткое окно, «Назад» уводит.
+ *    «чистит мусор»).
+ *
+ * Детект кросс-вендорный, без привязки к конкретной прошивке: экран узнаём по ЗАГОЛОВКУ окна
+ * ([screenTitle], `AccessibilityWindowInfo.title`), а не по классу активности; пакеты настроек и
+ * инсталлера спрашиваем у системы ([settingsPackages], [installerPackages]), а не хардкодим.
+ * Найденный экран накрываем PIN-оверлеем типа `TYPE_ACCESSIBILITY_OVERLAY` (обычный оверлей на этих
+ * защищённых экранах система скрывает). Верный PIN пропускает на короткое окно, «Назад» уводит.
  */
 @AndroidEntryPoint
 class KidGuardAccessibilityService : AccessibilityService() {
@@ -52,6 +59,46 @@ class KidGuardAccessibilityService : AccessibilityService() {
      * Разные типы экранов (VPN, accessibility, device admin) требуют отдельного ввода PIN.
      */
     private val lastUnlockedAt = mutableMapOf<CriticalScreen, Long>()
+
+    /**
+     * Пакеты системных настроек и пакет-инсталлера — СПРАШИВАЕМ У СИСТЕМЫ, а не хардкодим:
+     * на кастомных прошивках (HiOS/Transsion, MIUI, EMUI) инсталлер может называться по-своему
+     * (`com.transsion.*` и т.п.), и тогда защита от удаления просто не сработала бы. К найденному
+     * добавляем известные AOSP-значения — объединение никогда не хуже прежнего списка констант.
+     *
+     * `by lazy` — резолв идёт через IPC к PackageManager, на каждое событие окна его гонять нельзя;
+     * набор пакетов за время жизни сервиса не меняется.
+     */
+    private val settingsPackages: Set<String> by lazy {
+        (resolvePackageFor(Intent(Settings.ACTION_SETTINGS)) + AOSP_SETTINGS_PACKAGES)
+            .also { Timber.tag(TAG).d("Пакеты настроек: %s", it) }
+    }
+
+    private val installerPackages: Set<String> by lazy {
+        val uninstallIntent = Intent(
+            Intent.ACTION_DELETE,
+            Uri.parse("package:${applicationContext.packageName}")
+        )
+        (resolvePackageFor(uninstallIntent) + AOSP_INSTALLER_PACKAGES)
+            .also { Timber.tag(TAG).d("Пакеты инсталлера: %s", it) }
+    }
+
+    /** Пока активный экран принадлежит настройкам/инсталлеру, PIN-оверлей держим (см. [onAccessibilityEvent]). */
+    private val overlayHostPackages: Set<String> by lazy { settingsPackages + installerPackages }
+
+    /**
+     * Пакет активности, которая обработает [intent], или пустое множество. Отсеиваем системный
+     * resolver (`android`): он появляется, когда интент обрабатывают несколько приложений, и не
+     * является ни настройками, ни инсталлером.
+     */
+    private fun resolvePackageFor(intent: Intent): Set<String> = runCatching {
+        packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName
+            ?.takeIf { it.isNotBlank() && it != ANDROID_RESOLVER_PACKAGE }
+            ?.let { setOf(it) }
+            .orEmpty()
+    }.onFailure { Timber.tag(TAG).w(it, "Не удалось определить пакет для %s", intent.action) }
+        .getOrDefault(emptySet())
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -85,7 +132,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // (например, всплывающие «значок приложения»), где родитель ещё должен ввести PIN.
         if (pinOverlayManager.isShowing() &&
             packageName != applicationContext.packageName &&
-            packageName !in OVERLAY_HOST_PACKAGES
+            packageName !in overlayHostPackages
         ) {
             pinOverlayManager.hide()
         }
@@ -153,22 +200,22 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private fun detectCriticalScreen(packageName: String, title: String): CriticalScreen? {
         if (title.isBlank()) return null
         return when {
-            packageName == SETTINGS_PACKAGE && VPN_KEYWORDS.any { title.contains(it) } ->
+            packageName in settingsPackages && VPN_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.VPN_SETTINGS
 
-            packageName == SETTINGS_PACKAGE && ACCESSIBILITY_KEYWORDS.any { title.contains(it) } ->
+            packageName in settingsPackages && ACCESSIBILITY_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.ACCESSIBILITY_SETTINGS
 
             // Экран администратора устройства (веха 6.3): деактивация Device Admin снимает
             // системную защиту от удаления — под PIN. Заголовок стабилен кросс-вендорно.
-            packageName == SETTINGS_PACKAGE && DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
+            packageName in settingsPackages && DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DEVICE_ADMIN
 
             // Диалог-подтверждение деактивации Device Admin (Android показывает перед
             // «Активировать приложение администратора?»). Заголовок НЕ содержит «администратор» —
             // содержит текст вида «Отключение защитит телефон от KidGuard-контроля. Для отключения
             // нужен родительский PIN». Ловим по «kidguard» в заголовке + «отключ» или «disable».
-            packageName == SETTINGS_PACKAGE &&
+            packageName in settingsPackages &&
                 title.contains("kidguard") &&
                 DEACTIVATION_DIALOG_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DEVICE_ADMIN
@@ -177,7 +224,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
             // (другие приложения ребёнок удаляет свободно — «чистит мусор»). Название берём у
             // системы, чтобы не хардкодить строку и не путать с приложениями, где «kidguard» —
             // лишь часть текста: сравниваем по точному label в заголовке диалога удаления.
-            packageName in PACKAGE_INSTALLER_PACKAGES && title.contains(ownAppLabel().lowercase()) ->
+            packageName in installerPackages && title.contains(ownAppLabel().lowercase()) ->
                 CriticalScreen.KIDGUARD_UNINSTALL
 
             else -> null
@@ -205,12 +252,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private companion object {
         const val TAG = "KidGuardA11y"
         const val UNLOCK_WINDOW_MS = 20_000L
-        const val SETTINGS_PACKAGE = "com.android.settings"
-        val PACKAGE_INSTALLER_PACKAGES =
+        /** Системный resolver — не настройки и не инсталлер, отсеиваем при резолве. */
+        const val ANDROID_RESOLVER_PACKAGE = "android"
+        // AOSP-значения как ФОЛБЭК к резолву через PackageManager (см. settingsPackages /
+        // installerPackages): если резолв почему-то не отработал, детект остаётся на прежнем
+        // уровне, а не ломается.
+        val AOSP_SETTINGS_PACKAGES = setOf("com.android.settings")
+        val AOSP_INSTALLER_PACKAGES =
             setOf("com.google.android.packageinstaller", "com.android.packageinstaller")
-        // Пока активный экран принадлежит настройкам/инсталлеру, PIN-оверлей держим (родитель
-        // вводит PIN); их под-окна не должны его случайно закрывать.
-        val OVERLAY_HOST_PACKAGES = setOf(SETTINGS_PACKAGE) + PACKAGE_INSTALLER_PACKAGES
         // Ключевые слова в заголовке окна (нижний регистр). Русский — основной язык устройств
         // ребёнка; английский — на случай другой локали. Кросс-вендорно стабильны.
         val VPN_KEYWORDS = listOf("vpn")
