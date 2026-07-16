@@ -6,6 +6,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.VpnService
 import android.os.PowerManager
@@ -72,6 +73,28 @@ class PermissionsManager @Inject constructor(
             VpnService.prepare(context)
     }
 
+    /**
+     * Интент в **вендорный менеджер автозапуска** (HiOS/Transsion, MIUI, EMUI, ColorOS, FuntouchOS).
+     *
+     * Зачем: стандартного `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` на этих оболочках НЕ достаточно —
+     * поверх AOSP-механизма у них свой список «кого не запускать в фоне», и он убивает
+     * foreground-сервисы (у нас — весь контроль). Программного API для проверки/выдачи не
+     * существует ни у одного вендора, поэтому это не [DevicePermission] (его нельзя `isGranted`),
+     * а карточка-инструкция в мастере: сами открыть нужный экран мы можем лишь best-effort.
+     *
+     * Компоненты ниже — известные точки входа, их набор заведомо неполон и меняется от версии к
+     * версии прошивки. Поэтому: берём ПЕРВЫЙ реально существующий на устройстве, а если ни одного
+     * нет (или вендор незнакомый) — уводим в системное «О приложении», откуда на любой оболочке
+     * можно дойти до энергонастроек. Точный путь на реальном Tecno снимаем на обкатке
+     * (см. `milestone-06v-field-test-checklist.md`, этап 0.3) и дополняем список по факту.
+     */
+    fun autostartIntent(): Intent =
+        VENDOR_AUTOSTART_COMPONENTS
+            .asSequence()
+            .map { Intent().setComponent(it) }
+            .firstOrNull { context.packageManager.resolveActivity(it, 0) != null }
+            ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri())
+
     // unsafeCheckOpNoThrow помечен deprecated, но остаётся штатным способом проверки Usage
     // Access — не-deprecated альтернативы для этой проверки нет.
     @Suppress("DEPRECATION")
@@ -108,4 +131,40 @@ class PermissionsManager @Inject constructor(
         ComponentName(context, KidGuardDeviceAdminReceiver::class.java)
 
     private fun packageUri(): Uri = Uri.fromParts("package", context.packageName, null)
+
+    private companion object {
+        /**
+         * Точки входа в вендорные менеджеры автозапуска. Проверяются по порядку, берётся первая
+         * существующая на устройстве (см. [autostartIntent]). Видимость чужих пакетов на
+         * Android 11+ уже обеспечена `QUERY_ALL_PACKAGES` в манифесте (объявлено ради списка
+         * приложений ребёнка), поэтому отдельные `<queries>` не нужны.
+         */
+        val VENDOR_AUTOSTART_COMPONENTS = listOf(
+            // Transsion (HiOS — наш Tecno Spark 30 Pro; а также Infinix, itel): менеджер
+            // энергопотребления PhoneMaster. Конкретную активность уточняем на обкатке — если ни
+            // одна не совпала, сработает фолбэк на «О приложении».
+            ComponentName("com.transsion.phonemaster", "com.cyin.himgr.autostart.AutoStartActivity"),
+            ComponentName("com.transsion.phonemaster", "com.transsion.autostart.AutoStartActivity"),
+            // Xiaomi MIUI / HyperOS
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.miui.permcenter.autostart.AutoStartManagementActivity"
+            ),
+            // Huawei EMUI
+            ComponentName(
+                "com.huawei.systemmanager",
+                "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+            ),
+            // Oppo ColorOS
+            ComponentName(
+                "com.coloros.safecenter",
+                "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+            ),
+            // Vivo FuntouchOS
+            ComponentName(
+                "com.vivo.permissionmanager",
+                "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
+            )
+        )
+    }
 }

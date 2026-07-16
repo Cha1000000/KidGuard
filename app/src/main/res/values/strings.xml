@@ -186,6 +186,10 @@
     <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Нужен, чтобы блокировать интернет всем приложениям, кроме KidGuard и белого списка, после исчерпания лимита.</string>
+    <string name="autostart_title">Автозапуск в фоне</string>
+    <string name="autostart_desc">На оболочках вроде HiOS (Tecno), MIUI, EMUI есть свой список автозапуска — помимо обычной оптимизации батареи. Если KidGuard в нём не разрешён, система выгрузит контроль из фона, и он перестанет считать время. Разрешите KidGuard автозапуск и работу в фоне.</string>
+    <string name="autostart_open_settings">Открыть настройки автозапуска</string>
+
     <string name="always_on_vpn_title">Постоянный VPN</string>
     <string name="always_on_vpn_desc">Чтобы ребёнок не смог обойти блокировку простым отключением VPN, включите в системных настройках always-on VPN для KidGuard и опцию «Блокировать соединения без VPN». Тогда без активного VPN устройство вообще останется без интернета.</string>
     <string name="always_on_vpn_open_settings">Открыть настройки VPN</string>

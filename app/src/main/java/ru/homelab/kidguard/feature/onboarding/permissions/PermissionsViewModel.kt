@@ -35,6 +35,13 @@ class PermissionsViewModel @Inject constructor(
     fun grantIntent(permission: DevicePermission): Intent? =
         permissionsManager.grantIntent(permission)
 
+    /**
+     * Интент в вендорный менеджер автозапуска (HiOS/MIUI/EMUI…) с фолбэком на «О приложении».
+     * Не [DevicePermission] — статус автозапуска программно не проверяется ни у одного вендора,
+     * поэтому это карточка-инструкция, а не шаг со статусом.
+     */
+    fun autostartIntent(): Intent = permissionsManager.autostartIntent()
+
     private fun emptyStatuses(): Map<DevicePermission, Boolean> =
         DevicePermission.entries.associateWith { false }
 }

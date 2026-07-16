@@ -85,6 +85,11 @@ fun PermissionsWizardScreen(
                 )
             }
             item {
+                AutostartCard(
+                    onOpenSettings = { launcher.launch(viewModel.autostartIntent()) }
+                )
+            }
+            item {
                 AlwaysOnVpnCard(
                     onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
                 )
@@ -96,6 +101,38 @@ fun PermissionsWizardScreen(
                 ) {
                     Text(stringResource(R.string.permissions_continue))
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Информационная карточка про вендорный автозапуск (веха 6В). Как и [AlwaysOnVpnCard], не входит в
+ * список [DevicePermission]: на HiOS/MIUI/EMUI поверх стандартной оптимизации батареи есть свой
+ * список автозапуска, который выгружает foreground-сервисы, но программного API ни для проверки,
+ * ни для выдачи у вендоров нет — отсюда карточка-инструкция без статуса «выдано».
+ */
+@Composable
+private fun AutostartCard(
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.autostart_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.autostart_desc),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            OutlinedButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                Text(stringResource(R.string.autostart_open_settings))
             }
         }
     }
