@@ -8,11 +8,13 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -29,8 +31,9 @@ import javax.inject.Inject
  * 2. Точечно перехватывает открытие критичных системных экранов (веха 6, шаги 6.2–6.3): настройки
  *    VPN, «Специальные возможности» (чтобы ребёнок не отключил сам этот сервис), экран
  *    администратора устройства (деактивация Device Admin снимает защиту от удаления) и удаление
- *    именно приложения KidGuard (другие приложения, включая игры, ребёнок удаляет свободно —
- *    «чистит мусор»).
+ *    именно приложения KidGuard, а также его экраны «О приложении» / «Хранилище» (оттуда доступны
+ *    «Очистить хранилище», «Остановить» и «Удалить» — каждый из трёх убивает контроль). Другие
+ *    приложения, включая игры, ребёнок удаляет и чистит свободно — «чистит мусор».
  *
  * Детект кросс-вендорный, без привязки к конкретной прошивке: экран узнаём по ЗАГОЛОВКУ окна
  * ([screenTitle], `AccessibilityWindowInfo.title`), а не по классу активности; пакеты настроек и
@@ -145,6 +148,13 @@ class KidGuardAccessibilityService : AccessibilityService() {
             return
         }
         scope.launch {
+            // «О приложении»/«Хранилище» детектятся по заголовку, но он одинаков у ВСЕХ приложений
+            // (и у хранилища устройства) — чей это экран, видно только по содержимому окна.
+            // Опрос, а не одна проверка: содержимое может доехать чуть позже события.
+            if (screen == CriticalScreen.KIDGUARD_APP_INFO && !awaitOwnAppScreen()) {
+                Timber.tag(TAG).d("Экран «О приложении»/«Хранилище» не наш — пропускаю")
+                return@launch
+            }
             if (policyRepository.pinProtection.first() == null) {
                 // PIN не задан родителем — защита не настроена, не перехватываем.
                 Timber.tag(TAG).d("Критичный экран %s, но PIN не задан — пропускаю", screen)
@@ -227,8 +237,66 @@ class KidGuardAccessibilityService : AccessibilityService() {
             packageName in installerPackages && title.contains(ownAppLabel().lowercase()) ->
                 CriticalScreen.KIDGUARD_UNINSTALL
 
+            // «О приложении» / «Хранилище» ИМЕННО нашего приложения. Оттуда доступны три способа
+            // убить контроль: «Очистить хранилище» (сбрасывает роль, политику И выданный
+            // accessibility), «Остановить» (Android отключает accessibility-сервис при force-stop)
+            // и «Удалить». Плановый шаг 6.2 этот экран перечислял, но в код не попал.
+            //
+            // Заголовок сам по себе НЕ годится: он одинаков для всех приложений («о приложении»,
+            // «хранилище») и не содержит имени. Матчить по нему одному — значит запереть ребёнку
+            // чужие приложения, а по концепции он их «чистит» свободно. Хуже: у экрана хранилища
+            // УСТРОЙСТВА заголовок тоже «хранилище». Поэтому здесь — только КАНДИДАТ; чей это
+            // экран, решает [awaitOwnAppScreen] по содержимому окна (см. maybeInterceptWithPin).
+            packageName in settingsPackages && APP_DETAILS_KEYWORDS.any { title.contains(it) } ->
+                CriticalScreen.KIDGUARD_APP_INFO
+
             else -> null
         }
+    }
+
+    /**
+     * Дожидается, пока станет видно, что открытый экран — про НАШЕ приложение.
+     *
+     * Содержимое окна доезжает позже `TYPE_WINDOW_STATE_CHANGED`, поэтому опрашиваем несколько раз.
+     * Не нашли за отведённое время — считаем, что экран чужой, и не мешаем: ребёнок должен свободно
+     * открывать «О приложении» своих игр. Цена ошибки в эту сторону мала — если он всё-таки полезет
+     * дальше (в «Хранилище» нашего приложения), там будет своё событие и своя проверка.
+     */
+    private suspend fun awaitOwnAppScreen(): Boolean {
+        repeat(CONTENT_POLL_ATTEMPTS) {
+            if (windowMentionsOwnApp()) return true
+            delay(CONTENT_POLL_DELAY_MS)
+        }
+        return false
+    }
+
+    /**
+     * Есть ли в дереве активного окна узел с названием нашего приложения — «этот экран про нас».
+     * Второй фактор детекта [CriticalScreen.KIDGUARD_APP_INFO] (первый — заголовок).
+     *
+     * Обходим дерево САМИ, хотя для этого есть штатный `findAccessibilityNodeInfosByText`: на
+     * экранах настроек Android 14+ (`SpaActivity`, Compose) он стабильно возвращает 0 совпадений,
+     * хотя нужный узел в дереве есть — проверено на эмуляторе (ручной обход находит `KidGuard`
+     * с первой попытки, тот же вызов `byText` — ноль). Ручной обход работает.
+     *
+     * Требует `canRetrieveWindowContent` (задан в конфиге). Recycle узлов не нужен: с API 33
+     * (наш minSdk) `AccessibilityNodeInfo.recycle()` — no-op и помечен deprecated.
+     */
+    private fun windowMentionsOwnApp(): Boolean = try {
+        nodeTreeContainsText(rootInActiveWindow, ownAppLabel(), depth = 0)
+    } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "Не удалось прочитать содержимое окна")
+        false
+    }
+
+    /** Рекурсивный поиск текста по дереву. [MAX_TREE_DEPTH] — страховка от глубоких/битых деревьев. */
+    private fun nodeTreeContainsText(node: AccessibilityNodeInfo?, text: String, depth: Int): Boolean {
+        if (node == null || depth > MAX_TREE_DEPTH) return false
+        if (node.text?.contains(text, ignoreCase = true) == true) return true
+        for (i in 0 until node.childCount) {
+            if (nodeTreeContainsText(node.getChild(i), text, depth + 1)) return true
+        }
+        return false
     }
 
     private fun ownAppLabel(): String = packageManager.getApplicationLabel(applicationInfo).toString()
@@ -247,11 +315,25 @@ class KidGuardAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private enum class CriticalScreen { VPN_SETTINGS, ACCESSIBILITY_SETTINGS, DEVICE_ADMIN, KIDGUARD_UNINSTALL }
+    private enum class CriticalScreen {
+        VPN_SETTINGS,
+        ACCESSIBILITY_SETTINGS,
+        DEVICE_ADMIN,
+        KIDGUARD_UNINSTALL,
+        /** «О приложении» и «Хранилище» нашего приложения: очистка данных, force-stop, удаление. */
+        KIDGUARD_APP_INFO
+    }
 
     private companion object {
         const val TAG = "KidGuardA11y"
         const val UNLOCK_WINDOW_MS = 20_000L
+        // Опрос содержимого окна для [awaitOwnAppScreen]: до ~600 мс. Содержимое доезжает позже
+        // события смены окна; за это время ребёнок физически не успеет ничего нажать, а чужие
+        // экраны столько не задерживают (просто не совпадут и уйдут).
+        const val CONTENT_POLL_ATTEMPTS = 10
+        const val CONTENT_POLL_DELAY_MS = 100L
+        /** Страховка от зацикливания на битом/глубоком дереве узлов. */
+        const val MAX_TREE_DEPTH = 30
         /** Системный resolver — не настройки и не инсталлер, отсеиваем при резолве. */
         const val ANDROID_RESOLVER_PACKAGE = "android"
         // AOSP-значения как ФОЛБЭК к резолву через PackageManager (см. settingsPackages /
@@ -281,5 +363,11 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // родительский PIN. Отмена ОК». Не содержит «администратор».
         // Требуется ОДНОВРЕМЕННО «kidguard» в заголовке (проверяется отдельно).
         val DEACTIVATION_DIALOG_KEYWORDS = listOf("отключ", "disable")
+        // Экраны «О приложении» и «Хранилище» (заголовки сняты с эмулятора: «о приложении»,
+        // «хранилище»). Работают ТОЛЬКО в паре с [windowMentionsOwnApp] — сами по себе эти
+        // заголовки одинаковы у всех приложений и у хранилища устройства.
+        val APP_DETAILS_KEYWORDS = listOf(
+            "о приложении", "сведения о приложении", "app info", "хранилище", "storage"
+        )
     }
 }
