@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.core.domain.model
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -85,5 +86,39 @@ class ChildHealthTest {
     fun `привязан но отчётов ещё не было — не тревожим`() {
         // Только что привязали: первый heartbeat ещё не дошёл. Тревожить рано.
         assertFalse(child(lastSeenAt = null, health = null).isControlBroken(now))
+    }
+
+    @Test
+    fun `brokenPermissions — порядок как в мастере разрешений, чинить сверху вниз`() {
+        val all = DeviceHealth(
+            accessibility = false, usageAccess = false, overlay = false,
+            deviceAdmin = false, vpn = false, batteryOptimization = false
+        )
+        assertEquals(
+            listOf(
+                DevicePermission.USAGE_ACCESS,
+                DevicePermission.ACCESSIBILITY,
+                DevicePermission.OVERLAY,
+                DevicePermission.DEVICE_ADMIN,
+                DevicePermission.BATTERY_OPTIMIZATION,
+                DevicePermission.VPN
+            ),
+            all.brokenPermissions()
+        )
+    }
+
+    @Test
+    fun `brokenPermissions — здоровый даёт пустой список, уведомления не считаются поломкой`() {
+        // NOTIFICATIONS в DeviceHealth нет вовсе: без уведомления контроль работает.
+        assertTrue(healthy.brokenPermissions().isEmpty())
+    }
+
+    @Test
+    fun `сломано несколько — перечисляем все, а не только первое`() {
+        val two = healthy.copy(accessibility = false, vpn = false)
+        assertEquals(
+            listOf(DevicePermission.ACCESSIBILITY, DevicePermission.VPN),
+            two.brokenPermissions()
+        )
     }
 }

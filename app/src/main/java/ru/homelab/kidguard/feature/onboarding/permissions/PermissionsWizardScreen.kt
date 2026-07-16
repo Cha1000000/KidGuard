@@ -2,7 +2,6 @@ package ru.homelab.kidguard.feature.onboarding.permissions
 
 import android.content.Intent
 import android.provider.Settings
-import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +31,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.DevicePermission
-import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.descRes
+import ru.homelab.kidguard.core.ui.components.titleRes
 
 /**
  * Мастер выдачи разрешений детского режима. По каждому разрешению показывает статус и кнопку
@@ -208,24 +208,3 @@ private fun PermissionRow(
     }
 }
 
-@StringRes
-private fun DevicePermission.titleRes(): Int = when (this) {
-    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_title
-    DevicePermission.ACCESSIBILITY -> R.string.permission_accessibility_title
-    DevicePermission.OVERLAY -> R.string.permission_overlay_title
-    DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_title
-    DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_title
-    DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_title
-    DevicePermission.VPN -> R.string.permission_vpn_title
-}
-
-@StringRes
-private fun DevicePermission.descRes(): Int = when (this) {
-    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_desc
-    DevicePermission.ACCESSIBILITY -> R.string.permission_accessibility_desc
-    DevicePermission.OVERLAY -> R.string.permission_overlay_desc
-    DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_desc
-    DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_desc
-    DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
-    DevicePermission.VPN -> R.string.permission_vpn_desc
-}

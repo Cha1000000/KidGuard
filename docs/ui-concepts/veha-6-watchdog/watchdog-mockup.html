@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>KidGuard — Watchdog (веха 6)</title>
+<style>
+    :root {
+        --bg-main: #0E1C21;
+        --accent: #4FC3B0;
+        --glass-bg: rgba(23, 40, 46, 0.4);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-main: #E6EEF0;
+        --text-secondary: #9DB2B8;
+        --danger: #E5534B;
+        --danger-bg: rgba(229, 83, 75, 0.12);
+    }
+    body {
+        margin: 0; padding: 32px;
+        background: #0A1216;
+        font-family: 'Inter', -apple-system, sans-serif;
+        color: var(--text-main);
+    }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+    .sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 28px; }
+    .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+    .case { width: 360px; }
+    .case-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+    .case-note { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.45; }
+
+    .phone {
+        width: 360px; border-radius: 32px; padding: 20px 16px;
+        background: radial-gradient(circle at 30% 20%, #0E1C21 0%, #04312B 60%, #0A161A 100%);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    .screen-title { font-size: 26px; font-weight: 400; margin: 4px 0 16px 4px; }
+
+    .card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 16px;
+        display: flex; gap: 14px; align-items: center;
+    }
+    .avatar {
+        width: 48px; height: 48px; border-radius: 50%; flex: none;
+        background: linear-gradient(135deg, #7E57C2, #EC407A);
+    }
+    .name { font-size: 16px; font-weight: 600; }
+    .status { font-size: 13px; color: var(--accent); margin-top: 2px; }
+
+    /* Плашка — ТОЛЬКО когда контроль сломан. При норме карточка не меняется вовсе. */
+    .warn {
+        margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;
+        background: var(--danger-bg); border-radius: 8px;
+        padding: 4px 10px; font-size: 12.5px; font-weight: 600; color: var(--danger);
+    }
+
+    .add {
+        margin-top: 12px; border: 2px solid var(--accent); border-radius: 16px;
+        padding: 14px; text-align: center; color: var(--accent); font-weight: 600; font-size: 15px;
+    }
+
+    /* --- bottom sheet --- */
+    .sheet {
+        margin-top: 14px; border-radius: 28px 28px 0 0; background: #17282E;
+        border: 1px solid rgba(255,255,255,0.08); border-bottom: none; padding: 18px 20px 24px;
+    }
+    .grabber { width: 36px; height: 4px; border-radius: 2px; background: #4A5C63; margin: 0 auto 16px; }
+    .sheet h2 { font-size: 19px; font-weight: 700; margin: 0 0 4px; }
+    .sheet .when { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; }
+    .issue {
+        display: flex; gap: 10px; align-items: flex-start;
+        background: rgba(229,83,75,0.09); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .issue .dot { color: var(--danger); font-size: 15px; line-height: 1.25; }
+    .issue-name { font-size: 14px; font-weight: 600; color: var(--danger); }
+    .issue-why { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+    .howto {
+        margin-top: 14px; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px 14px;
+        font-size: 12.5px; color: var(--text-secondary); line-height: 1.55;
+    }
+    .howto b { color: var(--text-main); font-weight: 600; }
+    .ok-line { font-size: 13px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>Watchdog — что видит родитель</h1>
+<div class="sub">
+    Веха 6. Плашка появляется ТОЛЬКО когда контроль сломан — при норме карточка не меняется.
+    Ребёнку не показывается ничего и никогда.
+</div>
+
+<div class="row">
+
+    <!-- 1 -->
+    <div class="case">
+        <div class="case-title">1. Всё работает</div>
+        <div class="case-note">
+            Карточка как сейчас. «Последняя связь» на неё НЕ выносим — при нормальной работе это
+            лишняя строка (решение Володи).
+        </div>
+        <div class="phone">
+            <div class="screen-title">Дети</div>
+            <div class="card">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="status">Привязан</div>
+                </div>
+            </div>
+            <div class="add">+ Добавить ребёнка</div>
+        </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="case">
+        <div class="case-title">2. Разрешение отвалилось</div>
+        <div class="case-note">
+            Устройство доложило само — видно сразу, порога нет. Перечисляем, ЧТО именно не работает.
+            Реальный случай 16.07: accessibility выключен, время не считается.
+        </div>
+        <div class="phone">
+            <div class="screen-title">Дети</div>
+            <div class="card">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="status">Привязан</div>
+                    <div class="warn">⚠ Не работает: Спец. возможности</div>
+                </div>
+            </div>
+            <div class="add">+ Добавить ребёнка</div>
+        </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="case">
+        <div class="case-title">3. Молчит дольше 12 ч</div>
+        <div class="case-note">
+            Так выглядит убитый сервис: доложить о себе он не может, судим по молчанию.
+            Порог 12 ч — чтобы ночной простой телефона не превращал плашку в шум.
+        </div>
+        <div class="phone">
+            <div class="screen-title">Дети</div>
+            <div class="card">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="status">Привязан</div>
+                    <div class="warn">⚠ Не выходил на связь 14 ч</div>
+                </div>
+            </div>
+            <div class="add">+ Добавить ребёнка</div>
+        </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="case">
+        <div class="case-title">4. Тап по плашке → детали</div>
+        <div class="case-note">
+            Здесь и только здесь показываем «последняя связь». «Что делать» — текстом, без кнопки:
+            чинить надо на телефоне РЕБЁНКА, а родитель смотрит со своего.
+        </div>
+        <div class="phone" style="padding-bottom:0">
+            <div class="screen-title">Дети</div>
+            <div class="card" style="opacity:.45">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="status">Привязан</div>
+                    <div class="warn">⚠ Не работает: Спец. возможности</div>
+                </div>
+            </div>
+            <div class="sheet">
+                <div class="grabber"></div>
+                <h2>Контроль не работает</h2>
+                <div class="when">Последняя связь: 6 минут назад</div>
+
+                <div class="issue">
+                    <div class="dot">●</div>
+                    <div>
+                        <div class="issue-name">Специальные возможности</div>
+                        <div class="issue-why">Не определяется активное приложение: время не
+                            считается, блокировки не срабатывают.</div>
+                    </div>
+                </div>
+                <div class="issue">
+                    <div class="dot">●</div>
+                    <div>
+                        <div class="issue-name">Доступ к статистике</div>
+                        <div class="issue-why">Нет статистики по приложениям.</div>
+                    </div>
+                </div>
+
+                <div class="howto">
+                    <b>Что делать:</b> возьмите телефон ребёнка, откройте KidGuard — мастер
+                    разрешений покажет, что выдать. Разрешения могли слететь после очистки данных
+                    приложения или его принудительной остановки.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="case">
+        <div class="case-title">5. Молчание → детали</div>
+        <div class="case-note">
+            Флаги показываем на момент последнего отчёта и честно оговариваем, что они могли
+            устареть: устройство уже могло отвалиться.
+        </div>
+        <div class="phone" style="padding-bottom:0">
+            <div class="screen-title">Дети</div>
+            <div class="card" style="opacity:.45">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="status">Привязан</div>
+                    <div class="warn">⚠ Не выходил на связь 14 ч</div>
+                </div>
+            </div>
+            <div class="sheet">
+                <div class="grabber"></div>
+                <h2>Устройство не выходит на связь</h2>
+                <div class="when">Последняя связь: 14 часов назад</div>
+
+                <div class="issue" style="background:rgba(255,255,255,0.04)">
+                    <div class="dot" style="color:var(--text-secondary)">●</div>
+                    <div>
+                        <div class="issue-name" style="color:var(--text-main)">На момент последней
+                            связи всё работало</div>
+                        <div class="issue-why">Данные могли устареть — сейчас проверить нельзя.</div>
+                    </div>
+                </div>
+
+                <div class="howto">
+                    <b>Что делать:</b> телефон может быть выключен или без интернета — тогда всё в
+                    порядке. Если он включён, KidGuard мог быть выгружен системой: возьмите телефон
+                    ребёнка, откройте KidGuard и разрешите автозапуск в настройках телефона.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

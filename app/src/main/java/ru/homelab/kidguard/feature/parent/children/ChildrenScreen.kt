@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -54,6 +56,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -61,11 +66,22 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Child
+import ru.homelab.kidguard.core.domain.model.DevicePermission
 import ru.homelab.kidguard.core.ui.components.AvatarGrid
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
+import ru.homelab.kidguard.core.ui.components.healthImpactRes
+import ru.homelab.kidguard.core.ui.components.titleRes
+import java.time.Instant
+
+/**
+ * Красный для поломки контроля. Фиксированный, а не `colorScheme.error`: в тёмной теме M3-токен
+ * ошибки — светлый розовый (#F2B8B5), на тёмном фоне читается блёкло, а это тревога. Тот же
+ * приём и по той же причине, что у кнопки «Удалить ребёнка».
+ */
+private val HealthDangerColor = Color(0xFFE5534B)
 
 /** Открытый bottom-sheet на экране «Дети». */
 private sealed interface ChildrenSheet {
@@ -75,6 +91,9 @@ private sealed interface ChildrenSheet {
     data class CoParent(val child: Child) : ChildrenSheet
     data class Edit(val child: Child) : ChildrenSheet
     data class ConfirmDelete(val child: Child) : ChildrenSheet
+
+    /** Детали поломки контроля (watchdog, веха 6) — по тапу на плашку. */
+    data class Health(val child: Child) : ChildrenSheet
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +122,11 @@ fun ChildrenScreen(
             contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight)
         ) {
             items(uiState.children, key = { it.id }) { child ->
-                ChildCard(child = child, onClick = { sheet = ChildrenSheet.Actions(child) })
+                ChildCard(
+                    child = child,
+                    onClick = { sheet = ChildrenSheet.Actions(child) },
+                    onHealthClick = { sheet = ChildrenSheet.Health(child) }
+                )
             }
             item {
                 AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
@@ -190,11 +213,20 @@ fun ChildrenScreen(
                 )
             }
         )
+
+        is ChildrenSheet.Health -> HealthSheet(
+            child = current.child,
+            onDismiss = { sheet = null }
+        )
     }
 }
 
 @Composable
-private fun ChildCard(child: Child, onClick: () -> Unit) {
+private fun ChildCard(child: Child, onClick: () -> Unit, onHealthClick: () -> Unit) {
+    // Считаем «сейчас» на каждой рекомпозиции: экран живёт недолго и обновляется при входе
+    // (LaunchedEffect → refresh), точности до минуты для порога в 12 ч заведомо хватает.
+    val now = remember(child) { Instant.now() }
+
     GlassCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -218,8 +250,174 @@ private fun ChildCard(child: Child, onClick: () -> Unit) {
                     color = if (child.paired) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.tertiary
                 )
+                // Плашка ТОЛЬКО при поломке: когда всё работает, карточка не меняется вовсе
+                // (решение Володи — лишняя строка при норме превращается в шум).
+                if (child.isControlBroken(now)) {
+                    HealthWarningBadge(child = child, now = now, onClick = onHealthClick)
+                }
             }
         }
+    }
+}
+
+/** Красная плашка «контроль сломан» на карточке ребёнка. Тап — детали. */
+@Composable
+private fun HealthWarningBadge(child: Child, now: Instant, onClick: () -> Unit) {
+    val broken = child.health?.brokenPermissions().orEmpty()
+    val text = when {
+        // Сломано несколько — говорим, что есть ещё, иначе родитель починит одно и решит, что всё.
+        broken.size > 1 -> stringResource(
+            R.string.child_health_broken_more,
+            stringResource(broken.first().titleRes()),
+            broken.size - 1
+        )
+
+        broken.size == 1 ->
+            stringResource(R.string.child_health_broken, stringResource(broken.first().titleRes()))
+
+        // Поломка без флагов = устройство молчит (сервис убит и доложить не может).
+        else -> stringResource(R.string.child_health_silent, formatAgo(child.lastSeenAt ?: now, now))
+    }
+
+    Surface(
+        onClick = onClick,
+        color = HealthDangerColor.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(top = 6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = HealthDangerColor,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+/**
+ * Детали поломки контроля (watchdog, веха 6). Здесь и только здесь показываем «последняя связь» —
+ * на карточке при нормальной работе это лишняя строка.
+ *
+ * Два разных случая с разными текстами:
+ * - разрешения отвалились → перечисляем, ЧТО именно и чем грозит;
+ * - устройство молчит → флаги показываем с оговоркой, что они могли устареть, а «что делать»
+ *   начинается с честного «телефон может быть просто выключен».
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HealthSheet(child: Child, onDismiss: () -> Unit) {
+    val now = remember(child) { Instant.now() }
+    val broken = child.health?.brokenPermissions().orEmpty()
+    val isSilent = broken.isEmpty()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+            Text(
+                text = stringResource(
+                    if (isSilent) R.string.child_health_silent_title else R.string.child_health_broken_title
+                ),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = child.lastSeenAt
+                    ?.let { stringResource(R.string.child_health_last_seen, formatAgo(it, now)) }
+                    ?: stringResource(R.string.child_health_last_seen_never),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
+            )
+
+            if (isSilent) {
+                StaleHealthNote()
+            } else {
+                broken.forEach { HealthIssueRow(it) }
+            }
+
+            HowToFix(isSilent = isSilent)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Одна отвалившаяся штука: название + чем это грозит. */
+@Composable
+private fun HealthIssueRow(permission: DevicePermission) {
+    Surface(
+        color = HealthDangerColor.copy(alpha = 0.09f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(permission.titleRes()),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = HealthDangerColor
+            )
+            Text(
+                text = stringResource(permission.healthImpactRes()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Устройство молчит: последний известный отчёт был здоровым, но врать «всё работает» на его
+ * основании нельзя — оговариваем, что данные могли устареть.
+ */
+@Composable
+private fun StaleHealthNote() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(R.string.child_health_stale_ok_title),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(R.string.child_health_stale_ok_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+/** Инструкция текстом, без кнопок: чинить надо на телефоне РЕБЁНКА, а родитель смотрит со своего. */
+@Composable
+private fun HowToFix(isSilent: Boolean) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                    append(stringResource(R.string.child_health_howto_label))
+                }
+                append(" ")
+                append(
+                    stringResource(
+                        if (isSilent) R.string.child_health_howto_silent
+                        else R.string.child_health_howto_broken
+                    )
+                )
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+        )
     }
 }
 

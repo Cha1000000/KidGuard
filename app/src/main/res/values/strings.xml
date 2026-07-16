@@ -186,6 +186,35 @@
     <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Нужен, чтобы блокировать интернет всем приложениям, кроме KidGuard и белого списка, после исчерпания лимита.</string>
+    <!-- Watchdog (веха 6): что видит родитель, когда контроль на телефоне ребёнка сломан.
+         Ребёнку не показывается ничего — это подсказка «защиты нет, можно гулять». -->
+    <string name="child_health_broken">⚠ Не работает: %1$s</string>
+    <!-- Сломано несколько: показываем первое и честно говорим, что есть ещё. Иначе родитель
+         починит одно и решит, что всё. Полный список — в листе по тапу. -->
+    <string name="child_health_broken_more">⚠ Не работает: %1$s и ещё %2$d</string>
+    <string name="child_health_silent">⚠ Не выходил на связь %1$s</string>
+    <string name="child_health_broken_title">Контроль не работает</string>
+    <string name="child_health_silent_title">Устройство не выходит на связь</string>
+    <string name="child_health_last_seen">Последняя связь: %1$s</string>
+    <string name="child_health_last_seen_never">Устройство ещё не выходило на связь</string>
+    <string name="child_health_stale_ok_title">На момент последней связи всё работало</string>
+    <string name="child_health_stale_ok_note">Данные могли устареть — сейчас проверить нельзя.</string>
+    <string name="child_health_howto_label">Что делать:</string>
+    <string name="child_health_howto_broken">возьмите телефон ребёнка, откройте KidGuard — мастер разрешений покажет, что выдать. Разрешения могли слететь после очистки данных приложения или его принудительной остановки.</string>
+    <string name="child_health_howto_silent">телефон может быть выключен или без интернета — тогда всё в порядке. Если он включён, KidGuard мог быть выгружен системой: возьмите телефон ребёнка, откройте KidGuard и разрешите автозапуск в настройках телефона.</string>
+    <!-- Чем грозит отсутствие каждого разрешения (в мастере разрешений формулировки «зачем нужно»,
+         здесь — «что сломается»: родитель смотрит на уже случившуюся проблему). -->
+    <string name="health_impact_usage">Нет статистики по приложениям.</string>
+    <string name="health_impact_accessibility">Не определяется активное приложение: время не считается, блокировки не срабатывают.</string>
+    <string name="health_impact_overlay">Нельзя показать экран блокировки.</string>
+    <string name="health_impact_device_admin">Приложение можно удалить.</string>
+    <string name="health_impact_battery">Система выгружает фоновый контроль.</string>
+    <string name="health_impact_vpn">Интернет не режется после лимита.</string>
+    <!-- Длительность «сколько назад» для плашки и листа. -->
+    <string name="duration_minutes">%1$d мин</string>
+    <string name="duration_hours">%1$d ч</string>
+    <string name="duration_days">%1$d дн</string>
+
     <string name="autostart_title">Автозапуск в фоне</string>
     <string name="autostart_desc">На оболочках вроде HiOS (Tecno), MIUI, EMUI есть свой список автозапуска — помимо обычной оптимизации батареи. Если KidGuard в нём не разрешён, система выгрузит контроль из фона, и он перестанет считать время. Разрешите KidGuard автозапуск и работу в фоне.</string>
     <string name="autostart_open_settings">Открыть настройки автозапуска</string>

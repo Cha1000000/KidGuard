@@ -30,5 +30,22 @@ data class DeviceHealth(
 ) {
     /** Всё ли на месте. Если нет — родителю показываем предупреждение. */
     val isHealthy: Boolean
-        get() = accessibility && usageAccess && overlay && deviceAdmin && vpn && batteryOptimization
+        get() = brokenPermissions().isEmpty()
+
+    /**
+     * Что именно отвалилось — родителю показываем не «что-то сломалось», а конкретный список.
+     * Порядок как в [DevicePermission]: он же задаёт порядок шагов в мастере разрешений, и родитель
+     * увидит проблемы в том же порядке, в каком будет их чинить.
+     *
+     * [DevicePermission.NOTIFICATIONS] сюда не входит: без уведомления контроль работает, просто
+     * менее заметен — это не поломка.
+     */
+    fun brokenPermissions(): List<DevicePermission> = buildList {
+        if (!usageAccess) add(DevicePermission.USAGE_ACCESS)
+        if (!accessibility) add(DevicePermission.ACCESSIBILITY)
+        if (!overlay) add(DevicePermission.OVERLAY)
+        if (!deviceAdmin) add(DevicePermission.DEVICE_ADMIN)
+        if (!batteryOptimization) add(DevicePermission.BATTERY_OPTIMIZATION)
+        if (!vpn) add(DevicePermission.VPN)
+    }
 }
