@@ -323,6 +323,18 @@ private fun ChildActionsSheet(
             ) {
                 Text(stringResource(R.string.child_coparent))
             }
+            if (child.paired) {
+                // На случай переустановки приложения на телефоне ребёнка (или сброса
+                // устройства) — новый код привязки погашает прежний, но НЕ трогает исходную
+                // дату привязки и не затирает правила/статистику (см. pairingService.pairDevice
+                // на сервере), поэтому пересоздавать ребёнка вручную не нужно.
+                OutlinedButton(
+                    onClick = onShowCode,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                ) {
+                    Text(stringResource(R.string.child_code_new))
+                }
+            }
             OutlinedButton(
                 onClick = onEdit,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
