@@ -371,7 +371,7 @@ private fun ActionButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
     border: BorderStroke = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
 ) {
     OutlinedButton(
