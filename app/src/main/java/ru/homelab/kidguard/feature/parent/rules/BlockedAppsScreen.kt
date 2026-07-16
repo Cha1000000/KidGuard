@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +32,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 
@@ -53,44 +50,42 @@ fun BlockedAppsScreen(
         if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            CompactTopBar(
-                title = stringResource(R.string.blocked_apps_title),
-                onBack = onBack
+    Column(modifier = modifier.fillMaxSize()) {
+        CompactTopBar(
+            title = stringResource(R.string.blocked_apps_title),
+            onBack = onBack
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.blocked_apps_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
             )
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.blocked_apps_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text(stringResource(R.string.blocked_apps_search)) },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                when {
-                    apps == null -> AppsLoadingState()
-                    apps.orEmpty().isEmpty() -> AppsEmptyState()
-                    else -> LazyColumn(
-                        modifier = Modifier.padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(filtered, key = { it.packageName }) { app ->
-                            AppRow(
-                                app = app,
-                                onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
-                            )
-                        }
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text(stringResource(R.string.blocked_apps_search)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            when {
+                apps == null -> AppsLoadingState()
+                apps.orEmpty().isEmpty() -> AppsEmptyState()
+                else -> LazyColumn(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filtered, key = { it.packageName }) { app ->
+                        AppRow(
+                            app = app,
+                            onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
+                        )
                     }
                 }
             }

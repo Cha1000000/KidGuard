@@ -21,24 +21,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CenteredMessage
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 import ru.homelab.kidguard.feature.parent.rules.AppIconImage
@@ -57,28 +52,26 @@ fun StatisticsScreen(
     // и без этого показывала бы устаревшие данные.
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            ScreenTitle(stringResource(R.string.parent_tab_statistics))
-            if (!uiState.noChildren) ChildSelectorChip()
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenTitle(stringResource(R.string.parent_tab_statistics))
+        if (!uiState.noChildren) ChildSelectorChip()
 
-            when {
-                uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-
-                uiState.noChildren -> CenteredMessage(
-                    text = stringResource(R.string.statistics_no_children),
-                    modifier = Modifier.weight(1f)
-                )
-
-                uiState.error -> CenteredMessage(
-                    text = stringResource(R.string.statistics_load_error),
-                    modifier = Modifier.weight(1f)
-                )
-
-                else -> StatisticsContent(uiState)
+        when {
+            uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
+
+            uiState.noChildren -> CenteredMessage(
+                text = stringResource(R.string.statistics_no_children),
+                modifier = Modifier.weight(1f)
+            )
+
+            uiState.error -> CenteredMessage(
+                text = stringResource(R.string.statistics_load_error),
+                modifier = Modifier.weight(1f)
+            )
+
+            else -> StatisticsContent(uiState)
         }
     }
 }
@@ -90,6 +83,8 @@ private fun StatisticsContent(state: StatisticsUiState) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
+            // Резерв снизу — плавающий GlassDockBar лежит поверх этого экрана.
+            .padding(bottom = GlassDockBarReservedHeight)
     ) {
         if (!state.hasData) {
             CenteredMessage(
@@ -158,7 +153,7 @@ private fun TodayCard(state: StatisticsUiState) {
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        color = Color(0xFF2D4B42),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         shape = RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -166,7 +161,7 @@ private fun TodayCard(state: StatisticsUiState) {
                 Icon(
                     painter = painterResource(R.drawable.ic_timer),
                     contentDescription = null,
-                    tint = Color(0xFFE0E0E0),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -242,21 +237,12 @@ private fun WeekChartCard(week: List<DayUsage>) {
 
 @Composable
 private fun AppUsageRow(app: AppUsage) {
-    val context = LocalContext.current
-    val icon = remember(app.packageName) {
-        runCatching {
-            context.packageManager.getApplicationIcon(app.packageName)
-                .toBitmap(width = 96, height = 96)
-                .asImageBitmap()
-        }.getOrNull()
-    }
-
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            AppIconImage(icon = icon, label = app.label, packageName = app.packageName)
+            AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.label,

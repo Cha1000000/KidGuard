@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,8 +56,8 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.ui.components.AvatarGrid
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 
 /** Открытый bottom-sheet на экране «Дети». */
@@ -82,33 +83,34 @@ fun ChildrenScreen(
     // ребёнка мог измениться снаружи (устройство ввело pairing-код → «Привязан»).
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            ScreenTitle(stringResource(R.string.parent_tab_children))
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenTitle(stringResource(R.string.parent_tab_children))
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.children, key = { it.id }) { child ->
-                    ChildCard(child = child, onClick = { sheet = ChildrenSheet.Actions(child) })
-                }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // Резерв снизу — плавающий GlassDockBar лежит поверх этого экрана, не должен
+            // закрывать кнопку «Добавить ребёнка».
+            contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight)
+        ) {
+            items(uiState.children, key = { it.id }) { child ->
+                ChildCard(child = child, onClick = { sheet = ChildrenSheet.Actions(child) })
+            }
+            item {
+                AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
+            }
+            if (uiState.children.isEmpty() && !uiState.loading) {
                 item {
-                    AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
-                }
-                if (uiState.children.isEmpty() && !uiState.loading) {
-                    item {
-                        Text(
-                            text = stringResource(
-                                if (uiState.loadError) R.string.children_load_error else R.string.children_empty
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
-                        )
-                    }
+                    Text(
+                        text = stringResource(
+                            if (uiState.loadError) R.string.children_load_error else R.string.children_empty
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
+                    )
                 }
             }
         }

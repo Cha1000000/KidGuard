@@ -49,8 +49,10 @@ fun ParentScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    // Скрываем DockBar на под-экранах Правил (лимит, белый список и т.д.)
-    val showDockBar = ParentTab.entries.any { currentRoute?.startsWith(it.route) == true }
+    // Скрываем DockBar на под-экранах Правил (лимит, белый список и т.д.) — точное сравнение,
+    // а не startsWith: роут "parent/rules" — префикс всех под-роутов "parent/rules/...", поэтому
+    // startsWith(it.route) был бы истинным и на под-экранах тоже.
+    val showDockBar = ParentTab.entries.any { currentRoute == it.route }
 
     GlassBackground(modifier = modifier.fillMaxSize()) {
         NavHost(

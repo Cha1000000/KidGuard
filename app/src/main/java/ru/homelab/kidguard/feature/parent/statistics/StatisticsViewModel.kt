@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.parent.statistics
 
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,14 +14,15 @@ import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
+import ru.homelab.kidguard.feature.parent.rules.ChildAppsProvider
 import java.time.LocalDate
 import javax.inject.Inject
 
 /** Столбик диаграммы: день + суммарные секунды. */
 data class DayUsage(val date: LocalDate, val seconds: Int)
 
-/** Строка «по приложениям»: пакет, секунды и доля от суммарного времени за день. */
-data class AppUsage(val packageName: String, val seconds: Int, val share: Float) {
+/** Строка «по приложениям»: пакет, секунды, доля от суммарного времени за день и иконка. */
+data class AppUsage(val packageName: String, val seconds: Int, val share: Float, val icon: ImageBitmap? = null) {
     /** Читаемое имя из package: com.google.android.youtube -> youtube. */
     val label: String get() = packageName.substringAfterLast('.').ifEmpty { packageName }
 }
@@ -43,7 +45,8 @@ data class StatisticsUiState(
 class StatisticsViewModel @Inject constructor(
     private val childRepository: ChildRepository,
     private val policyRepository: PolicyRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val childAppsProvider: ChildAppsProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
@@ -84,6 +87,9 @@ class StatisticsViewModel @Inject constructor(
             }
 
             val todaySeconds = totalsByDate[today] ?: 0
+            // Иконки — те же, что видит родитель на экранах Правил (иконка с детского устройства,
+            // не с родительского): ChildAppsProvider уже решает приоритет серверная/локальная/нет.
+            val iconsByPackage = childAppsProvider.loadActiveChildApps().associate { it.packageName to it.icon }
             val apps = entries
                 .filter { !it.isTotal && it.date == today && it.seconds > 0 }
                 .sortedByDescending { it.seconds }
@@ -91,7 +97,8 @@ class StatisticsViewModel @Inject constructor(
                     AppUsage(
                         packageName = entry.packageName,
                         seconds = entry.seconds,
-                        share = if (todaySeconds > 0) entry.seconds.toFloat() / todaySeconds else 0f
+                        share = if (todaySeconds > 0) entry.seconds.toFloat() / todaySeconds else 0f,
+                        icon = iconsByPackage[entry.packageName]
                     )
                 }
 

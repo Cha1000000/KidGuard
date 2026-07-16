@@ -25,8 +25,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
 
@@ -40,46 +40,44 @@ fun RulesScreen(
     onOpenPinProtection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            ScreenTitle(stringResource(R.string.parent_tab_rules))
-            ChildSelectorChip()
-            Column(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                RuleCard(
-                    icon = Icons.Filled.DateRange,
-                    title = R.string.rules_daily_limit_title,
-                    subtitle = R.string.rules_daily_limit_subtitle,
-                    onClick = onOpenDailyLimit
-                )
-                RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_timer),
-                    title = R.string.rules_app_limits_title,
-                    subtitle = R.string.rules_app_limits_subtitle,
-                    onClick = onOpenAppLimits
-                )
-                RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_block),
-                    title = R.string.rules_blocked_apps_title,
-                    subtitle = R.string.rules_blocked_apps_subtitle,
-                    onClick = onOpenBlockedApps,
-                    iconTint = MaterialTheme.colorScheme.error
-                )
-                RuleCard(
-                    icon = Icons.Filled.Lock,
-                    title = R.string.rules_pin_title,
-                    subtitle = R.string.rules_pin_subtitle,
-                    onClick = onOpenPinProtection
-                )
-                RuleCard(
-                    icon = Icons.Filled.CheckCircle,
-                    title = R.string.rules_whitelist_title,
-                    subtitle = R.string.rules_whitelist_subtitle,
-                    onClick = onOpenWhitelist
-                )
-            }
+    Column(modifier = modifier.fillMaxSize()) {
+        ScreenTitle(stringResource(R.string.parent_tab_rules))
+        ChildSelectorChip()
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = GlassDockBarReservedHeight),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RuleCard(
+                icon = Icons.Filled.DateRange,
+                title = R.string.rules_daily_limit_title,
+                subtitle = R.string.rules_daily_limit_subtitle,
+                onClick = onOpenDailyLimit
+            )
+            RuleCard(
+                icon = ImageVector.vectorResource(R.drawable.ic_timer),
+                title = R.string.rules_app_limits_title,
+                subtitle = R.string.rules_app_limits_subtitle,
+                onClick = onOpenAppLimits
+            )
+            RuleCard(
+                icon = ImageVector.vectorResource(R.drawable.ic_block),
+                title = R.string.rules_blocked_apps_title,
+                subtitle = R.string.rules_blocked_apps_subtitle,
+                onClick = onOpenBlockedApps,
+                iconTint = MaterialTheme.colorScheme.error
+            )
+            RuleCard(
+                icon = Icons.Filled.Lock,
+                title = R.string.rules_pin_title,
+                subtitle = R.string.rules_pin_subtitle,
+                onClick = onOpenPinProtection
+            )
+            RuleCard(
+                icon = Icons.Filled.CheckCircle,
+                title = R.string.rules_whitelist_title,
+                subtitle = R.string.rules_whitelist_subtitle,
+                onClick = onOpenWhitelist
+            )
         }
     }
 }

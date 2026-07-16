@@ -46,7 +46,7 @@ fun GlassCard(
     val glassColor = if (isSystemInDarkTheme()) {
         Color(0xFF17282E).copy(alpha = glassAlpha)
     } else {
-        Color(0xFFDCEAEF).copy(alpha = 0.9f)
+        Color(0xFFDCEAEF).copy(alpha = 0.5f)
     }
 
     val borderColor = if (isSystemInDarkTheme()) {

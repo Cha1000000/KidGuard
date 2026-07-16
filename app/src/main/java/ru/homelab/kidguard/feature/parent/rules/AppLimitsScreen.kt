@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,41 +55,39 @@ fun AppLimitsScreen(
         if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
     }
 
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            CompactTopBar(
-                title = stringResource(R.string.rules_app_limits_title),
-                onBack = onBack
+    Column(modifier = modifier.fillMaxSize()) {
+        CompactTopBar(
+            title = stringResource(R.string.rules_app_limits_title),
+            onBack = onBack
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.app_limits_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
             )
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.app_limits_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text(stringResource(R.string.app_limits_search)) },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                when {
-                    apps == null -> AppsLoadingState()
-                    apps.orEmpty().isEmpty() -> AppsEmptyState()
-                    else -> LazyColumn(
-                        modifier = Modifier.padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(filtered, key = { it.packageName }) { app ->
-                            AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
-                        }
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text(stringResource(R.string.app_limits_search)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            when {
+                apps == null -> AppsLoadingState()
+                apps.orEmpty().isEmpty() -> AppsEmptyState()
+                else -> LazyColumn(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filtered, key = { it.packageName }) { app ->
+                        AppLimitRow(app = app, onClick = { editingPackage = app.packageName })
                     }
                 }
             }

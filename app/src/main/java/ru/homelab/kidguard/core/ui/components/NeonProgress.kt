@@ -12,16 +12,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Круговой индикатор прогресса с неоновым свечением (Glassmorphism стиль).
@@ -30,7 +36,7 @@ import androidx.compose.ui.unit.sp
  * @param modifier модификатор
  * @param size размер индикатора
  * @param strokeWidth толщина кольца
- * @param glowRadius радиус свечения
+ * @param glowRadius радиус размытия внешнего свечения
  * @param accentColor основной акцентный цвет
  * @param trackColor цвет фона кольца
  * @param label верхняя подпись (например, "Осталось")
@@ -55,30 +61,50 @@ fun NeonProgress(
         animationSpec = tween(durationMillis = 1000),
         label = "progress"
     )
+    val sweepAngleDeg = 360f * animatedProgress
 
-    // Градиент для кольца
-    val gradientBrush = Brush.sweepGradient(
-        colors = listOf(
-            accentColor.copy(alpha = 0.3f),
-            accentColor,
-            accentColor.copy(alpha = 0.3f)
-        )
-    )
+    // Градиент вдоль ВИДИМОЙ дуги: тусклее у старта (12 часов), ярче у текущей передней кромки —
+    // так прогресс "светится" сильнее там, где он сейчас находится. brush = Brush.sweepGradient
+    // тут не годится: его цветовые стопы размазаны по ВСЕЙ окружности (0–360°), а не по
+    // нарисованному отрезку — на короткой дуге разница цветов почти не заметна.
+    val gradientStart = accentColor.copy(alpha = 0.55f)
+    val gradientEnd = lerp(accentColor, Color.White, 0.35f)
 
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Круговой индикатор
-        Canvas(modifier = Modifier.size(size)) {
-            val canvasSize = this.size
-            val arcSize = Size(
-                canvasSize.width - strokeWidth.toPx(),
-                canvasSize.height - strokeWidth.toPx()
-            )
-            val topLeft = Offset(strokeWidth.toPx() / 2, strokeWidth.toPx() / 2)
+        // Свечение — отдельный слой с НАСТОЯЩИМ блюром (RenderEffect, API 31+, у нас minSdk 33),
+        // а не вторая плоская полупрозрачная дуга поверх/под основной: та давала жёсткую границу
+        // вместо мягкого затухания и на глаз выглядела как "вторая дуга", а не свечение.
+        Box(
+            modifier = Modifier
+                .size(size)
+                .blur(radius = glowRadius * 3, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+        ) {
+            Canvas(modifier = Modifier.size(size)) {
+                val strokeWidthPx = strokeWidth.toPx()
+                val arcSize = Size(this.size.width - strokeWidthPx, this.size.height - strokeWidthPx)
+                val topLeft = Offset(strokeWidthPx / 2, strokeWidthPx / 2)
+                val glowColor = accentColor.copy(alpha = 0.9f)
+                drawGradientArc(
+                    startAngleDeg = -90f,
+                    sweepAngleDeg = sweepAngleDeg,
+                    startColor = glowColor,
+                    endColor = glowColor,
+                    topLeft = topLeft,
+                    arcSize = arcSize,
+                    strokeWidthPx = strokeWidthPx + glowRadius.toPx() * 2
+                )
+            }
+        }
 
-            // Фон кольца
+        // Кольцо: фон + плавный градиент прогресса.
+        Canvas(modifier = Modifier.size(size)) {
+            val strokeWidthPx = strokeWidth.toPx()
+            val arcSize = Size(this.size.width - strokeWidthPx, this.size.height - strokeWidthPx)
+            val topLeft = Offset(strokeWidthPx / 2, strokeWidthPx / 2)
+
             drawArc(
                 color = trackColor,
                 startAngle = 0f,
@@ -86,38 +112,17 @@ fun NeonProgress(
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(
-                    width = strokeWidth.toPx(),
-                    cap = StrokeCap.Round
-                )
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
             )
 
-            // Активная часть с градиентом
-            drawArc(
-                brush = gradientBrush,
-                startAngle = -90f,
-                sweepAngle = 360f * animatedProgress,
-                useCenter = false,
+            drawGradientArc(
+                startAngleDeg = -90f,
+                sweepAngleDeg = sweepAngleDeg,
+                startColor = gradientStart,
+                endColor = gradientEnd,
                 topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(
-                    width = strokeWidth.toPx(),
-                    cap = StrokeCap.Round
-                )
-            )
-
-            // Свечение (glow)
-            drawArc(
-                color = accentColor.copy(alpha = 0.3f),
-                startAngle = -90f,
-                sweepAngle = 360f * animatedProgress,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(
-                    width = (strokeWidth + glowRadius * 2).toPx(),
-                    cap = StrokeCap.Round
-                )
+                arcSize = arcSize,
+                strokeWidthPx = strokeWidthPx
             )
         }
 
@@ -151,4 +156,55 @@ fun NeonProgress(
             }
         }
     }
+}
+
+/**
+ * Дуга с реальным цветовым переходом от [startColor] к [endColor] вдоль [sweepAngleDeg] —
+ * рисуется мелкими сегментами (Butt-кромка внутри, без "пупырышков" на стыках), а скруглённые
+ * кромки на истинных концах дуги имитируются отдельными кружками нужного цвета.
+ */
+private fun DrawScope.drawGradientArc(
+    startAngleDeg: Float,
+    sweepAngleDeg: Float,
+    startColor: Color,
+    endColor: Color,
+    topLeft: Offset,
+    arcSize: Size,
+    strokeWidthPx: Float
+) {
+    if (sweepAngleDeg <= 0f) return
+
+    val segments = (sweepAngleDeg / 3f).toInt().coerceIn(2, 120)
+    val segmentSweep = sweepAngleDeg / segments
+    for (i in 0 until segments) {
+        val t = i / (segments - 1f)
+        drawArc(
+            color = lerp(startColor, endColor, t),
+            startAngle = startAngleDeg + i * segmentSweep,
+            // Небольшой нахлёст компенсирует зазоры от округления между соседними сегментами.
+            sweepAngle = segmentSweep + 0.5f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokeWidthPx, cap = StrokeCap.Butt)
+        )
+    }
+
+    val center = topLeft + Offset(arcSize.width / 2f, arcSize.height / 2f)
+    val radius = arcSize.width / 2f
+    drawCircle(
+        color = startColor,
+        radius = strokeWidthPx / 2f,
+        center = pointOnCircle(center, radius, startAngleDeg)
+    )
+    drawCircle(
+        color = endColor,
+        radius = strokeWidthPx / 2f,
+        center = pointOnCircle(center, radius, startAngleDeg + sweepAngleDeg)
+    )
+}
+
+private fun pointOnCircle(center: Offset, radius: Float, angleDeg: Float): Offset {
+    val angleRad = angleDeg * (PI.toFloat() / 180f)
+    return Offset(center.x + radius * cos(angleRad), center.y + radius * sin(angleRad))
 }

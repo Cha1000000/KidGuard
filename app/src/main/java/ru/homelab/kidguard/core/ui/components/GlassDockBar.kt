@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +38,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * Место, которое плавающий [GlassDockBar] реально занимает у нижнего края экрана (высота бара +
+ * его собственный нижний отступ + небольшой зазор). Экраны вкладок под ним резервируют такой же
+ * отступ снизу в своём скролл-контенте, чтобы последний элемент списка не прятался под баром.
+ */
+val GlassDockBarReservedHeight = 92.dp
+
+/**
  * Плавающий стеклянный Dock Bar в стиле macOS для навигации.
  * Glass-эффект с тонкой белой границей, анимацией масштабирования при нажатии.
  */
@@ -45,6 +55,9 @@ fun GlassDockBar(
 ) {
     Box(
         modifier = modifier
+            // Сам GlassDockBar — не часть NavHost (лежит поверх него), поэтому safeDrawing
+            // с NavHost на него не действует — нижнюю системную панель/жест-зону учитываем тут.
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .padding(bottom = 20.dp)

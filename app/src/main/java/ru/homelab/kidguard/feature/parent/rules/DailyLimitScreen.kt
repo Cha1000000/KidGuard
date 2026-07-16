@@ -34,7 +34,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import java.time.DayOfWeek
@@ -52,40 +51,38 @@ fun DailyLimitScreen(
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
 
-    GlassBackground(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            CompactTopBar(
-                title = stringResource(R.string.rules_daily_limit_title),
-                onBack = onBack
+    Column(modifier = modifier.fillMaxSize()) {
+        CompactTopBar(
+            title = stringResource(R.string.rules_daily_limit_title),
+            onBack = onBack
+        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Text(
+                text = stringResource(R.string.daily_limit_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
             )
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(
-                    text = stringResource(R.string.daily_limit_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                BonusSection(
+                    activeBonusMinutes = phoneBonus,
+                    subtitleRes = R.string.bonus_subtitle_phone,
+                    onAdd = { viewModel.addPhoneBonus(it) },
+                    onClear = { viewModel.clearPhoneBonus() },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                    BonusSection(
-                        activeBonusMinutes = phoneBonus,
-                        subtitleRes = R.string.bonus_subtitle_phone,
-                        onAdd = { viewModel.addPhoneBonus(it) },
-                        onClear = { viewModel.clearPhoneBonus() },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                GlassCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        val days = DayOfWeek.entries
-                        days.forEachIndexed { index, day ->
-                            DayRow(
-                                day = day,
-                                minutes = limits.limitFor(day),
-                                isToday = day == today,
-                                onClick = { editingDay = day }
-                            )
-                            if (index < days.lastIndex) HorizontalDivider()
-                        }
+            }
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    val days = DayOfWeek.entries
+                    days.forEachIndexed { index, day ->
+                        DayRow(
+                            day = day,
+                            minutes = limits.limitFor(day),
+                            isToday = day == today,
+                            onClick = { editingDay = day }
+                        )
+                        if (index < days.lastIndex) HorizontalDivider()
                     }
                 }
             }

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -50,7 +51,14 @@ fun GlassToggle(
     height: Dp = 28.dp,
     thumbSize: Dp = 22.dp,
     accentColor: Color = MaterialTheme.colorScheme.primary,
-    trackColorInactive: Color = Color.White.copy(alpha = 0.1f)
+    // Дефолт зависит от темы: белая дорожка с alpha 0.1 (задумывалась для тёмного GlassCard)
+    // почти не видна на светлой GlassCard (фон rgba(220,234,239,0.9)) — выключенный тоггл выглядит
+    // как отсутствующий переключатель. В светлой теме используем приглушённый тёмный оттенок.
+    trackColorInactive: Color = if (isSystemInDarkTheme()) {
+        Color.White.copy(alpha = 0.15f)
+    } else {
+        Color(0xFF2E6B7E).copy(alpha = 0.22f)
+    }
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
