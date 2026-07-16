@@ -1,6 +1,7 @@
 package ru.homelab.kidguard.feature.parent.children
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,8 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,10 +47,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -310,49 +317,67 @@ private fun ChildActionsSheet(
                 Text(child.name, style = MaterialTheme.typography.titleLarge)
             }
             if (!child.paired) {
-                OutlinedButton(
+                ActionButton(
+                    icon = ImageVector.vectorResource(R.drawable.ic_link),
+                    label = stringResource(R.string.child_code_get),
                     onClick = onShowCode,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
-                ) {
-                    Text(stringResource(R.string.child_code_get))
-                }
+                    modifier = Modifier.padding(top = 16.dp)
+                )
             }
-            OutlinedButton(
+            ActionButton(
+                icon = ImageVector.vectorResource(R.drawable.ic_person_add),
+                label = stringResource(R.string.child_coparent),
                 onClick = onInviteCoParent,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-            ) {
-                Text(stringResource(R.string.child_coparent))
-            }
+                modifier = Modifier.padding(top = 12.dp)
+            )
             if (child.paired) {
                 // На случай переустановки приложения на телефоне ребёнка (или сброса
                 // устройства) — новый код привязки погашает прежний, но НЕ трогает исходную
                 // дату привязки и не затирает правила/статистику (см. pairingService.pairDevice
                 // на сервере), поэтому пересоздавать ребёнка вручную не нужно.
-                OutlinedButton(
+                ActionButton(
+                    icon = Icons.Filled.Refresh,
+                    label = stringResource(R.string.child_code_new),
                     onClick = onShowCode,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                ) {
-                    Text(stringResource(R.string.child_code_new))
-                }
+                    modifier = Modifier.padding(top = 12.dp)
+                )
             }
-            OutlinedButton(
+            ActionButton(
+                icon = Icons.Filled.Edit,
+                label = stringResource(R.string.child_edit),
                 onClick = onEdit,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-            ) {
-                Text(stringResource(R.string.child_edit))
-            }
-            OutlinedButton(
+                modifier = Modifier.padding(top = 12.dp)
+            )
+            ActionButton(
+                icon = Icons.Filled.Delete,
+                label = stringResource(R.string.child_delete),
                 onClick = onDelete,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp)
-            ) {
-                Text(stringResource(R.string.child_delete))
-            }
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)
+            )
         }
+    }
+}
+
+/** Кнопка действия в листе [ChildActionsSheet] — иконка + подпись, для наглядности и различимости. */
+@Composable
+private fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    border: BorderStroke = ButtonDefaults.outlinedButtonBorder(enabled = true)
+) {
+    OutlinedButton(
+        onClick = onClick,
+        colors = colors,
+        border = border,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Text(text = label, modifier = Modifier.padding(start = 10.dp))
     }
 }
 
