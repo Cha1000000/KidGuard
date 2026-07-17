@@ -5,9 +5,11 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
+import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.platform.apps.PlatformInstalledAppsSource
 import ru.homelab.kidguard.platform.permissions.PlatformDeviceHealthSource
+import ru.homelab.kidguard.platform.time.PlatformElapsedTimeSource
 import javax.inject.Singleton
 
 /** Бинды platform-реализаций доменных интерфейсов (системные интеграции). */
@@ -22,4 +24,8 @@ abstract class PlatformModule {
     @Binds
     @Singleton
     abstract fun bindDeviceHealthSource(impl: PlatformDeviceHealthSource): DeviceHealthSource
+
+    @Binds
+    @Singleton
+    abstract fun bindElapsedTimeSource(impl: PlatformElapsedTimeSource): ElapsedTimeSource
 }

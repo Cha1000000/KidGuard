@@ -8,6 +8,7 @@ import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
+import ru.homelab.kidguard.core.domain.repository.PinAttemptsStore
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
@@ -16,6 +17,7 @@ import ru.homelab.kidguard.data.auth.AuthRepositoryImpl
 import ru.homelab.kidguard.data.bonus.BonusRepositoryImpl
 import ru.homelab.kidguard.data.children.ChildRepositoryImpl
 import ru.homelab.kidguard.data.date.CurrentDateProviderImpl
+import ru.homelab.kidguard.data.pin.PinAttemptsStoreImpl
 import ru.homelab.kidguard.data.policy.PolicyRepositoryImpl
 import ru.homelab.kidguard.data.settings.SettingsRepositoryImpl
 import ru.homelab.kidguard.data.sync.SyncRepositoryImpl
@@ -57,4 +59,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPinAttemptsStore(impl: PinAttemptsStoreImpl): PinAttemptsStore
 }
