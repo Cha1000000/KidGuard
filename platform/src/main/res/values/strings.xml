@@ -32,6 +32,7 @@
     <string name="pin_overlay_title">Введите PIN</string>
     <string name="pin_overlay_subtitle">Эту настройку защитил родитель</string>
     <string name="pin_overlay_wrong">Неверный PIN</string>
+    <string name="pin_overlay_blocked">Слишком много попыток. Повторите через %1$d с</string>
     <string name="pin_overlay_back">Назад</string>
     <string name="pin_overlay_backspace_glyph">⌫</string>
 

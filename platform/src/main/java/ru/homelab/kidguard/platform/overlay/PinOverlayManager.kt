@@ -19,6 +19,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.R
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,10 +29,11 @@ import javax.inject.Singleton
  * экранов (веха 6, шаг 6.2) — VPN-настройки и удаление именно KidGuard. По образцу
  * [OverlayManager]: программный View поверх WindowManager, перехватывает все касания под собой.
  *
- * Сам [PinOverlayManager] ничего не знает про политику/хеш PIN — только рисует клавиатуру и
- * зовёт переданную [проверку][show]. Кто решает, когда показывать оверлей, и что такое «верный
- * PIN» — [ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService] (там же
- * PolicyRepository и PinHasher). Так UI-код не тянет за собой доменные зависимости.
+ * Сам [PinOverlayManager] ничего не знает про политику/хеш PIN и защиту от перебора — только
+ * рисует клавиатуру и зовёт переданную [проверку][show]. Кто решает, когда показывать оверлей,
+ * и что такое «верный PIN» — [ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService]
+ * (там же общий [ru.homelab.kidguard.core.domain.security.PinGuard]). Так UI-код не тянет за
+ * собой доменные зависимости.
  */
 @Singleton
 class PinOverlayManager @Inject constructor(
@@ -63,14 +65,14 @@ class PinOverlayManager @Inject constructor(
     /**
      * Показать PIN-оверлей (idempotent — повторный вызов, пока уже показан, ничего не делает).
      *
-     * @param verifyPin проверка введённых 4 цифр (сравнение с hash+salt); суспенд-функция,
-     *   считается вне главного потока.
+     * @param verifyPin проверка введённых 4 цифр через [ru.homelab.kidguard.core.domain.security.PinGuard]
+     *   (хеш + защита от перебора); суспенд-функция, считается вне главного потока.
      * @param onUnlocked вызывается после верного PIN — оверлей уже скрыт к этому моменту.
      * @param onCancel вызывается по ссылке «Назад» — оверлей уже скрыт к этому моменту;
      *   вызывающая сторона решает, как увести с защищённого экрана (например, GLOBAL_ACTION_BACK).
      */
     fun show(
-        verifyPin: suspend (String) -> Boolean,
+        verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
         onCancel: () -> Unit
     ) = mainHandler.post {
@@ -106,7 +108,7 @@ class PinOverlayManager @Inject constructor(
     }
 
     private fun createOverlayView(
-        verifyPin: suspend (String) -> Boolean,
+        verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
         onCancel: () -> Unit
     ): View {
@@ -162,16 +164,30 @@ class PinOverlayManager @Inject constructor(
 
             val pin = enteredDigits.toString()
             verifyJob = verifyScope.launch {
-                val correct = verifyPin(pin)
+                val result = verifyPin(pin)
                 withContext(Dispatchers.Main) {
-                    if (correct) {
-                        dismiss(container)
-                        onUnlocked()
-                    } else {
-                        enteredDigits.clear()
-                        updateDots(dots, filledCount = PIN_LENGTH, isError = true)
-                        subtitle.text = context.getString(R.string.pin_overlay_wrong)
-                        subtitle.setTextColor(Color.parseColor(ERROR_COLOR))
+                    when (result) {
+                        // PIN не задан родителем сюда не доходит: сервис не показывает оверлей
+                        // без PIN (см. maybeInterceptWithPin), но NoPinSet трактуем как проход.
+                        is PinVerifyResult.Success, is PinVerifyResult.NoPinSet -> {
+                            dismiss(container)
+                            onUnlocked()
+                        }
+                        is PinVerifyResult.Wrong -> {
+                            enteredDigits.clear()
+                            updateDots(dots, filledCount = PIN_LENGTH, isError = true)
+                            subtitle.text = context.getString(R.string.pin_overlay_wrong)
+                            subtitle.setTextColor(Color.parseColor(ERROR_COLOR))
+                        }
+                        is PinVerifyResult.Blocked -> {
+                            enteredDigits.clear()
+                            updateDots(dots, filledCount = PIN_LENGTH, isError = true)
+                            subtitle.text = context.getString(
+                                R.string.pin_overlay_blocked,
+                                result.secondsLeft
+                            )
+                            subtitle.setTextColor(Color.parseColor(ERROR_COLOR))
+                        }
                     }
                 }
             }

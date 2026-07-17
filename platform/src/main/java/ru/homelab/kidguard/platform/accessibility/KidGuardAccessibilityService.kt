@@ -18,7 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.security.PinHasher
+import ru.homelab.kidguard.core.domain.security.PinGuard
+import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
 import timber.log.Timber
 import javax.inject.Inject
@@ -52,6 +53,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var pinOverlayManager: PinOverlayManager
+
+    @Inject
+    lateinit var pinGuard: PinGuard
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -169,11 +173,8 @@ class KidGuardAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** Сырой PIN никуда не хранится — только сравнение введённого с hash+salt из политики. */
-    private suspend fun verifyPin(entered: String): Boolean {
-        val protection = policyRepository.pinProtection.first() ?: return false
-        return PinHasher.verify(entered, protection.salt, protection.hash)
-    }
+    /** Сырой PIN никуда не хранится. Проверка и счётчик попыток — в общем [PinGuard]. */
+    private suspend fun verifyPin(entered: String): PinVerifyResult = pinGuard.verify(entered)
 
     /**
      * Заголовок текущего экрана из НАДЁЖНОГО источника — `title` окна, к которому относится
