@@ -93,6 +93,10 @@ sealed interface PinVerifyResult {
 обнуляется, сохранённый момент оказывается далеко в будущем, и устройство
 запирается навсегда. Поэтому — только в памяти.
 
+Время берётся через интерфейс `ElapsedTimeSource` (по образцу существующего
+`CurrentDateProvider`): `SystemClock` недоступен в юнит-тестах `:core` — там чистый
+JUnit без Robolectric. Реализация `PlatformElapsedTimeSource` — в `:platform`.
+
 ### Устойчивость к обходу
 
 * **force-stop** — уже перекрыт вехой 6.2: чтобы его сделать, надо зайти в «О
@@ -215,7 +219,9 @@ composable(Destinations.CHILD_PERMISSIONS) {
 | `core/domain/security/PinGuard.kt` | Проверка PIN + throttle, единая точка |
 | `core/domain/security/PinVerifyResult.kt` | Результат проверки |
 | `core/domain/repository/PinAttemptsStore.kt` | Интерфейс счётчика |
-| `data/pin/PinAttemptsStoreImpl.kt` | DataStore-реализация |
+| `core/domain/repository/ElapsedTimeSource.kt` | Интерфейс монотонного времени |
+| `data/pin/PinAttemptsStoreImpl.kt` | DataStore-реализация счётчика |
+| `platform/time/PlatformElapsedTimeSource.kt` | `SystemClock.elapsedRealtime` |
 | `feature/child/permissions/ChildPinScreen.kt` | Экран ввода PIN |
 | `feature/child/permissions/ChildPinViewModel.kt` | Состояние экрана |
 | `core/src/test/.../PinGuardTest.kt` | Юнит-тесты |
