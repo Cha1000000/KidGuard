@@ -172,6 +172,7 @@
     <string name="permissions_grant">Выдать</string>
     <string name="permissions_granted">Выдано</string>
     <string name="permissions_continue">Продолжить</string>
+    <string name="permissions_done">Готово</string>
     <string name="permission_accessibility_title">Специальные возможности</string>
     <string name="permission_accessibility_desc">Определяет активное приложение и блокирует нежелательные.</string>
     <string name="permission_overlay_title">Поверх других приложений</string>

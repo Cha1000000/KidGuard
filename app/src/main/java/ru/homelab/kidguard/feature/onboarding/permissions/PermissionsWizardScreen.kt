@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.descRes
@@ -44,6 +45,8 @@ import ru.homelab.kidguard.core.ui.components.titleRes
 fun PermissionsWizardScreen(
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    finishLabelRes: Int = R.string.permissions_continue,
     viewModel: PermissionsViewModel = hiltViewModel()
 ) {
     val statuses by viewModel.statuses.collectAsStateWithLifecycle()
@@ -59,47 +62,66 @@ fun PermissionsWizardScreen(
     }
 
     GlassBackground(modifier = modifier) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text(
-                    text = stringResource(R.string.permissions_title),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Text(
-                    text = stringResource(R.string.permissions_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
+        Column(modifier = Modifier.fillMaxSize()) {
+            // «Назад» есть только при входе из детского меню: в онбординге возвращаться некуда.
+            if (onBack != null) {
+                CompactTopBar(
+                    title = stringResource(R.string.permissions_title),
+                    onBack = onBack
                 )
             }
-            items(DevicePermission.entries) { permission ->
-                PermissionRow(
-                    permission = permission,
-                    granted = statuses[permission] == true,
-                    onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
-                )
-            }
-            item {
-                AutostartCard(
-                    onOpenSettings = { launcher.launch(viewModel.autostartIntent()) }
-                )
-            }
-            item {
-                AlwaysOnVpnCard(
-                    onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
-                )
-            }
-            item {
-                Button(
-                    onClick = onFinished,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.permissions_continue))
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Заголовок в шапке уже есть — в списке он был бы вторым.
+                if (onBack == null) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.permissions_title),
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(
+                            text = stringResource(R.string.permissions_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                } else {
+                    item {
+                        Text(
+                            text = stringResource(R.string.permissions_subtitle),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+                items(DevicePermission.entries) { permission ->
+                    PermissionRow(
+                        permission = permission,
+                        granted = statuses[permission] == true,
+                        onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
+                    )
+                }
+                item {
+                    AutostartCard(
+                        onOpenSettings = { launcher.launch(viewModel.autostartIntent()) }
+                    )
+                }
+                item {
+                    AlwaysOnVpnCard(
+                        onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
+                    )
+                }
+                item {
+                    Button(
+                        onClick = onFinished,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(finishLabelRes))
+                    }
                 }
             }
         }
