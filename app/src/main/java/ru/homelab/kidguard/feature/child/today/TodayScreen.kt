@@ -20,8 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,6 +61,7 @@ import ru.homelab.kidguard.core.ui.components.NeonProgress
  */
 @Composable
 fun TodayScreen(
+    onOpenPermissions: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel()
 ) {
@@ -88,7 +93,8 @@ fun TodayScreen(
             GreetingRow(
                 name = ui.childName,
                 avatar = ui.childAvatar,
-                onAvatarClick = { showAvatarPicker = true }
+                onAvatarClick = { showAvatarPicker = true },
+                onOpenPermissions = onOpenPermissions
             )
 
             when (val time = ui.time) {
@@ -121,9 +127,14 @@ fun TodayScreen(
 }
 
 @Composable
-private fun GreetingRow(name: String, avatar: Int, onAvatarClick: () -> Unit) {
+private fun GreetingRow(
+    name: String,
+    avatar: Int,
+    onAvatarClick: () -> Unit,
+    onOpenPermissions: () -> Unit
+) {
     Row(
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp),
+        modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -136,7 +147,7 @@ private fun GreetingRow(name: String, avatar: Int, onAvatarClick: () -> Unit) {
                 .clip(CircleShape)
                 .clickable(onClickLabel = stringResource(R.string.child_avatar_edit_cd), onClick = onAvatarClick)
         )
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.child_greeting_hello),
                 style = MaterialTheme.typography.bodyMedium,
@@ -150,6 +161,31 @@ private fun GreetingRow(name: String, avatar: Int, onAvatarClick: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        ChildMenu(onOpenPermissions = onOpenPermissions)
+    }
+}
+
+/** Меню детского режима. Пункты ведут под родительский PIN — сами по себе ничего не открывают. */
+@Composable
+private fun ChildMenu(onOpenPermissions: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.child_menu_open_cd),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.child_menu_permissions)) },
+                onClick = {
+                    expanded = false
+                    onOpenPermissions()
+                }
             )
         }
     }

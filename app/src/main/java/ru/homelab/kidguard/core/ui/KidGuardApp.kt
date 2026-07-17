@@ -13,10 +13,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Role
 import ru.homelab.kidguard.core.ui.navigation.Destinations
 import ru.homelab.kidguard.feature.auth.SignInScreen
 import ru.homelab.kidguard.feature.child.ChildScreen
+import ru.homelab.kidguard.feature.child.permissions.ChildPinScreen
 import ru.homelab.kidguard.feature.onboarding.OnboardingScreen
 import ru.homelab.kidguard.feature.onboarding.permissions.PermissionsWizardScreen
 import ru.homelab.kidguard.feature.pairing.PairingScreen
@@ -98,7 +100,33 @@ fun KidGuardApp(
                     )
                 }
                 composable(Destinations.PARENT) { ParentScreen() }
-                composable(Destinations.CHILD) { ChildScreen() }
+                composable(Destinations.CHILD) {
+                    ChildScreen(
+                        onOpenPermissions = { navController.navigate(Destinations.CHILD_PIN) }
+                    )
+                }
+                composable(Destinations.CHILD_PIN) {
+                    ChildPinScreen(
+                        onBack = { navController.popBackStack() },
+                        onUnlocked = {
+                            // PIN-экран убираем из стека сразу: иначе «Назад» из мастера
+                            // вернул бы на ввод PIN, что выглядит как баг.
+                            navController.navigate(Destinations.CHILD_PERMISSIONS) {
+                                popUpTo(Destinations.CHILD_PIN) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+                composable(Destinations.CHILD_PERMISSIONS) {
+                    // onFinished здесь — popBackStack, а НЕ navigate(CHILD): CHILD уже лежит в
+                    // стеке снизу, и navigate создал бы его второй экземпляр (в отличие от
+                    // маршрута PERMISSIONS, куда попадают из онбординга с пустым стеком).
+                    PermissionsWizardScreen(
+                        onFinished = { navController.popBackStack() },
+                        onBack = { navController.popBackStack() },
+                        finishLabelRes = R.string.permissions_done
+                    )
+                }
             }
         }
     }

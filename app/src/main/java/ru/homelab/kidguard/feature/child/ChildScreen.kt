@@ -12,10 +12,13 @@ import ru.homelab.kidguard.platform.foreground.KidGuardForegroundService
  * главный экран «Сегодня» (веха 4.1.3).
  */
 @Composable
-fun ChildScreen(modifier: Modifier = Modifier) {
+fun ChildScreen(
+    onOpenPermissions: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         KidGuardForegroundService.start(context)
     }
-    TodayScreen(modifier = modifier)
+    TodayScreen(onOpenPermissions = onOpenPermissions, modifier = modifier)
 }
