@@ -1,14 +1,15 @@
 package ru.homelab.kidguard.platform.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.core.net.toUri
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,9 +21,12 @@ import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
+import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.MAX_TREE_DEPTH
+import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.UNLOCK_WINDOW_MS
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Accessibility-сервис KidGuard.
@@ -43,6 +47,7 @@ import javax.inject.Inject
  * Найденный экран накрываем PIN-оверлеем типа `TYPE_ACCESSIBILITY_OVERLAY` (обычный оверлей на этих
  * защищённых экранах система скрывает). Верный PIN пропускает на короткое окно, «Назад» уводит.
  */
+@SuppressLint("AccessibilityPolicy")
 @AndroidEntryPoint
 class KidGuardAccessibilityService : AccessibilityService() {
 
@@ -85,7 +90,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private val installerPackages: Set<String> by lazy {
         val uninstallIntent = Intent(
             Intent.ACTION_DELETE,
-            Uri.parse("package:${applicationContext.packageName}")
+            "package:${applicationContext.packageName}".toUri()
         )
         (resolvePackageFor(uninstallIntent) + AOSP_INSTALLER_PACKAGES)
             .also { Timber.tag(TAG).d("Пакеты инсталлера: %s", it) }
@@ -253,7 +258,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
                 CriticalScreen.KIDGUARD_APP_INFO
 
             // Экран «Дата и время»: закрываем ЦЕЛИКОМ (как VPN/Accessibility), а не только
-            // переключатель «Автоматически» — детект по конкретному Switch внутри дерева окна
+            // переключатель «Автоматически» — детект по-конкретному Switch внутри дерева окна
             // сложнее и менее переносим между прошивками, тот же компромисс уже принят для
             // остальных системных экранов. Смена часового пояса без PIN — не проблема, в детском
             // сценарии не нужна.
@@ -275,7 +280,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private suspend fun awaitOwnAppScreen(): Boolean {
         repeat(CONTENT_POLL_ATTEMPTS) {
             if (windowMentionsOwnApp()) return true
-            delay(CONTENT_POLL_DELAY_MS)
+            delay(CONTENT_POLL_DELAY_MS.milliseconds)
         }
         return false
     }
