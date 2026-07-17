@@ -216,32 +216,31 @@ class KidGuardAccessibilityService : AccessibilityService() {
      */
     private fun detectCriticalScreen(packageName: String, title: String): CriticalScreen? {
         if (title.isBlank()) return null
-        return when {
-            packageName in settingsPackages && VPN_KEYWORDS.any { title.contains(it) } ->
+        return when (packageName) {
+            in settingsPackages if VPN_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.VPN_SETTINGS
 
-            packageName in settingsPackages && ACCESSIBILITY_KEYWORDS.any { title.contains(it) } ->
+            in settingsPackages if ACCESSIBILITY_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.ACCESSIBILITY_SETTINGS
 
             // Экран администратора устройства (веха 6.3): деактивация Device Admin снимает
             // системную защиту от удаления — под PIN. Заголовок стабилен кросс-вендорно.
-            packageName in settingsPackages && DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
+            in settingsPackages if DEVICE_ADMIN_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DEVICE_ADMIN
 
             // Диалог-подтверждение деактивации Device Admin (Android показывает перед
             // «Активировать приложение администратора?»). Заголовок НЕ содержит «администратор» —
             // содержит текст вида «Отключение защитит телефон от KidGuard-контроля. Для отключения
             // нужен родительский PIN». Ловим по «kidguard» в заголовке + «отключ» или «disable».
-            packageName in settingsPackages &&
-                title.contains("kidguard") &&
-                DEACTIVATION_DIALOG_KEYWORDS.any { title.contains(it) } ->
+            in settingsPackages if title.contains("kidguard") &&
+                    DEACTIVATION_DIALOG_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DEVICE_ADMIN
 
             // Удаление приложения: окно пакет-инсталлера с названием ИМЕННО нашего приложения
             // (другие приложения ребёнок удаляет свободно — «чистит мусор»). Название берём у
             // системы, чтобы не хардкодить строку и не путать с приложениями, где «kidguard» —
             // лишь часть текста: сравниваем по точному label в заголовке диалога удаления.
-            packageName in installerPackages && title.contains(ownAppLabel().lowercase()) ->
+            in installerPackages if title.contains(ownAppLabel().lowercase()) ->
                 CriticalScreen.KIDGUARD_UNINSTALL
 
             // «О приложении» / «Хранилище» ИМЕННО нашего приложения. Оттуда доступны три способа
@@ -254,7 +253,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
             // чужие приложения, а по концепции он их «чистит» свободно. Хуже: у экрана хранилища
             // УСТРОЙСТВА заголовок тоже «хранилище». Поэтому здесь — только КАНДИДАТ; чей это
             // экран, решает [awaitOwnAppScreen] по содержимому окна (см. maybeInterceptWithPin).
-            packageName in settingsPackages && APP_DETAILS_KEYWORDS.any { title.contains(it) } ->
+            //
+            // Вторая половина условия — HiOS (снято с реального Tecno KL6, 2026-07-18): там
+            // заголовок экрана «О приложении» — НЕ «о приложении», а label самого приложения
+            // («KidGuard»). Без этого условия экран проскакивал без PIN вместе со своими
+            // «Удалить»/«Остановить»/«Очистить». Двухфакторность сохраняется: label в заголовке —
+            // тоже лишь кандидат, окончательно решает awaitOwnAppScreen.
+            in settingsPackages if (APP_DETAILS_KEYWORDS.any { title.contains(it) } ||
+                    title.contains(ownAppLabel().lowercase())) ->
                 CriticalScreen.KIDGUARD_APP_INFO
 
             // Экран «Дата и время»: закрываем ЦЕЛИКОМ (как VPN/Accessibility), а не только
@@ -262,7 +268,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
             // сложнее и менее переносим между прошивками, тот же компромисс уже принят для
             // остальных системных экранов. Смена часового пояса без PIN — не проблема, в детском
             // сценарии не нужна.
-            packageName in settingsPackages && DATE_TIME_KEYWORDS.any { title.contains(it) } ->
+            in settingsPackages if DATE_TIME_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DATE_TIME_SETTINGS
 
             else -> null
@@ -362,8 +368,12 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // Ключевые слова в заголовке окна (нижний регистр). Русский — основной язык устройств
         // ребёнка; английский — на случай другой локали. Кросс-вендорно стабильны.
         val VPN_KEYWORDS = listOf("vpn")
+        // «доступность» — заголовок этого экрана на HiOS (снят с реального Tecno KL6, 2026-07-18):
+        // Transsion переводит Accessibility иначе, чем AOSP, и без этого ключа экран проскакивал
+        // без PIN — ребёнок мог выключить сам сервис.
         val ACCESSIBILITY_KEYWORDS = listOf(
-            "специальные возможности", "спец. возможности", "спец возможности", "accessibility"
+            "специальные возможности", "спец. возможности", "спец возможности",
+            "доступность", "accessibility"
         )
         // Экран Device Admin в разных прошивках и падежах называется по-разному:
         // «Администратор устройства», «Приложение администратор‑А устройства» (детальный экран,
@@ -381,10 +391,11 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // Требуется ОДНОВРЕМЕННО «kidguard» в заголовке (проверяется отдельно).
         val DEACTIVATION_DIALOG_KEYWORDS = listOf("отключ", "disable")
         // Экраны «О приложении» и «Хранилище» (заголовки сняты с эмулятора: «о приложении»,
-        // «хранилище»). Работают ТОЛЬКО в паре с [windowMentionsOwnApp] — сами по себе эти
-        // заголовки одинаковы у всех приложений и у хранилища устройства.
+        // «хранилище»; с реального Tecno KL6/HiOS: «память» — так там называется экран хранилища
+        // приложения). Работают ТОЛЬКО в паре с [windowMentionsOwnApp] — сами по себе эти
+        // заголовки одинаковы у всех приложений и у хранилища/памяти устройства.
         val APP_DETAILS_KEYWORDS = listOf(
-            "о приложении", "сведения о приложении", "app info", "хранилище", "storage"
+            "о приложении", "сведения о приложении", "app info", "хранилище", "память", "storage"
         )
         // Экран «Дата и время» (веха 6В): перевод часов ВПЕРЁД ничем не закрыт (анти-отмотка,
         // веха 2, защищает только от отката НАЗАД) — так ребёнок мог искусственно ускорить
