@@ -208,7 +208,6 @@ class SyncRepositoryImpl @Inject constructor(
             DeviceHealthRequest(
                 DeviceHealthDto(
                     accessibility = health.accessibility,
-                    usageAccess = health.usageAccess,
                     overlay = health.overlay,
                     deviceAdmin = health.deviceAdmin,
                     vpn = health.vpn,

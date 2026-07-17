@@ -109,7 +109,6 @@ class ChildRepositoryImpl @Inject constructor(
 
     private fun DeviceHealthDto.toDomain() = DeviceHealth(
         accessibility = accessibility,
-        usageAccess = usageAccess,
         overlay = overlay,
         deviceAdmin = deviceAdmin,
         vpn = vpn,

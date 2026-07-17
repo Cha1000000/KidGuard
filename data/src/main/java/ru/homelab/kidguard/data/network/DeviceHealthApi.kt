@@ -12,7 +12,6 @@ import retrofit2.http.POST
 @Serializable
 data class DeviceHealthDto(
     val accessibility: Boolean,
-    val usageAccess: Boolean,
     val overlay: Boolean,
     val deviceAdmin: Boolean,
     val vpn: Boolean,

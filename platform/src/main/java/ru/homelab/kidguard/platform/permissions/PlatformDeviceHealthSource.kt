@@ -21,7 +21,6 @@ class PlatformDeviceHealthSource @Inject constructor(
 
     override fun current(): DeviceHealth = DeviceHealth(
         accessibility = permissionsManager.isGranted(DevicePermission.ACCESSIBILITY),
-        usageAccess = permissionsManager.isGranted(DevicePermission.USAGE_ACCESS),
         overlay = permissionsManager.isGranted(DevicePermission.OVERLAY),
         deviceAdmin = permissionsManager.isGranted(DevicePermission.DEVICE_ADMIN),
         vpn = permissionsManager.isGranted(DevicePermission.VPN),

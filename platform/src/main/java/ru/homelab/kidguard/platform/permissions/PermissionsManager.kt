@@ -1,7 +1,6 @@
 package ru.homelab.kidguard.platform.permissions
 
 import android.annotation.SuppressLint
-import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -10,7 +9,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.VpnService
 import android.os.PowerManager
-import android.os.Process
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,7 +29,6 @@ class PermissionsManager @Inject constructor(
 
     /** Выдано ли разрешение сейчас. */
     fun isGranted(permission: DevicePermission): Boolean = when (permission) {
-        DevicePermission.USAGE_ACCESS -> isUsageAccessGranted()
         DevicePermission.ACCESSIBILITY -> isAccessibilityEnabled()
         DevicePermission.OVERLAY -> Settings.canDrawOverlays(context)
         DevicePermission.DEVICE_ADMIN -> isDeviceAdminActive()
@@ -49,9 +46,6 @@ class PermissionsManager @Inject constructor(
      */
     @SuppressLint("BatteryLife")
     fun grantIntent(permission: DevicePermission): Intent? = when (permission) {
-        DevicePermission.USAGE_ACCESS ->
-            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-
         DevicePermission.ACCESSIBILITY ->
             Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
 
@@ -94,19 +88,6 @@ class PermissionsManager @Inject constructor(
             .map { Intent().setComponent(it) }
             .firstOrNull { context.packageManager.resolveActivity(it, 0) != null }
             ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri())
-
-    // unsafeCheckOpNoThrow помечен deprecated, но остаётся штатным способом проверки Usage
-    // Access — не-deprecated альтернативы для этой проверки нет.
-    @Suppress("DEPRECATION")
-    private fun isUsageAccessGranted(): Boolean {
-        val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false
-        val mode = appOps.unsafeCheckOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(),
-            context.packageName
-        )
-        return mode == AppOpsManager.MODE_ALLOWED
-    }
 
     private fun isAccessibilityEnabled(): Boolean {
         val expected = ComponentName(context, KidGuardAccessibilityService::class.java)

@@ -12,7 +12,6 @@ import ru.homelab.kidguard.core.domain.model.DevicePermission
 /** Название разрешения. */
 @StringRes
 fun DevicePermission.titleRes(): Int = when (this) {
-    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_title
     DevicePermission.ACCESSIBILITY -> R.string.permission_accessibility_title
     DevicePermission.OVERLAY -> R.string.permission_overlay_title
     DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_title
@@ -24,7 +23,6 @@ fun DevicePermission.titleRes(): Int = when (this) {
 /** Зачем разрешение нужно — формулировка для мастера, ДО выдачи. */
 @StringRes
 fun DevicePermission.descRes(): Int = when (this) {
-    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_desc
     DevicePermission.ACCESSIBILITY -> R.string.permission_accessibility_desc
     DevicePermission.OVERLAY -> R.string.permission_overlay_desc
     DevicePermission.DEVICE_ADMIN -> R.string.permission_device_admin_desc
@@ -40,7 +38,6 @@ fun DevicePermission.descRes(): Int = when (this) {
  */
 @StringRes
 fun DevicePermission.healthImpactRes(): Int = when (this) {
-    DevicePermission.USAGE_ACCESS -> R.string.health_impact_usage
     DevicePermission.ACCESSIBILITY -> R.string.health_impact_accessibility
     DevicePermission.OVERLAY -> R.string.health_impact_overlay
     DevicePermission.DEVICE_ADMIN -> R.string.health_impact_device_admin

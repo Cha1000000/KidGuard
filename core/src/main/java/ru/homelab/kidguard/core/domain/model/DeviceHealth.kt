@@ -17,8 +17,6 @@ package ru.homelab.kidguard.core.domain.model
 data class DeviceHealth(
     /** Без него не определяется активное приложение: не идёт учёт времени, не работают блокировки. */
     val accessibility: Boolean,
-    /** Без него нет пер-app статистики. */
-    val usageAccess: Boolean,
     /** Без него нельзя показать оверлей блокировки. */
     val overlay: Boolean,
     /** Без него приложение можно удалить. */
@@ -41,7 +39,6 @@ data class DeviceHealth(
      * менее заметен — это не поломка.
      */
     fun brokenPermissions(): List<DevicePermission> = buildList {
-        if (!usageAccess) add(DevicePermission.USAGE_ACCESS)
         if (!accessibility) add(DevicePermission.ACCESSIBILITY)
         if (!overlay) add(DevicePermission.OVERLAY)
         if (!deviceAdmin) add(DevicePermission.DEVICE_ADMIN)

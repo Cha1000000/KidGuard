@@ -17,7 +17,6 @@ class ChildHealthTest {
 
     private val healthy = DeviceHealth(
         accessibility = true,
-        usageAccess = true,
         overlay = true,
         deviceAdmin = true,
         vpn = true,
@@ -44,10 +43,9 @@ class ChildHealthTest {
     }
 
     @Test
-    fun `любое из шести разрешений делает контроль сломанным`() {
+    fun `любое из пяти разрешений делает контроль сломанным`() {
         val variants = listOf(
             healthy.copy(accessibility = false),
-            healthy.copy(usageAccess = false),
             healthy.copy(overlay = false),
             healthy.copy(deviceAdmin = false),
             healthy.copy(vpn = false),
@@ -91,12 +89,11 @@ class ChildHealthTest {
     @Test
     fun `brokenPermissions — порядок как в мастере разрешений, чинить сверху вниз`() {
         val all = DeviceHealth(
-            accessibility = false, usageAccess = false, overlay = false,
+            accessibility = false, overlay = false,
             deviceAdmin = false, vpn = false, batteryOptimization = false
         )
         assertEquals(
             listOf(
-                DevicePermission.USAGE_ACCESS,
                 DevicePermission.ACCESSIBILITY,
                 DevicePermission.OVERLAY,
                 DevicePermission.DEVICE_ADMIN,

@@ -5,9 +5,6 @@ package ru.homelab.kidguard.core.domain.model
  * Порядок объявления = порядок шагов в мастере первичной настройки.
  */
 enum class DevicePermission {
-    /** Доступ к статистике использования (учёт экранного времени по приложениям). */
-    USAGE_ACCESS,
-
     /** Accessibility-сервис (детект активного приложения, оверлей-блокировка). */
     ACCESSIBILITY,
 
