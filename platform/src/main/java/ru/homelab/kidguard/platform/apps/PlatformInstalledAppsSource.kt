@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Base64
@@ -45,6 +46,59 @@ class PlatformInstalledAppsSource @Inject constructor(
             .sortedBy { it.label.lowercase() }
     }
 
+    override suspend fun publishableApps(usedPackages: Set<String>): List<AppInfo> = withContext(Dispatchers.IO) {
+        val pm = context.packageManager
+        val risky = resolveRiskyPackages()
+
+        // Запускаемые (как раньше) + флаги.
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launchable = pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
+            .distinctBy { it.activityInfo.packageName }
+            .map { ri ->
+                val pkg = ri.activityInfo.packageName
+                AppInfo(
+                    packageName = pkg,
+                    label = ri.loadLabel(pm).toString(),
+                    iconBase64 = runCatching { ri.loadIcon(pm).toIconBase64() }.getOrNull(),
+                    isSystem = isSystemPackage(pkg),
+                    isRisky = pkg in risky
+                )
+            }
+
+        val launchablePkgs = launchable.mapTo(mutableSetOf()) { it.packageName }
+        // Использованные, которых нет среди запускаемых (обычно системные без launcher-иконки).
+        val extra = (usedPackages - launchablePkgs).mapNotNull { pkg ->
+            runCatching {
+                val ai = pm.getApplicationInfo(pkg, 0)
+                AppInfo(
+                    packageName = pkg,
+                    label = pm.getApplicationLabel(ai).toString(),
+                    iconBase64 = runCatching { pm.getApplicationIcon(ai).toIconBase64() }.getOrNull(),
+                    isSystem = (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    isRisky = pkg in risky
+                )
+            }.getOrNull()
+        }
+
+        (launchable + extra).sortedBy { it.label.lowercase() }
+    }
+
+    private fun isSystemPackage(pkg: String): Boolean = runCatching {
+        val ai = context.packageManager.getApplicationInfo(pkg, 0)
+        (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+    }.getOrDefault(false)
+
+    /** Критичные для устройства: сам KidGuard + дефолтный лаунчер + systemui. */
+    private fun resolveRiskyPackages(): Set<String> = buildSet {
+        add(context.packageName)
+        add(SYSTEM_UI_PACKAGE)
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        context.packageManager
+            .resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName
+            ?.let { add(it) }
+    }
+
     override suspend fun installedPackageNames(): List<String> = withContext(Dispatchers.IO) {
         currentInstalledPackageNames()
     }
@@ -81,5 +135,6 @@ class PlatformInstalledAppsSource @Inject constructor(
     private companion object {
         const val ICON_PX = 96
         const val ICON_QUALITY = 80
+        const val SYSTEM_UI_PACKAGE = "com.android.systemui"
     }
 }

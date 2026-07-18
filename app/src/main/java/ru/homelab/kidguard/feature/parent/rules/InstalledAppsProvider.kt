@@ -15,12 +15,14 @@ import javax.inject.Inject
 /**
  * Приложение с устройства ребёнка: пакет, название и иконка (для экранов белого списка и лимитов).
  * Иконки нет, только если устройство её не прислало и пакет не установлен у родителя — тогда
- * экран рисует буквенный кружок.
+ * экран рисует буквенный кружок. isSystem/isRisky — флаги с детского устройства (см. [AppInfo]).
  */
 data class InstalledApp(
     val packageName: String,
     val label: String,
-    val icon: ImageBitmap?
+    val icon: ImageBitmap?,
+    val isSystem: Boolean = false,
+    val isRisky: Boolean = false
 )
 
 /**
@@ -45,7 +47,9 @@ class ChildAppsProvider @Inject constructor(
                 InstalledApp(
                     packageName = it.packageName,
                     label = it.label,
-                    icon = decodeIcon(it.iconBase64) ?: localIcon(it.packageName)
+                    icon = decodeIcon(it.iconBase64) ?: localIcon(it.packageName),
+                    isSystem = it.isSystem,
+                    isRisky = it.isRisky
                 )
             }
             .sortedBy { it.label.lowercase() }
