@@ -1,16 +1,18 @@
-# KidGuard
+![KidGuard — родительский контроль](assets/banner.png)
 
-**KidGuard** — приложение родительского контроля для Android, написанное на Kotlin и Jetpack
-Compose. Это самостоятельная альтернатива Google Family Link, сделанная «под себя»: с точным
-учётом экранного времени и возможностью блокировать любые приложения, включая системные.
+<h1 align="center">KidGuard</h1>
 
-![Platform](https://img.shields.io/badge/Platform-Android%2013%2B-3DDC84?logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.02-4285F4?logo=jetpackcompose&logoColor=white)
-![Status](https://img.shields.io/badge/Status-in%20development-orange)
+<p align="center">
+  Приложение родительского контроля для Android — самостоятельная альтернатива Google Family Link,
+  <br>сделанная «под себя»: с точным учётом экранного времени и блокировкой любых приложений, включая системные.
+</p>
 
-> ⚠️ **Статус:** проект в активной разработке. Ниже описана целевая функциональность;
-> часть возможностей ещё реализуется. Скриншоты, иконка и превью будут добавлены позже.
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android%2013%2B-3DDC84?logo=android&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-2026.02-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
+  <img src="https://img.shields.io/badge/Status-field%20testing-brightgreen" alt="Status">
+</p>
 
 ---
 
@@ -24,7 +26,27 @@ Compose. Это самостоятельная альтернатива Google F
    глядя на экран: даже когда телефон лежит с погашенным экраном (например, играет фоновая
    музыка), разрешённое время продолжает списываться.
 
-KidGuard решает обе проблемы.
+KidGuard решает обе проблемы. Учёт списывает **только реальное экранное время** — что подтверждено
+замерами на реальном устройстве: при погашенном экране счётчик не растёт вовсе, при активном —
+секунда в секунду.
+
+## Скриншоты
+
+### 📱 На телефоне ребёнка
+
+| Сегодня | Блокировка приложения | Защита настроек PIN-ом |
+|:---:|:---:|:---:|
+| ![Детский экран «Сегодня»](assets/screenshots/child-today.png) | ![Оверлей блокировки приложения](assets/screenshots/child-blocked.png) | ![PIN-оверлей на системном экране](assets/screenshots/child-pin.png) |
+| Кольцо остатка времени и свод правил | Запрещённое приложение недоступно | Критичные системные экраны под родительским PIN |
+
+### 👨‍👩‍👧 На телефоне родителя
+
+| Дети | Правила | Статистика |
+|:---:|:---:|:---:|
+| ![Экран «Дети»](assets/screenshots/parent-children.png) | ![Экран «Правила»](assets/screenshots/parent-rules.png) | ![Экран «Статистика»](assets/screenshots/parent-stats.png) |
+| Список детей и статус контроля | Лимиты, запреты, белый список, PIN | Экранное время за сегодня и 7 дней |
+
+> Скриншоты сняты с рабочей сборки (тема — тёмная; поддерживается и светлая).
 
 ## Ключевые возможности
 
@@ -72,20 +94,27 @@ Device Owner, root, компьютера или сброса телефона к
 - **Device Admin** — защита приложения от удаления.
 - **Foreground Service** — точный подсчёт реального экранного времени.
 
-Привязка аккаунтов — через **Google Sign-In**: профиль привязывается к Google-аккаунту
-устройства, а родитель добавляет ребёнка, указав его Google-почту.
+Привязка аккаунтов — через **Google Sign-In** (родитель) и **6-значный код привязки** (ребёнок):
+родитель добавляет ребёнка и привязывает его устройство одноразовым кодом.
 
 ## Технологии
 
 - **Язык:** Kotlin
-- **UI:** Jetpack Compose, Material 3
+- **UI:** Jetpack Compose, Material 3 (кастомная glassmorphism дизайн-система, светлая/тёмная темы)
 - **Архитектура:** Clean Architecture + MVVM; многомодульная сборка (`:app` / `:core` / `:data` / `:platform`)
 - **Асинхронность:** Coroutines + Flow
 - **DI:** Hilt
 - **Локальные данные:** Room
-- **Сеть:** Retrofit + OkHttp
+- **Сеть:** Retrofit + OkHttp, WebSocket (push-обновления политики)
 - **Аутентификация:** Google Sign-In (Credential Manager)
+- **Бэкенд:** Node.js (Express) + SQLite; сервер policy-agnostic (хранит непрозрачный JSON-документ политики)
 - **Сборка:** Gradle (Kotlin DSL, version catalog); minSdk 33, target/compileSdk 36
+
+## Статус
+
+Все запланированные вехи (1–6) реализованы и влиты в `main`. Приложение прошло обкатку на
+реальном детском устройстве (Tecno Spark 30 Pro, HiOS) и находится в **полевом тестировании** —
+реальной эксплуатации в семье. Дальше — сбор обратной связи и точечные доработки.
 
 ## Сборка
 
