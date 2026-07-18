@@ -125,6 +125,8 @@ class ChildrenViewModel @Inject constructor(
                                 appLimits = emptyMap(),
                                 whitelist = emptySet(),
                                 blockedApps = emptySet(),
+                                blockedSites = emptyList(),
+                                blockGoogleSearch = false,
                                 pinHash = null,
                                 pinSalt = null
                             )

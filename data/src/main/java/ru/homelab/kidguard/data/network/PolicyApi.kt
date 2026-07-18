@@ -21,7 +21,18 @@ data class PolicyDocumentDto(
     // PIN-защита (веха 6.1): хеш + соль, сырой PIN сюда никогда не попадает. Оба null — PIN не задан.
     // Nullable с дефолтом null — обратная совместимость со старыми документами без PIN.
     val pinHash: String? = null,
-    val pinSalt: String? = null
+    val pinSalt: String? = null,
+    // Запрет сайтов (веха 4.1.2, по образцу blockedApps). Дефолты обязательны — обратная
+    // совместимость со старыми документами без этих полей.
+    val blockedSites: List<BlockedSiteDto> = emptyList(),
+    val blockGoogleSearch: Boolean = false
+)
+
+/** Запрещённый сайт (домен) в policy-документе; `enabled = true` по умолчанию. */
+@Serializable
+data class BlockedSiteDto(
+    val domain: String,
+    val enabled: Boolean = true
 )
 
 /** Бонус «Дополнительное время» за день; `packageName = ""` — бонус на весь телефон. */

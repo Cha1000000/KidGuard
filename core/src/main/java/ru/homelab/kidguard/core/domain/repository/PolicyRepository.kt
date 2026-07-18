@@ -1,8 +1,10 @@
 package ru.homelab.kidguard.core.domain.repository
 
 import kotlinx.coroutines.flow.Flow
+import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import java.time.DayOfWeek
 
 /**
@@ -23,6 +25,15 @@ interface PolicyRepository {
     /** Пакеты приложений, полностью запрещённых родителем (веха 4.1.2) — блокируются всегда. */
     val blockedApps: Flow<Set<String>>
 
+    /** Сайты (домены), запрещённые родителем, каждый со своим флагом вкл/выкл (веха 4.1.2). */
+    val blockedSites: Flow<List<BlockedSite>>
+
+    /** Отдельный тумблер «блокировать google-поиск» (не завязан на список доменов). */
+    val blockGoogleSearch: Flow<Boolean>
+
+    /** Готовые правила для DNS-фильтра: только enabled-домены из [blockedSites] + [blockGoogleSearch]. */
+    val siteBlockRules: Flow<SiteBlockRules>
+
     /** Родительский PIN (соль + хеш), защищающий критичные настройки (веха 6.1); null — PIN не задан. */
     val pinProtection: Flow<PinProtection?>
 
@@ -37,6 +48,18 @@ interface PolicyRepository {
 
     /** Добавить/убрать приложение из списка запрещённых. */
     suspend fun setBlocked(packageName: String, blocked: Boolean)
+
+    /** Добавить домен в список запрещённых сайтов (уже нормализован вызывающей стороной; enabled = true; upsert). */
+    suspend fun addBlockedSite(domain: String)
+
+    /** Включить/выключить конкретный домен без удаления из списка. */
+    suspend fun setSiteEnabled(domain: String, enabled: Boolean)
+
+    /** Убрать домен из списка запрещённых сайтов. */
+    suspend fun removeBlockedSite(domain: String)
+
+    /** Задать тумблер «блокировать google-поиск». */
+    suspend fun setBlockGoogleSearch(enabled: Boolean)
 
     /** Задать родительский PIN — хеш и соль уже посчитаны вызывающей стороной ([PinHasher][ru.homelab.kidguard.core.domain.security.PinHasher]). */
     suspend fun setPin(hash: String, salt: String)
@@ -53,6 +76,8 @@ interface PolicyRepository {
         appLimits: Map<String, Int>,
         whitelist: Set<String>,
         blockedApps: Set<String>,
+        blockedSites: List<BlockedSite>,
+        blockGoogleSearch: Boolean,
         pinHash: String?,
         pinSalt: String?
     )

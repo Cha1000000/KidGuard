@@ -19,6 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
@@ -29,6 +30,7 @@ import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthLocalStore
 import ru.homelab.kidguard.data.network.AppsApi
+import ru.homelab.kidguard.data.network.BlockedSiteDto
 import ru.homelab.kidguard.data.network.BonusEntryDto
 import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
@@ -108,10 +110,11 @@ class SyncRepositoryImpl @Inject constructor(
             }
         }
 
-        // Наблюдаем локальные правки (включая бонусы) и пушим с дебаунсом. combine эмитит и после
-        // pull-apply, но pushIfChanged сравнит со снапшотом и промолчит.
-        // combine() с типизированными флоу ограничен 5 аргументами — шестой (bonuses) добавляем
-        // отдельным combine() поверх, чтобы не переходить на нетипизированный vararg-Array вариант.
+        // Наблюдаем локальные правки (включая бонусы и сайты) и пушим с дебаунсом. combine эмитит и
+        // после pull-apply, но pushIfChanged сравнит со снапшотом и промолчит.
+        // combine() с типизированными флоу ограничен 5 аргументами — остальные (bonuses,
+        // blockedSites, blockGoogleSearch) добавляем отдельными combine() поверх, чтобы не
+        // переходить на нетипизированный vararg-Array вариант.
         combine(
             policyRepository.dailyLimits,
             policyRepository.appLimits,
@@ -120,6 +123,8 @@ class SyncRepositoryImpl @Inject constructor(
             policyRepository.pinProtection
         ) { _, _, _, _, _ -> Unit }
             .combine(bonusRepository.observeAll()) { _, _ -> Unit }
+            .combine(policyRepository.blockedSites) { _, _ -> Unit }
+            .combine(policyRepository.blockGoogleSearch) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -151,7 +156,9 @@ class SyncRepositoryImpl @Inject constructor(
             dailyLimits = emptyMap(),
             appLimits = emptyMap(),
             whitelist = emptyList(),
-            blockedApps = emptyList()
+            blockedApps = emptyList(),
+            blockedSites = emptyList(),
+            blockGoogleSearch = false
         )
         applyDocument(data)
         context.syncDataStore.edit { prefs ->
@@ -288,6 +295,8 @@ class SyncRepositoryImpl @Inject constructor(
             appLimits = data.appLimits,
             whitelist = data.whitelist.toSet(),
             blockedApps = data.blockedApps.toSet(),
+            blockedSites = data.blockedSites.map { BlockedSite(it.domain, it.enabled) },
+            blockGoogleSearch = data.blockGoogleSearch,
             pinHash = data.pinHash,
             pinSalt = data.pinSalt
         )
@@ -341,7 +350,9 @@ class SyncRepositoryImpl @Inject constructor(
                 .filter { it.date == currentDateProvider.today() }
                 .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) },
             pinHash = pin?.hash,
-            pinSalt = pin?.salt
+            pinSalt = pin?.salt,
+            blockedSites = policyRepository.blockedSites.first().map { BlockedSiteDto(it.domain, it.enabled) },
+            blockGoogleSearch = policyRepository.blockGoogleSearch.first()
         )
     }
 
@@ -360,7 +371,9 @@ class SyncRepositoryImpl @Inject constructor(
             // Скаляры — сортировать нечего, но включаем как есть, иначе разница в PIN не попадёт
             // в снапшот сравнения и push/pull будут пинг-понговать.
             pinHash = document.pinHash,
-            pinSalt = document.pinSalt
+            pinSalt = document.pinSalt,
+            blockedSites = document.blockedSites.sortedBy { it.domain },
+            blockGoogleSearch = document.blockGoogleSearch
         )
     )
 

@@ -1,15 +1,20 @@
 package ru.homelab.kidguard.data.policy
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
+import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
+import ru.homelab.kidguard.data.db.entity.PolicyFlagsEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -32,6 +37,16 @@ class PolicyRepositoryImpl @Inject constructor(
 
     override val blockedApps: Flow<Set<String>> = policyDao.blockedApps().map { rows ->
         rows.map { it.packageName }.toSet()
+    }
+
+    override val blockedSites: Flow<List<BlockedSite>> = policyDao.blockedSites().map { rows ->
+        rows.map { BlockedSite(it.domain, it.enabled) }
+    }
+
+    override val blockGoogleSearch: Flow<Boolean> = policyDao.policyFlags().map { it?.blockGoogleSearch ?: false }
+
+    override val siteBlockRules: Flow<SiteBlockRules> = combine(blockedSites, blockGoogleSearch) { sites, google ->
+        SiteBlockRules(sites.filter { it.enabled }.map { it.domain }.toSet(), google)
     }
 
     override val pinProtection: Flow<PinProtection?> = policyDao.pin().map { entity ->
@@ -72,6 +87,22 @@ class PolicyRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun addBlockedSite(domain: String) {
+        policyDao.upsertBlockedSite(BlockedSiteEntity(domain, enabled = true))
+    }
+
+    override suspend fun setSiteEnabled(domain: String, enabled: Boolean) {
+        policyDao.setSiteEnabled(domain, enabled)
+    }
+
+    override suspend fun removeBlockedSite(domain: String) {
+        policyDao.removeBlockedSite(domain)
+    }
+
+    override suspend fun setBlockGoogleSearch(enabled: Boolean) {
+        policyDao.upsertPolicyFlags(PolicyFlagsEntity(blockGoogleSearch = enabled))
+    }
+
     override suspend fun setPin(hash: String, salt: String) {
         policyDao.upsertPin(PinEntity(pinHash = hash, pinSalt = salt))
     }
@@ -85,6 +116,8 @@ class PolicyRepositoryImpl @Inject constructor(
         appLimits: Map<String, Int>,
         whitelist: Set<String>,
         blockedApps: Set<String>,
+        blockedSites: List<BlockedSite>,
+        blockGoogleSearch: Boolean,
         pinHash: String?,
         pinSalt: String?
     ) {
@@ -93,6 +126,8 @@ class PolicyRepositoryImpl @Inject constructor(
             appLimits = appLimits.map { (pkg, minutes) -> AppLimitEntity(pkg, minutes) },
             whitelist = whitelist.map { WhitelistedAppEntity(it) },
             blockedApps = blockedApps.map { BlockedAppEntity(it) },
+            blockedSites = blockedSites.map { BlockedSiteEntity(it.domain, it.enabled) },
+            blockGoogleSearch = blockGoogleSearch,
             pin = if (pinHash != null && pinSalt != null) PinEntity(pinHash = pinHash, pinSalt = pinSalt) else null
         )
     }

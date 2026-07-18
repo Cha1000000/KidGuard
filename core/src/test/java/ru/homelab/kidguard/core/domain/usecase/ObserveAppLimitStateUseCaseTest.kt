@@ -6,10 +6,12 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -94,11 +96,18 @@ class ObserveAppLimitStateUseCaseTest {
         override val whitelist: Flow<Set<String>> = flowOf(emptySet())
         override val appLimits: Flow<Map<String, Int>> = flowOf(appLimitsMap)
         override val blockedApps: Flow<Set<String>> = flowOf(emptySet())
+        override val blockedSites: Flow<List<BlockedSite>> = flowOf(emptyList())
+        override val blockGoogleSearch: Flow<Boolean> = flowOf(false)
+        override val siteBlockRules: Flow<SiteBlockRules> = flowOf(SiteBlockRules.NONE)
         override val pinProtection: Flow<PinProtection?> = flowOf(null)
         override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
         override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
         override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
         override suspend fun setBlocked(packageName: String, blocked: Boolean) = Unit
+        override suspend fun addBlockedSite(domain: String) = Unit
+        override suspend fun setSiteEnabled(domain: String, enabled: Boolean) = Unit
+        override suspend fun removeBlockedSite(domain: String) = Unit
+        override suspend fun setBlockGoogleSearch(enabled: Boolean) = Unit
         override suspend fun setPin(hash: String, salt: String) = Unit
         override suspend fun clearPin() = Unit
         override suspend fun replaceAll(
@@ -106,6 +115,8 @@ class ObserveAppLimitStateUseCaseTest {
             appLimits: Map<String, Int>,
             whitelist: Set<String>,
             blockedApps: Set<String>,
+            blockedSites: List<BlockedSite>,
+            blockGoogleSearch: Boolean,
             pinHash: String?,
             pinSalt: String?
         ) = Unit

@@ -13,6 +13,7 @@ import ru.homelab.kidguard.data.db.MIGRATION_2_3
 import ru.homelab.kidguard.data.db.MIGRATION_3_4
 import ru.homelab.kidguard.data.db.MIGRATION_4_5
 import ru.homelab.kidguard.data.db.MIGRATION_5_6
+import ru.homelab.kidguard.data.db.MIGRATION_6_7
 import ru.homelab.kidguard.data.db.dao.BonusDao
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
@@ -26,7 +27,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KidGuardDatabase =
         Room.databaseBuilder(context, KidGuardDatabase::class.java, "kidguard.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
 
     @Provides

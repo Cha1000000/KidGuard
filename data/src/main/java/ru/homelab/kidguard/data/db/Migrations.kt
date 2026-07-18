@@ -69,3 +69,21 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+/** v6 → v7 (веха 4.1.2, запрет сайтов): список запрещённых доменов + флаг блокировки google-поиска. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `blocked_site` (" +
+                "`domain` TEXT NOT NULL, " +
+                "`enabled` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`domain`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `policy_flags` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`blockGoogleSearch` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`id`))"
+        )
+    }
+}

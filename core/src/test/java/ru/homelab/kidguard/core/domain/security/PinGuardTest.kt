@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.PinAttemptsStore
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -125,11 +127,18 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override val whitelist: Flow<Set<String>> get() = unused()
     override val appLimits: Flow<Map<String, Int>> get() = unused()
     override val blockedApps: Flow<Set<String>> get() = unused()
+    override val blockedSites: Flow<List<BlockedSite>> get() = unused()
+    override val blockGoogleSearch: Flow<Boolean> get() = unused()
+    override val siteBlockRules: Flow<SiteBlockRules> get() = unused()
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = unused()
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = unused()
     override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = unused()
     override suspend fun setBlocked(packageName: String, blocked: Boolean) = unused()
+    override suspend fun addBlockedSite(domain: String) = unused()
+    override suspend fun setSiteEnabled(domain: String, enabled: Boolean) = unused()
+    override suspend fun removeBlockedSite(domain: String) = unused()
+    override suspend fun setBlockGoogleSearch(enabled: Boolean) = unused()
     override suspend fun setPin(hash: String, salt: String) = unused()
     override suspend fun clearPin() = unused()
     override suspend fun replaceAll(
@@ -137,6 +146,8 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
         appLimits: Map<String, Int>,
         whitelist: Set<String>,
         blockedApps: Set<String>,
+        blockedSites: List<BlockedSite>,
+        blockGoogleSearch: Boolean,
         pinHash: String?,
         pinSalt: String?
     ) = unused()
