@@ -17,10 +17,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,7 +110,32 @@ private fun StatisticsContent(state: StatisticsUiState) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
             )
-            state.apps.forEach { app -> AppUsageRow(app) }
+
+            // Приложения с наигрышем < 2 минут по умолчанию скрыты — это шум
+            // (случайно открытые/системные приложения), а не то, что интересует родителя.
+            val (visibleApps, shortApps) = state.apps.partition { it.seconds >= MIN_VISIBLE_APP_SECONDS }
+            // По умолчанию свёрнуто; сбрасывается при пересоздании экрана (смена ребёнка).
+            var showAllApps by rememberSaveable { mutableStateOf(false) }
+            val shown = if (showAllApps) state.apps else visibleApps
+
+            shown.forEach { app -> AppUsageRow(app) }
+
+            if (shortApps.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { showAllApps = !showAllApps },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = if (showAllApps) {
+                            stringResource(R.string.statistics_apps_show_less)
+                        } else {
+                            stringResource(R.string.statistics_apps_show_all, shortApps.size)
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -292,3 +321,6 @@ private fun formatChartValue(seconds: Int): String {
     val minutes = seconds / 60
     return "%d:%02d".format(minutes / 60, minutes % 60)
 }
+
+// 2 минуты — отсекаем шум из случайно открытых/системных приложений в списке «По приложениям».
+private const val MIN_VISIBLE_APP_SECONDS = 120
