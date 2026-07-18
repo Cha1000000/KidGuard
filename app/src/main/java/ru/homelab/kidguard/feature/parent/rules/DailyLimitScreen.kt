@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +50,9 @@ fun DailyLimitScreen(
     val phoneBonus by viewModel.phoneBonusMinutes.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    // Сбрасывать нечего, если ни на один день лимит не задан — тогда кнопка неактивна.
+    val hasAnyLimit = DayOfWeek.entries.any { limits.limitFor(it) != null }
 
     Column(modifier = modifier.fillMaxSize()) {
         CompactTopBar(
@@ -86,7 +89,44 @@ fun DailyLimitScreen(
                     }
                 }
             }
+            TextButton(
+                onClick = { showResetConfirm = true },
+                enabled = hasAnyLimit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.daily_limit_reset_all),
+                    color = if (hasAnyLimit) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text(stringResource(R.string.daily_limit_reset_all_title)) },
+            text = { Text(stringResource(R.string.daily_limit_reset_all_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setLimitForAllDays(null)
+                    showResetConfirm = false
+                }) {
+                    Text(
+                        text = stringResource(R.string.daily_limit_reset_all_action),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     editingDay?.let { day ->

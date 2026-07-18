@@ -98,6 +98,10 @@
     <string name="daily_limit_sheet_hint">Лимит на этот день</string>
     <string name="daily_limit_apply_all">Установить на все дни недели</string>
     <string name="daily_limit_save">Сохранить</string>
+    <string name="daily_limit_reset_all">Сбросить все лимиты</string>
+    <string name="daily_limit_reset_all_title">Сбросить все лимиты?</string>
+    <string name="daily_limit_reset_all_message">Для всех дней недели будет установлено «Без лимита».</string>
+    <string name="daily_limit_reset_all_action">Сбросить</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>
