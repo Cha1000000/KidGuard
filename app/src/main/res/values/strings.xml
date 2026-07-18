@@ -130,6 +130,11 @@
     <string name="app_limits_remove">Убрать лимит</string>
     <string name="app_limits_save">Сохранить</string>
 
+    <!-- Системные приложения в пикерах (запрет/белый список/лимиты) -->
+    <string name="system_apps_group_header">Системные и служебные</string>
+    <string name="system_apps_risky_tooltip">Критично для работы телефона — запрет или лимит может нарушить работу устройства.</string>
+    <string name="system_apps_risky_cd">Критичное системное приложение</string>
+
     <!-- Дополнительное время (бонусы) -->
     <string name="bonus_title">Дополнительное время</string>
     <string name="bonus_subtitle_phone">Добавить время сверх дневного лимита — только на сегодня. Суммируется.</string>
