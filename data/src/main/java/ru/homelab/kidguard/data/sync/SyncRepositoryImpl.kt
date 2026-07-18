@@ -219,12 +219,23 @@ class SyncRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Публикует список запускаемых приложений устройства (веха 4.1) — родитель выбирает из него
-     * лимиты/белый список/запреты. Отправка только при изменении списка (снапшот в DataStore).
+     * Публикует объединённый список приложений устройства (веха «системные приложения в пикерах»):
+     * запускаемые ∪ реально использованные (включая системные без launcher-иконки за сегодня/вчера) —
+     * родитель выбирает из него лимиты/белый список/запреты. Отправка только при изменении списка
+     * (снапшот в DataStore); снапшот включает флаги isSystem/isRisky, поэтому их смена тоже
+     * триггерит переотправку.
      */
     private suspend fun pushInstalledApps(childId: Int) {
-        val apps = installedAppsSource.launchableApps()
-            .map { ChildAppDto(it.packageName, it.label, it.iconBase64) }
+        val today = currentDateProvider.today()
+        val usedPackages = buildSet {
+            for (date in listOf(today.minusDays(1), today)) {
+                usageRepository.appScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
+                    if (seconds > 0) add(pkg)
+                }
+            }
+        }
+        val apps = installedAppsSource.publishableApps(usedPackages)
+            .map { ChildAppDto(it.packageName, it.label, it.iconBase64, it.isSystem, it.isRisky) }
         val snapshot = json.encodeToString(
             kotlinx.serialization.builtins.ListSerializer(ChildAppDto.serializer()),
             apps.sortedBy { it.packageName }

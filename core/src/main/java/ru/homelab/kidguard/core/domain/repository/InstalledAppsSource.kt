@@ -13,6 +13,13 @@ interface InstalledAppsSource {
     /** Запускаемые приложения устройства (есть иконка в лаунчере), отсортированы по имени. */
     suspend fun launchableApps(): List<AppInfo>
 
+    /**
+     * Список для публикации родителю: запускаемые приложения ∪ переданные `usedPackages`
+     * (реально использованные, включая системные без launcher-иконки). На каждом — флаги
+     * isSystem (FLAG_SYSTEM) и isRisky (критичные для устройства: сам KidGuard, лаунчер, systemui).
+     */
+    suspend fun publishableApps(usedPackages: Set<String>): List<AppInfo>
+
     /** Все установленные пакеты устройства — для pass-through режима VPN (веха 5.4). */
     suspend fun installedPackageNames(): List<String>
 

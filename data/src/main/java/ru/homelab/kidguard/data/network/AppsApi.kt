@@ -11,7 +11,11 @@ data class ChildAppDto(
     val packageName: String,
     val label: String,
     /** Иконка приложения: WebP 96×96 в base64; null — устройство её не прислало. */
-    val icon: String? = null
+    val icon: String? = null,
+    /** Системное приложение (FLAG_SYSTEM). Дефолт false — обратная совместимость со старым клиентом. */
+    val isSystem: Boolean = false,
+    /** Критичное для устройства (сам KidGuard, лаунчер, systemui). Дефолт false. */
+    val isRisky: Boolean = false
 )
 
 @Serializable

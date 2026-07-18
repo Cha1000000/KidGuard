@@ -83,7 +83,7 @@ class ChildRepositoryImpl @Inject constructor(
 
     override suspend fun childApps(childId: Int): Result<List<AppInfo>> = try {
         val response = appsApi.getApps(childId)
-        Result.success(response.apps.map { AppInfo(it.packageName, it.label, it.icon) })
+        Result.success(response.apps.map { AppInfo(it.packageName, it.label, it.icon, it.isSystem, it.isRisky) })
     } catch (error: Exception) {
         Result.failure(error)
     }
