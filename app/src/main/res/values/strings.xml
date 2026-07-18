@@ -68,6 +68,8 @@
     <string name="statistics_today_limit_exceeded">Лимит: %1$s · исчерпан</string>
     <string name="statistics_week_label">Последние 7 дней</string>
     <string name="statistics_apps_label">По приложениям · сегодня</string>
+    <string name="statistics_apps_show_all">Показать все (ещё %d)</string>
+    <string name="statistics_apps_show_less">Свернуть</string>
     <string name="statistics_empty">Пока нет данных. Статистика появится, когда ребёнок начнёт пользоваться телефоном.</string>
     <string name="statistics_load_error">Не удалось загрузить статистику. Проверьте подключение.</string>
     <string name="statistics_no_children">Сначала добавьте ребёнка на вкладке «Дети».</string>
