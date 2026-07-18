@@ -86,6 +86,8 @@
     <string name="rules_app_limits_subtitle">Свой лимит на отдельные приложения</string>
     <string name="rules_blocked_apps_title">Запрет приложений</string>
     <string name="rules_blocked_apps_subtitle">Полностью недоступные ребёнку приложения</string>
+    <string name="rules_blocked_sites_title">Запрет сайтов</string>
+    <string name="rules_blocked_sites_subtitle">Сайты, недоступные ребёнку в любой сети</string>
     <string name="rules_pin_title">PIN-защита</string>
     <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
     <string name="common_back">Назад</string>
@@ -124,6 +126,18 @@
     <string name="blocked_apps_subtitle">Эти приложения полностью недоступны ребёнку — независимо от лимитов</string>
     <string name="blocked_apps_search">Поиск приложений</string>
     <string name="blocked_apps_badge">запрещено</string>
+
+    <!-- Запрещённые сайты (веха 4.1.2) -->
+    <string name="blocked_sites_subtitle">Сайты, к которым закрыт доступ на телефоне ребёнка — в любой сети</string>
+    <string name="blocked_sites_google_title">Блокировать поиск Google</string>
+    <string name="blocked_sites_google_hint">Закрывает google.com — ломает вход в браузер через поиск в лаунчере. Play Маркет, Gmail и аккаунт Google не затрагиваются.</string>
+    <string name="blocked_sites_list_title">Чёрный список</string>
+    <string name="blocked_sites_input_placeholder">vk.com / rutube.ru</string>
+    <string name="blocked_sites_add">Добавить</string>
+    <string name="blocked_sites_remove">Удалить</string>
+    <string name="blocked_sites_empty">Список пуст. Добавьте домены, к которым закрыть доступ.</string>
+    <string name="blocked_sites_invalid">Неверный домен</string>
+    <string name="blocked_sites_hint">Домен или URL (напр. vk.com). Галка = заблокирован; снимите, чтобы временно разрешить, не удаляя. Приложения с собственным DNS (DoH) или системный Private DNS могут обойти фильтр — блок бывает неполным.</string>
 
     <!-- Лимиты приложений (пер-app) -->
     <string name="app_limits_subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</string>

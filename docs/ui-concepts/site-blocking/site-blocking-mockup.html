@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: Запрет сайтов</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+    --scr-bg0: #0c1512; --scr-bg1: #0f1c17; --scr-fg: #e9f2ee; --scr-muted: #8fa39b;
+    --scr-glass: rgba(255,255,255,.055); --scr-glass-border: rgba(255,255,255,.09);
+    --scr-accent: #35e0ad; --scr-danger: #ef5350; --scr-warn: #f5b301;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19; --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg); color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1000px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:60ch; }
+  .layout { display:grid; grid-template-columns: minmax(300px,390px) 1fr; gap:40px; align-items:start; margin-top:28px; }
+  @media (max-width:780px){ .layout{ grid-template-columns:1fr; gap:32px; } }
+
+  .phone { width:100%; max-width:390px; margin:0 auto; border-radius:40px; padding:12px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+  .screen { border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0)); color:var(--scr-fg); padding:14px 14px 18px; }
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:4px 6px 10px; }
+  .topbar { display:flex; align-items:center; gap:10px; padding:0 2px 4px; }
+  .topbar .back { color:var(--scr-muted); font-size:20px; }
+  .topbar h2 { font-size:20px; margin:0; font-weight:700; }
+  .subtitle { font-size:12.5px; color:var(--scr-muted); margin:8px 4px 14px; }
+
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:14px; margin-bottom:14px; }
+  .toggle-row { display:flex; align-items:flex-start; gap:12px; }
+  .toggle-row .tinfo { flex:1; }
+  .toggle-row .ttitle { font-size:15px; font-weight:600; }
+  .toggle-row .thint { font-size:11.5px; color:var(--scr-muted); margin-top:3px; }
+  .sw { width:44px; height:26px; border-radius:999px; flex:none; position:relative; background:var(--scr-accent); margin-top:2px; }
+  .sw::after { content:""; position:absolute; top:3px; left:21px; width:20px; height:20px; border-radius:50%; background:#06120d; }
+
+  .section-title { font-size:13px; font-weight:700; margin:2px 4px 10px; }
+  .add { display:flex; gap:8px; margin-bottom:12px; }
+  .add input { flex:1; background:rgba(255,255,255,.03); border:1px solid var(--scr-glass-border); border-radius:12px; padding:10px 12px; color:var(--scr-fg); font-size:13px; }
+  .add input::placeholder { color:var(--scr-muted); }
+  .add button { border:none; border-radius:12px; padding:0 16px; background:var(--scr-accent); color:#06120d; font-weight:700; font-size:13px; cursor:pointer; }
+
+  .items { display:flex; flex-direction:column; gap:6px; }
+  .item { display:flex; align-items:center; gap:11px; background:rgba(255,255,255,.03); border:1px solid var(--scr-glass-border); border-radius:12px; padding:9px 12px; }
+  .chk { width:20px; height:20px; border-radius:6px; flex:none; border:2px solid var(--scr-accent); display:grid; place-items:center; }
+  .chk.on { background:var(--scr-accent); }
+  .chk.on::after { content:"✓"; color:#06120d; font-size:13px; font-weight:800; }
+  .item .dom { flex:1; font-size:14px; }
+  .item.off .dom { color:var(--scr-muted); text-decoration:line-through; }
+  .item .del { width:30px; height:30px; flex:none; border-radius:8px; border:1px solid var(--scr-glass-border); color:var(--scr-danger); display:grid; place-items:center; font-size:16px; cursor:pointer; background:transparent; }
+  .hint { font-size:11px; color:var(--scr-muted); margin:12px 4px 0; display:flex; gap:6px; }
+
+  .notes { display:flex; flex-direction:column; gap:16px; }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование</p>
+    <h1>Запрет сайтов</h1>
+    <p>Новый экран (Правила → «Запрет сайтов»). Перенос идеи из роутерного модуля в приложение:
+       блокировка работает на самом телефоне через DNS-фильтр — значит, и на мобильном интернете,
+       и на чужом Wi-Fi.</p>
+  </header>
+
+  <div class="layout">
+    <!-- Phone -->
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+        <div class="topbar"><span class="back">‹</span><h2>Запрет сайтов</h2></div>
+        <div class="subtitle">Сайты, к которым закрыт доступ на телефоне ребёнка — в любой сети</div>
+
+        <!-- Google search toggle -->
+        <div class="card">
+          <div class="toggle-row">
+            <div class="tinfo">
+              <div class="ttitle">Блокировать поиск Google</div>
+              <div class="thint">Закрывает google.com — ломает вход в браузер через поиск в лаунчере.
+                Play Маркет, Gmail и аккаунт Google не затрагиваются.</div>
+            </div>
+            <div class="sw"></div>
+          </div>
+        </div>
+
+        <!-- Blacklist -->
+        <div class="section-title">Чёрный список</div>
+        <div class="add">
+          <input placeholder="vk.com / rutube.ru" />
+          <button>Добавить</button>
+        </div>
+        <div class="items">
+          <div class="item"><div class="chk on"></div><div class="dom">vk.com</div><button class="del">−</button></div>
+          <div class="item"><div class="chk on"></div><div class="dom">rutube.ru</div><button class="del">−</button></div>
+          <div class="item off"><div class="chk"></div><div class="dom">ozon.ru</div><button class="del">−</button></div>
+          <div class="item"><div class="chk on"></div><div class="dom">pornhub.com</div><button class="del">−</button></div>
+          <div class="item"><div class="chk on"></div><div class="dom">avito.ru</div><button class="del">−</button></div>
+        </div>
+
+        <div class="hint">ⓘ Домен или URL (напр. vk.com). Галка = заблокирован; снимите, чтобы временно
+          разрешить, не удаляя. Приложения с собственным DNS (DoH) или системный Private DNS обойти
+          фильтр могут — блок может быть неполным.</div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+      <div class="ncard">
+        <h3>Блокировать поиск Google</h3>
+        <p>Отдельный тумблер вверху. Режет <b>google.com</b>/<b>www.google.com</b> — закрывает лазейку
+           «поиск в лаунчере → встроенный браузер». <b>mail.google.com</b> (Gmail), Play и аккаунт —
+           не трогает (точный матч, не суффикс).</p>
+      </div>
+      <div class="ncard">
+        <h3>Чёрный список</h3>
+        <p>Поле ввода + «Добавить» (URL нормализуется в хост). Каждая запись — галка (вкл/выкл без
+           удаления) и «−». Матч по суффиксу: <b>vk.com</b> закрывает и <b>m.vk.com</b>. Блокирует и
+           RU-сайты, которые VPN-обход не трогает.</p>
+      </div>
+      <div class="ncard">
+        <h3>Как исполняется</h3>
+        <p>DNS-фильтр в нашем VpnService на телефоне ребёнка: заблокированные домены не резолвятся
+           (NXDOMAIN), остальное работает как обычно. Держится, <b>пока не снята галка</b> — не
+           завязано на дневной лимит.</p>
+      </div>
+      <div class="ncard">
+        <h3>Честная оговорка</h3>
+        <p>DoH (Chrome и часть приложений) и системный Private DNS обходят DNS-фильтр — как «для CDN
+           блок может быть неполным» на роутере. Указано в подсказке на экране.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Данные иллюстративны. Экран показан в тёмной теме приложения (светлая поддерживается).
+     Вёрстка адаптирована под нашу glassmorphism-систему.</p>
+</div>
+</body>
+</html>

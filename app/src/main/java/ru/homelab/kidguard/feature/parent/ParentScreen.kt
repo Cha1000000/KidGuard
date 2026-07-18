@@ -23,6 +23,7 @@ import ru.homelab.kidguard.core.ui.components.GlassDockItem
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
 import ru.homelab.kidguard.feature.parent.rules.BlockedAppsScreen
+import ru.homelab.kidguard.feature.parent.rules.BlockedSitesScreen
 import ru.homelab.kidguard.feature.parent.rules.DailyLimitScreen
 import ru.homelab.kidguard.feature.parent.rules.PinSetupScreen
 import ru.homelab.kidguard.feature.parent.rules.RulesScreen
@@ -33,6 +34,7 @@ private const val ROUTE_RULES_LIMIT = "parent/rules/limit"
 private const val ROUTE_RULES_WHITELIST = "parent/rules/whitelist"
 private const val ROUTE_RULES_APP_LIMITS = "parent/rules/app-limits"
 private const val ROUTE_RULES_BLOCKED_APPS = "parent/rules/blocked-apps"
+private const val ROUTE_RULES_BLOCKED_SITES = "parent/rules/blocked-sites"
 private const val ROUTE_RULES_PIN = "parent/rules/pin"
 
 /**
@@ -68,6 +70,7 @@ fun ParentScreen(
                     onOpenDailyLimit = { navController.navigate(ROUTE_RULES_LIMIT) },
                     onOpenAppLimits = { navController.navigate(ROUTE_RULES_APP_LIMITS) },
                     onOpenBlockedApps = { navController.navigate(ROUTE_RULES_BLOCKED_APPS) },
+                    onOpenBlockedSites = { navController.navigate(ROUTE_RULES_BLOCKED_SITES) },
                     onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) },
                     onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) }
                 )
@@ -80,6 +83,9 @@ fun ParentScreen(
             }
             composable(ROUTE_RULES_BLOCKED_APPS) {
                 BlockedAppsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RULES_BLOCKED_SITES) {
+                BlockedSitesScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_RULES_WHITELIST) {
                 WhitelistScreen(onBack = { navController.popBackStack() })
