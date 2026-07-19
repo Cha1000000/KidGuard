@@ -1,17 +1,23 @@
 package ru.homelab.kidguard.feature.parent.rules
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -40,7 +48,13 @@ import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 
-/** Экран «Запрет сайтов» (веха 4.1.2): DNS-чёрный список доменов + тумблер блокировки google-поиска. */
+/** Цвет предупреждения (жёлтый треугольник), единый с пометками «критично» в пикерах. */
+private val WarningColor = Color(0xFFF5B301)
+
+/** Высота, к которой выравниваем поле ввода и кнопку «Добавить» (стандарт OutlinedTextField). */
+private val InputRowHeight = 56.dp
+
+/** Экран «Запрет сайтов»: DNS-чёрный список доменов + тумблер блокировки google-поиска. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlockedSitesScreen(
@@ -52,6 +66,9 @@ fun BlockedSitesScreen(
     val sites by viewModel.sites.collectAsStateWithLifecycle()
     val inputError by viewModel.inputError.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
+
+    // Плашка про lockdown актуальна только когда что-то реально блокируется.
+    val showLockdownWarning = blockGoogleSearch || sites.isNotEmpty()
 
     Column(modifier = modifier.fillMaxSize()) {
         CompactTopBar(
@@ -69,6 +86,10 @@ fun BlockedSitesScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
+
+            if (showLockdownWarning) {
+                LockdownWarning()
+            }
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -101,9 +122,10 @@ fun BlockedSitesScreen(
                 modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
             )
 
+            // Поле и кнопка выровнены по высоте (общий InputRowHeight), центрированы — границы совпадают.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
@@ -115,25 +137,37 @@ fun BlockedSitesScreen(
                     placeholder = { Text(stringResource(R.string.blocked_sites_input_placeholder)) },
                     singleLine = true,
                     isError = inputError,
-                    supportingText = {
-                        if (inputError) {
-                            Text(stringResource(R.string.blocked_sites_invalid))
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(InputRowHeight)
                 )
                 Button(
                     onClick = {
                         viewModel.addSite(input)
                         if (input.isNotBlank()) input = ""
-                    }
+                    },
+                    modifier = Modifier.height(InputRowHeight)
                 ) {
                     Text(stringResource(R.string.blocked_sites_add))
                 }
             }
+            // Ошибку показываем отдельной строкой под рядом — чтобы поле не «прыгало» по высоте.
+            if (inputError) {
+                Text(
+                    text = stringResource(R.string.blocked_sites_invalid),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
+            }
 
             if (sites.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         text = stringResource(R.string.blocked_sites_empty),
                         style = MaterialTheme.typography.bodyMedium,
@@ -143,8 +177,13 @@ fun BlockedSitesScreen(
                     )
                 }
             } else {
+                // weight(1f) даёт списку ограниченную высоту → он прокручивается внутри себя,
+                // а шапка (поле ввода, карточка) и подсказка снизу остаются на месте.
                 LazyColumn(
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(sites, key = { it.domain }) { site ->
@@ -167,17 +206,51 @@ fun BlockedSitesScreen(
     }
 }
 
+/** Плашка-предупреждение про системный lockdown («Блокировать соединения без VPN»). */
+@Composable
+private fun LockdownWarning() {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .clip(shape)
+            .background(WarningColor.copy(alpha = 0.12f))
+            .border(1.dp, WarningColor.copy(alpha = 0.4f), shape)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Warning,
+            contentDescription = null,
+            tint = WarningColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = stringResource(R.string.blocked_sites_lockdown_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
 @Composable
 private fun BlockedSiteRow(
     site: BlockedSite,
     onToggle: (Boolean) -> Unit,
     onRemove: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    // Компактная карточка: внутренние отступы ~вдвое меньше стандартных, скругление меньше.
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 16.dp,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Checkbox(checked = site.enabled, onCheckedChange = onToggle)
             Text(

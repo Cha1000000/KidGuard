@@ -129,6 +129,7 @@
 
     <!-- Запрещённые сайты (веха 4.1.2) -->
     <string name="blocked_sites_subtitle">Сайты, к которым закрыт доступ на телефоне ребёнка — в любой сети</string>
+    <string name="blocked_sites_lockdown_warning">На телефоне ребёнка не включайте системную опцию «Блокировать соединения без VPN» (Настройки → VPN → ⚙ у KidGuard). Вместе с запретом сайтов она оставит ребёнка совсем без интернета. На остальную защиту это не влияет.</string>
     <string name="blocked_sites_google_title">Блокировать поиск Google</string>
     <string name="blocked_sites_google_hint">Закрывает google.com — ломает вход в браузер через поиск в лаунчере. Play Маркет, Gmail и аккаунт Google не затрагиваются.</string>
     <string name="blocked_sites_list_title">Чёрный список</string>
