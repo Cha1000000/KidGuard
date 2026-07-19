@@ -45,7 +45,6 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
-import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 
 /** Цвет предупреждения (жёлтый треугольник), единый с пометками «критично» в пикерах. */
@@ -196,11 +195,13 @@ fun BlockedSitesScreen(
                 }
             }
 
+            // Подсказка прижата к низу (без резерва под док-бар — на детальном экране его нет,
+            // а нижний отступ под жест-бар уже даёт safeDrawing у хоста). Список получает место.
             Text(
                 text = stringResource(R.string.blocked_sites_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 12.dp, bottom = GlassDockBarReservedHeight)
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
             )
         }
     }
