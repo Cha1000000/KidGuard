@@ -36,6 +36,11 @@
     <string name="pin_overlay_back">Назад</string>
     <string name="pin_overlay_backspace_glyph">⌫</string>
 
+    <!-- Warning-оверлей при попытке включить «Блокировать соединения без VPN» -->
+    <string name="lockdown_warning_title">Не включайте эту опцию</string>
+    <string name="lockdown_warning_message">Опция «Блокировать соединения без VPN» вместе с запретом сайтов оставит телефон совсем без интернета. Поэтому KidGuard не даёт её включить. На остальную защиту это не влияет.</string>
+    <string name="lockdown_warning_ok">Понятно</string>
+
     <!-- Device Admin (веха 6.3) -->
     <string name="device_admin_disable_warning">Отключение защитит телефон от KidGuard-контроля. Для отключения нужен родительский PIN.</string>
 </resources>

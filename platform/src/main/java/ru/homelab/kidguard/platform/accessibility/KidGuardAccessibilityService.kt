@@ -24,6 +24,7 @@ import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.MAX_TREE_DEPTH
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.UNLOCK_WINDOW_MS
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
+import ru.homelab.kidguard.platform.overlay.WarningOverlayManager
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -62,6 +63,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var pinGuard: PinGuard
+
+    @Inject
+    lateinit var warningOverlayManager: WarningOverlayManager
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -117,7 +121,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         // Отдаём оверлею WindowManager сервиса — только окно accessibility-типа показывается
         // поверх защищённых системных экранов (см. PinOverlayManager).
-        getSystemService(WindowManager::class.java)?.let { pinOverlayManager.attach(it) }
+        getSystemService(WindowManager::class.java)?.let {
+            pinOverlayManager.attach(it)
+            warningOverlayManager.attach(it)
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -134,6 +141,21 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // отличаться.
         Timber.tag(TAG).d("Заголовок окна [%s]: %s", packageName, title)
 
+        // «Защита от дурака»: попытка включить системную опцию «Блокировать соединения без VPN»
+        // (lockdown) показывает диалог-подтверждение «Использовать сеть VPN?». Эта опция вместе с
+        // запретом сайтов оставила бы телефон совсем без интернета, поэтому отменяем диалог
+        // (GLOBAL_ACTION_BACK = «Отмена», lockdown не применяется) и показываем предупреждение.
+        // Проверяем ДО detectCriticalScreen: заголовок диалога содержит «vpn» и иначе был бы
+        // принят за экран VPN-настроек. isShowing-гард — чтобы не жать «Назад» повторно.
+        if (isLockdownDialog(title)) {
+            if (!warningOverlayManager.isShowing()) {
+                Timber.tag(TAG).d("Диалог lockdown — отменяю и показываю предупреждение")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                warningOverlayManager.show()
+            }
+            return
+        }
+
         val criticalScreen = detectCriticalScreen(packageName, title)
         if (criticalScreen != null) {
             maybeInterceptWithPin(criticalScreen)
@@ -143,11 +165,11 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // (лаунчер и т.п.). НЕ реагируем на: события самого оверлея (наш пакет — иначе оверлей
         // скрыл бы себя своим же window-событием) и под-окна того же хоста настроек/инсталлера
         // (например, всплывающие «значок приложения»), где родитель ещё должен ввести PIN.
-        if (pinOverlayManager.isShowing() &&
-            packageName != applicationContext.packageName &&
-            packageName !in overlayHostPackages
-        ) {
-            pinOverlayManager.hide()
+        if (packageName != applicationContext.packageName && packageName !in overlayHostPackages) {
+            if (pinOverlayManager.isShowing()) pinOverlayManager.hide()
+            // Warning-оверлей тоже убираем при реальном уходе с настроек (напр. ребёнок нажал «Домой»,
+            // не закрыв предупреждение), чтобы он не завис поверх следующего экрана.
+            if (warningOverlayManager.isShowing()) warningOverlayManager.hide()
         }
     }
 
@@ -273,6 +295,17 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
             else -> null
         }
+    }
+
+    /**
+     * Диалог-подтверждение включения системного lockdown («Блокировать соединения без VPN»):
+     * Android показывает «Использовать сеть VPN? …доступ в Интернет … отсутствует». Ловим по
+     * «vpn» в заголовке + характерным фразам (RU/EN). Обычный always-on такого диалога не даёт —
+     * значит ложных срабатываний на нём нет.
+     */
+    private fun isLockdownDialog(title: String): Boolean {
+        if (title.isBlank() || !title.contains("vpn")) return false
+        return LOCKDOWN_DIALOG_KEYWORDS.any { title.contains(it) }
     }
 
     /**
@@ -402,5 +435,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // наступление «нового дня» и обнулить дневной счётчик раньше срока. Заголовок снят
         // живьём с эмулятора: «Дата и время» (com.android.settings/.Settings$DateTimeSettingsActivity).
         val DATE_TIME_KEYWORDS = listOf("дата и время", "date & time", "date and time")
+        // Диалог включения lockdown («Использовать сеть VPN?»): заголовок + тело
+        // «…доступ в Интернет … отсутствует». Снято живьём с эмулятора (2026-07-19).
+        val LOCKDOWN_DIALOG_KEYWORDS = listOf(
+            "использовать сеть vpn", "доступ в интернет", "won't have internet", "no internet"
+        )
     }
 }
