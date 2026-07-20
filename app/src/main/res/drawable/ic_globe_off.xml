@@ -1,35 +1,40 @@
-<!-- Зачёркнутый глобус («запрет сайтов»). Цвет задаётся tint в Icon(). -->
+<!-- Зачёркнутый глобус («запрет сайтов»). Линии глобуса разорваны вдоль полосы зачёркивания
+     (через clip-path), сама полоса — поверх и выпирает за границы. Цвет задаётся tint в Icon(). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Окружность глобуса -->
+    <!-- Глобус с вырезом вдоль диагональной полосы (rect CW + полоса CCW = дырка) -->
+    <group>
+        <clip-path android:pathData="M0,0 L24,0 L24,24 L0,24 Z M6,21 L3,18 L18,3 L21,6 Z" />
+        <!-- Окружность -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="1.6"
+            android:strokeLineCap="round"
+            android:pathData="M3,12 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+        <!-- Экватор -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="1.6"
+            android:strokeLineCap="round"
+            android:pathData="M3,12 L21,12" />
+        <!-- Меридиан -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="1.6"
+            android:strokeLineCap="round"
+            android:pathData="M12,3 a4.5,9 0 1,0 0,18 a4.5,9 0 1,0 0,-18" />
+    </group>
+    <!-- Полоса зачёркивания «/» (снизу-слева вверх-направо), выпирает за глобус -->
     <path
         android:fillColor="@android:color/transparent"
         android:strokeColor="@android:color/white"
-        android:strokeWidth="1.9"
+        android:strokeWidth="2.2"
         android:strokeLineCap="round"
-        android:pathData="M3,12 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
-    <!-- Экватор -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="1.9"
-        android:strokeLineCap="round"
-        android:pathData="M3,12 L21,12" />
-    <!-- Меридиан -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="1.9"
-        android:strokeLineCap="round"
-        android:pathData="M12,3 a4.5,9 0 1,0 0,18 a4.5,9 0 1,0 0,-18" />
-    <!-- Диагональ-зачёркивание (поверх) -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="1.9"
-        android:strokeLineCap="round"
-        android:pathData="M5.6,5.6 L18.4,18.4" />
+        android:pathData="M4.5,19.5 L19.5,4.5" />
 </vector>
