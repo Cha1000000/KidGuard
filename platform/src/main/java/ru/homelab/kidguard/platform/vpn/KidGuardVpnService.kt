@@ -8,10 +8,17 @@ import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.vpn.dns.DnsProxyLoop
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * VPN-сервис с двумя режимами (веха 5.2 → 6.x):
@@ -26,42 +33,46 @@ import timber.log.Timber
  *
  * С вехи 5.4 blackhole-режим активен всегда (совместимость с always-on/lockdown), а между
  * блокировкой и pass-through (интернет у всех) переключает состав [EXTRA_DISALLOWED], который
- * пересчитывает [VpnController].
+ * пересчитывает [VpnController]. Сервис самодостаточен: если он поднят системой напрямую (always-on
+ * VPN после перезагрузки/обновления), то есть без наших extras, — сам спрашивает актуальный режим
+ * у [VpnModeResolver], не дожидаясь [VpnController].
  */
+@AndroidEntryPoint
 class KidGuardVpnService : VpnService() {
+
+    @Inject
+    lateinit var vpnModeResolver: VpnModeResolver
 
     private var tunFd: ParcelFileDescriptor? = null
     private var dnsLoop: DnsProxyLoop? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> {
-                startVpnForeground()
-                when (intent.getStringExtra(EXTRA_MODE)) {
-                    MODE_DNS_FILTER -> {
-                        val blockedDomains = intent.getStringArrayListExtra(EXTRA_BLOCKED_DOMAINS)
-                            .orEmpty()
-                            .toSet()
-                        val blockGoogle = intent.getBooleanExtra(EXTRA_BLOCK_GOOGLE, false)
-                        establishDnsFilterTun(SiteBlockRules(blockedDomains, blockGoogle))
-                    }
-                    else -> {
-                        val disallowed = intent.getStringArrayListExtra(EXTRA_DISALLOWED).orEmpty()
-                        establishTun(disallowed)
-                    }
-                }
-            }
             ACTION_STOP -> {
                 closeTun()
                 stopSelf()
             }
-            else -> Timber.tag(TAG).w("Неизвестный action: %s", intent?.action)
+            else -> {
+                // ACTION_START (явный запуск от VpnController) либо системный always-on-рестарт
+                // без action/extras вовсе — в обоих случаях поднимаем tun.
+                startVpnForeground()
+                if (intent?.hasExtra(EXTRA_MODE) == true) {
+                    // Явный путь: режим уже посчитан VpnController и приехал в extras.
+                    establishForMode(modeFromIntent(intent))
+                } else {
+                    // Системный старт без extras — сами читаем актуальный режим из политики.
+                    Timber.tag(TAG).d("Старт без extras (%s) — читаем режим сами", intent?.action)
+                    scope.launch { establishForMode(vpnModeResolver.resolve()) }
+                }
+            }
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         closeTun()
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -71,6 +82,27 @@ class KidGuardVpnService : VpnService() {
         closeTun()
         stopSelf()
         super.onRevoke()
+    }
+
+    /** Диспетчеризует режим на существующие establish-функции для tun. */
+    private fun establishForMode(mode: VpnMode) {
+        when (mode) {
+            is VpnMode.Blackhole -> establishTun(mode.disallowed.toList())
+            is VpnMode.DnsFilter -> establishDnsFilterTun(mode.rules)
+        }
+    }
+
+    /** Собирает [VpnMode] из extras явного запуска (см. [VpnController.applyMode]). */
+    private fun modeFromIntent(intent: Intent): VpnMode = when (intent.getStringExtra(EXTRA_MODE)) {
+        MODE_DNS_FILTER -> {
+            val blockedDomains = intent.getStringArrayListExtra(EXTRA_BLOCKED_DOMAINS).orEmpty().toSet()
+            val blockGoogle = intent.getBooleanExtra(EXTRA_BLOCK_GOOGLE, false)
+            VpnMode.DnsFilter(SiteBlockRules(blockedDomains, blockGoogle))
+        }
+        else -> {
+            val disallowed = intent.getStringArrayListExtra(EXTRA_DISALLOWED).orEmpty().toSet()
+            VpnMode.Blackhole(disallowed)
+        }
     }
 
     /**

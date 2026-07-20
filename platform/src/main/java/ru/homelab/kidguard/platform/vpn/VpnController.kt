@@ -5,14 +5,7 @@ import android.content.Intent
 import android.net.VpnService
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import ru.homelab.kidguard.core.domain.model.SiteBlockRules
-import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
-import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
-import ru.homelab.kidguard.core.domain.usecase.shouldBlockInternet
-import ru.homelab.kidguard.core.domain.usecase.vpnDisallowedPackages
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,54 +13,29 @@ import javax.inject.Singleton
 /**
  * Связывает лимит, белый список и запрет сайтов с нашим VpnService. VPN активен **всегда**
  * (пока устройство под контролем) — для совместимости с системным always-on/lockdown. Режим
- * выбирается по состоянию (веха 5.4 + запрет сайтов):
- * - лимит исчерпан ([shouldBlockInternet]) → **blackhole**, обходят только KidGuard + белый
- *   список (интернет заблокирован у остальных);
- * - время доступно + активен запрет сайтов ([SiteBlockRules.isActive]) → **DNS-фильтр**
- *   (split-tunnel: в tun только DNS, блокированные домены → NXDOMAIN, остальное напрямую);
+ * выбирается по состоянию (веха 5.4 + запрет сайтов, вычисление режима — в [VpnModeResolver]):
+ * - лимит исчерпан → **blackhole**, обходят только KidGuard + белый список (интернет заблокирован
+ *   у остальных);
+ * - время доступно + активен запрет сайтов → **DNS-фильтр** (split-tunnel: в tun только DNS,
+ *   блокированные домены → NXDOMAIN, остальное напрямую);
  * - время доступно, запрета сайтов нет → **blackhole** с обходом всеми (pass-through, интернет у всех).
  * Смена лимита/белого списка/набора приложений/правил сайтов на лету пересоздаёт tun с новым
  * режимом. Запускается foreground-сервисом, как и [ru.homelab.kidguard.platform.overlay.BlockingController].
+ * Системный always-on-перезапуск [KidGuardVpnService] (без extras) сам обращается к
+ * [VpnModeResolver], поэтому от полной актуальности этого потока не зависит.
  */
 @Singleton
 class VpnController @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val observeLimitStateUseCase: ObserveLimitStateUseCase,
-    private val policyRepository: PolicyRepository,
-    private val installedAppsSource: InstalledAppsSource
+    private val vpnModeResolver: VpnModeResolver
 ) {
-
-    /** Режим, в котором должен работать VpnService. */
-    private sealed interface Mode {
-        /** Блокировка/pass-through набором disallowed-пакетов (tun-blackhole). */
-        data class Blackhole(val disallowed: Set<String>) : Mode
-        /** DNS-фильтр по правилам запрета сайтов. */
-        data class DnsFilter(val rules: SiteBlockRules) : Mode
-    }
 
     suspend fun run() {
         Timber.tag(TAG).d("Контроллер VPN запущен")
-        // Список установленных пакетов наблюдаем реактивно (эмитит при установке/удалении приложения),
-        // чтобы pass-through сразу подхватил только что установленное приложение.
-        combine(
-            observeLimitStateUseCase(),
-            policyRepository.whitelist,
-            installedAppsSource.observeInstalledPackageNames(),
-            policyRepository.siteBlockRules
-        ) { limitState, whitelist, installed, rules ->
-            when {
-                // Лимит исчерпан — блокируем интернет (обходят только whitelist + сам KidGuard).
-                shouldBlockInternet(limitState) ->
-                    Mode.Blackhole(vpnDisallowedPackages(whitelist, context.packageName))
-                // Время есть и заданы правила запрета сайтов — DNS-фильтр.
-                rules.isActive -> Mode.DnsFilter(rules)
-                // Время есть, запрета сайтов нет — pass-through (интернет у всех).
-                else -> Mode.Blackhole(installed.toSet() + context.packageName)
-            }
-        }.distinctUntilChanged().collect { mode -> applyMode(mode) }
+        vpnModeResolver.modeFlow().distinctUntilChanged().collect { mode -> applyMode(mode) }
     }
 
-    private fun applyMode(mode: Mode) {
+    private fun applyMode(mode: VpnMode) {
         // Consent на VPN выдаётся один раз в мастере разрешений (VpnService.prepare == null,
         // когда согласие уже есть). Если его нет — просто не поднимаем VPN и не падаем: оверлей
         // (первый барьер) продолжает работать независимо.
@@ -78,13 +46,13 @@ class VpnController @Inject constructor(
         val intent = Intent(context, KidGuardVpnService::class.java)
             .setAction(KidGuardVpnService.ACTION_START)
         when (mode) {
-            is Mode.Blackhole -> {
+            is VpnMode.Blackhole -> {
                 intent
                     .putExtra(KidGuardVpnService.EXTRA_MODE, KidGuardVpnService.MODE_BLACKHOLE)
                     .putStringArrayListExtra(KidGuardVpnService.EXTRA_DISALLOWED, ArrayList(mode.disallowed))
                 Timber.tag(TAG).d("VPN blackhole, disallowed=%s", mode.disallowed)
             }
-            is Mode.DnsFilter -> {
+            is VpnMode.DnsFilter -> {
                 intent
                     .putExtra(KidGuardVpnService.EXTRA_MODE, KidGuardVpnService.MODE_DNS_FILTER)
                     .putStringArrayListExtra(
