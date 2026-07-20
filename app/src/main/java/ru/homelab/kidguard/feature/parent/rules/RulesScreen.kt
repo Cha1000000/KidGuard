@@ -68,7 +68,7 @@ fun RulesScreen(
                 iconTint = MaterialTheme.colorScheme.error
             )
             RuleCard(
-                icon = ImageVector.vectorResource(R.drawable.ic_block),
+                icon = ImageVector.vectorResource(R.drawable.ic_globe_off),
                 title = R.string.rules_blocked_sites_title,
                 subtitle = R.string.rules_blocked_sites_subtitle,
                 onClick = onOpenBlockedSites,
