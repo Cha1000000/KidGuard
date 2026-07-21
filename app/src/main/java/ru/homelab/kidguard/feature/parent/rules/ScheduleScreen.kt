@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -595,9 +596,17 @@ private fun ScheduleTimeSheet(
 
     // Сразу на всю высоту: в наполовину раскрытой шторке барабаны занимают весь экран, а
     // «Сохранить» и галку «применить ко всем» приходится доставать свайпом — их просто не видно.
+    //
+    // confirmValueChange запрещает закрытие свайпом: вертикальный жест по барабану, сделанный с
+    // размаху, шторка перехватывала на себя и закрывалась, теряя выставленное время. Закрыть
+    // по-прежнему можно кнопками и тапом по затемнению — их onDismissRequest не проходит через
+    // это состояние.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { it != SheetValue.Hidden }
+        )
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
