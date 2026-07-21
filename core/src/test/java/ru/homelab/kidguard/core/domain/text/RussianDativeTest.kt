@@ -70,4 +70,12 @@ class RussianDativeTest {
     fun `несклоняемое имя возвращается как есть`() {
         assertEquals("Отто", RussianDative.of("Отто"))
     }
+
+    @Test
+    fun `нерусское имя не склоняется`() {
+        // Латинская согласная не должна попасть под правило «согласная → -у» и дать «Alinaу».
+        assertEquals("Alina", RussianDative.of("Alina"))
+        assertEquals("Max", RussianDative.of("Max"))
+        assertEquals("Mama", RussianDative.of("Mama"))
+    }
 }

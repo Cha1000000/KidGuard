@@ -23,6 +23,9 @@ object RussianDative {
 
     private fun declineWord(word: String): String {
         if (word.isEmpty()) return word
+        // Нерусские имена («Alina», «Max») склонять нечем: правила ниже приняли бы латинскую
+        // согласную за русскую и выдали «Alinaу».
+        if (word.none { it in CYRILLIC }) return word
         val lowered = if (word.lowercase() in COMMON_NOUNS) word.lowercase() else word
         val stem = lowered.dropLast(1)
 
@@ -47,6 +50,9 @@ object RussianDative {
     }
 
     private val WHITESPACE = Regex("\\s+")
+
+    /** Диапазон кириллицы: слово без единой такой буквы правилам склонения не подчиняется. */
+    private val CYRILLIC = ('а'..'я') + ('А'..'Я') + listOf('ё', 'Ё')
 
     /**
      * Обращения к родне: их родитель пишет с большой буквы («Мама»), а во фразе «Позвонить маме»
