@@ -259,7 +259,24 @@ class SleepLockOverlayManager @Inject constructor(
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         )
+        applyInsetPadding(container, scroll)
         return container
+    }
+
+    /**
+     * Фон (`NightSkyView`) занимает весь экран, включая полосы системных панелей, а содержимое
+     * отодвигаем от них сами — иначе полумесяц оказался бы под часами, а кнопка контакта — под
+     * полосой жестов.
+     */
+    private fun applyInsetPadding(container: View, scroll: View) {
+        container.setOnApplyWindowInsetsListener { _, insets ->
+            val bars = insets.getInsets(
+                android.view.WindowInsets.Type.systemBars() or
+                    android.view.WindowInsets.Type.displayCutout()
+            )
+            scroll.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
     }
 
     private fun showError(until: TextView, dots: List<View>, message: String) {
@@ -383,13 +400,27 @@ class SleepLockOverlayManager @Inject constructor(
 
     private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
+    /**
+     * Замок обязан накрывать экран целиком, включая полосу статус-бара и область выреза камеры:
+     * иначе сверху остаётся чужой фон, и «замок» выглядит как обычное окно поверх системы.
+     *
+     * Без этих трёх настроек система резервирует место под системные панели и ужимает окно:
+     * `FLAG_LAYOUT_IN_SCREEN` разрешает раскладку на весь экран, `fitInsetsTypes = 0` снимает
+     * автоматический отступ под панели, а cutout-режим пускает фон под вырез камеры. Контент при
+     * этом не залезает под часы — отступы возвращаются вручную в [applyInsetPadding].
+     */
     private fun buildLayoutParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         android.graphics.PixelFormat.TRANSLUCENT
-    )
+    ).apply {
+        fitInsetsTypes = 0
+        layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+    }
 
     /** Ночное небо: индиго-градиент и редкие звёзды. Рисуем сами — это дешевле картинки. */
     private class NightSkyView(context: Context) : View(context) {
