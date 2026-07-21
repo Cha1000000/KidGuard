@@ -11,12 +11,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import ru.homelab.kidguard.core.domain.model.LimitState
+import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
+import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
 import timber.log.Timber
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,6 +34,7 @@ class BlockingController @Inject constructor(
     private val foregroundAppMonitor: ForegroundAppMonitor,
     private val observeLimitStateUseCase: ObserveLimitStateUseCase,
     private val observeAppLimitStateUseCase: ObserveAppLimitStateUseCase,
+    private val observeScheduleStateUseCase: ObserveScheduleStateUseCase,
     private val policyRepository: PolicyRepository,
     private val overlayManager: OverlayManager
 ) {
@@ -54,25 +58,39 @@ class BlockingController @Inject constructor(
                 observeLimitStateUseCase(),
                 appLimitStateFlow,
                 policyRepository.whitelist,
-                policyRepository.blockedApps
-            ) { limitState, appLimitState, whitelist, blockedApps ->
-                val block = shouldBlock(activePackage, limitState, appLimitState, whitelist, alwaysAllowed, blockedApps)
-                // Причина для оверлея: если пакет в blockedApps (и не alwaysAllowed), матрица
-                // приоритетов гарантирует блокировку именно по запрету, независимо от лимитов —
-                // отдельного дублирования логики shouldBlock не требуется.
-                val reason = if (activePackage != null && activePackage !in alwaysAllowed && activePackage in blockedApps) {
-                    BlockReason.BLOCKED_BY_PARENT
-                } else {
-                    BlockReason.LIMIT_EXPIRED
+                policyRepository.blockedApps,
+                observeScheduleStateUseCase()
+            ) { limitState, appLimitState, whitelist, blockedApps, scheduleState ->
+                // «Время учёбы» по смыслу равно исчерпанному дневному лимиту (см. shouldBlock) —
+                // просто передаём признак дальше в чистую функцию, вся матрица приоритетов там.
+                val studyTimeActive = scheduleState is ScheduleState.Study
+                val block = shouldBlock(
+                    activePackage, limitState, appLimitState, whitelist, alwaysAllowed, blockedApps, studyTimeActive
+                )
+                // Причина для оверлея (в том же порядке приоритета, что и в shouldBlock):
+                // 1. Пакет в blockedApps (и не alwaysAllowed) — запрет родителя бьёт всё остальное.
+                // 2. Иначе, если идёт «Время учёбы» — оно и есть причина мягкой блокировки.
+                // 3. Иначе — обычный исчерпанный дневной лимит.
+                val reason = when {
+                    activePackage != null && activePackage !in alwaysAllowed && activePackage in blockedApps ->
+                        BlockReason.BLOCKED_BY_PARENT
+                    studyTimeActive -> BlockReason.STUDY_TIME
+                    else -> BlockReason.LIMIT_EXPIRED
                 }
-                block to reason
+                // Время окончания для оверлея нужно только при STUDY_TIME — в остальных случаях
+                // untilText остаётся null (общая формулировка без времени).
+                val untilText = (scheduleState as? ScheduleState.Study)
+                    ?.takeIf { reason == BlockReason.STUDY_TIME }
+                    ?.endsAt
+                    ?.format(TIME_FORMATTER)
+                Triple(block, reason, untilText)
             }
-        }.distinctUntilChanged().collect { (block, reason) ->
+        }.distinctUntilChanged().collect { (block, reason, untilText) ->
             // Скрытие оверлея сюда намеренно не добавляем: он закрывается только свайпом
             // самого ребёнка (см. OverlayManager). Иначе уход на домашний экран ниже сразу же
             // «снял» бы блокировку — лаунчер всегда разрешён.
             if (block) {
-                overlayManager.show(reason)
+                overlayManager.show(reason, untilText)
                 sendHome()
                 Timber.tag(TAG).d("Блокировка активна (причина=%s)", reason)
             }
@@ -99,5 +117,8 @@ class BlockingController @Inject constructor(
 
     private companion object {
         const val TAG = "KidGuardBlocking"
+
+        /** Формат времени окончания «Времени учёбы» на оверлее — «14:00». */
+        val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     }
 }

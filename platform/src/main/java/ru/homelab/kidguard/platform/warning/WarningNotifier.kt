@@ -11,8 +11,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Показывает уведомление-предупреждение «осталось N минут» перед истечением дневного лимита,
- * чтобы блокировка не была для ребёнка внезапной. Требует POST_NOTIFICATIONS (из мастера разрешений).
+ * Показывает уведомления-предупреждения, чтобы блокировка не была для ребёнка внезапной:
+ * «осталось N минут» перед истечением дневного лимита и отдельно — «через N минут начнётся
+ * Время сна». Требует POST_NOTIFICATIONS (из мастера разрешений).
+ *
+ * У двух предупреждений разные [id][NOTIFICATION_ID]/[SLEEP_NOTIFICATION_ID] — иначе показ
+ * одного затирал бы другое в системном шторке (notify() с одним id перезаписывает уведомление).
+ * Канал общий: оба предупреждения по смыслу и важности одинаковы, отдельный канал не даёт
+ * пользователю ничего нового, а только плодит пункты в системных настройках уведомлений.
  */
 @Singleton
 class WarningNotifier @Inject constructor(
@@ -21,7 +27,8 @@ class WarningNotifier @Inject constructor(
 
     private val notificationManager = context.getSystemService<NotificationManager>()
 
-    fun show(minutesLeft: Int) {
+    /** Предупреждение об истечении дневного лимита. */
+    fun showLimitWarning(minutesLeft: Int) {
         val manager = notificationManager ?: return
         ensureChannel(manager)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -33,8 +40,25 @@ class WarningNotifier @Inject constructor(
         manager.notify(NOTIFICATION_ID, notification)
     }
 
-    fun clear() {
+    fun clearLimitWarning() {
         notificationManager?.cancel(NOTIFICATION_ID)
+    }
+
+    /** Предупреждение о скором начале «Времени сна». */
+    fun showSleepWarning(minutesLeft: Int) {
+        val manager = notificationManager ?: return
+        ensureChannel(manager)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.warning_sleep_title))
+            .setContentText(context.getString(R.string.warning_sleep_text, minutesLeft))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOnlyAlertOnce(true)
+            .build()
+        manager.notify(SLEEP_NOTIFICATION_ID, notification)
+    }
+
+    fun clearSleepWarning() {
+        notificationManager?.cancel(SLEEP_NOTIFICATION_ID)
     }
 
     private fun ensureChannel(manager: NotificationManager) {
@@ -52,5 +76,6 @@ class WarningNotifier @Inject constructor(
     private companion object {
         const val CHANNEL_ID = "kidguard_warning"
         const val NOTIFICATION_ID = 2
+        const val SLEEP_NOTIFICATION_ID = 3
     }
 }

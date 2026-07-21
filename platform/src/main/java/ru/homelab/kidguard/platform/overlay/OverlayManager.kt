@@ -41,10 +41,14 @@ class OverlayManager @Inject constructor(
      * Показать блокирующий экран (idempotent — повторный вызов, пока оверлей уже показан, ничего
      * не меняет, даже если [reason] другой: оверлей закрывается только свайпом). Вызовы с любого
      * потока.
+     *
+     * @param untilText готовое (уже отформатированное) время окончания блокировки — используется
+     * только для [BlockReason.STUDY_TIME] («Телефон будет доступен в 14:00»). Null — подзаголовок
+     * без конкретного времени (расписание есть, но конец окна вызывающей стороне не важен/неизвестен).
      */
-    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED) = mainHandler.post {
+    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED, untilText: String? = null) = mainHandler.post {
         if (overlayView != null) return@post
-        val view = createOverlayView(reason)
+        val view = createOverlayView(reason, untilText)
         windowManager?.addView(view, buildLayoutParams())
         overlayView = view
     }
@@ -56,11 +60,23 @@ class OverlayManager @Inject constructor(
         overlayView = null
     }
 
-    private fun createOverlayView(reason: BlockReason): View {
-        val (titleRes, textRes) = when (reason) {
-            BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title to R.string.overlay_blocked_text
-            BlockReason.BLOCKED_BY_PARENT ->
-                R.string.overlay_prohibited_title to R.string.overlay_prohibited_text
+    private fun createOverlayView(reason: BlockReason, untilText: String?): View {
+        val titleRes = when (reason) {
+            BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title
+            BlockReason.BLOCKED_BY_PARENT -> R.string.overlay_prohibited_title
+            BlockReason.STUDY_TIME -> R.string.overlay_study_title
+        }
+        // У STUDY_TIME подзаголовок ветвится: с конкретным временем окончания (обычный случай) и
+        // без него (на случай, если вызывающая сторона его не передала) — у остальных причин
+        // подзаголовок всегда фиксированный.
+        val subtitleText = when (reason) {
+            BlockReason.LIMIT_EXPIRED -> context.getString(R.string.overlay_blocked_text)
+            BlockReason.BLOCKED_BY_PARENT -> context.getString(R.string.overlay_prohibited_text)
+            BlockReason.STUDY_TIME -> if (untilText != null) {
+                context.getString(R.string.overlay_study_text_until, untilText)
+            } else {
+                context.getString(R.string.overlay_study_text)
+            }
         }
         val title = TextView(context).apply {
             text = context.getString(titleRes)
@@ -69,7 +85,7 @@ class OverlayManager @Inject constructor(
             gravity = Gravity.CENTER
         }
         val subtitle = TextView(context).apply {
-            text = context.getString(textRes)
+            text = subtitleText
             setTextColor(Color.LTGRAY)
             textSize = 16f
             gravity = Gravity.CENTER

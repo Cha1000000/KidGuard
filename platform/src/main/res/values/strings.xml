@@ -18,10 +18,19 @@
     <string name="overlay_prohibited_title">Приложение недоступно</string>
     <string name="overlay_prohibited_text">Это приложение запретил родитель</string>
 
+    <!-- Экран блокировки (оверлей) — «Время учёбы» по расписанию родителя -->
+    <string name="overlay_study_title">Сейчас время учёбы</string>
+    <string name="overlay_study_text_until">Телефон будет доступен в %1$s</string>
+    <string name="overlay_study_text">Телефон будет доступен после окончания времени учёбы</string>
+
     <!-- Предупреждение перед истечением лимита -->
     <string name="warning_channel_name">Предупреждения о времени</string>
     <string name="warning_title">Скоро конец времени</string>
     <string name="warning_text">Осталось %1$d мин</string>
+
+    <!-- Предупреждение перед началом «Времени сна» -->
+    <string name="warning_sleep_title">Скоро время сна</string>
+    <string name="warning_sleep_text">Через %1$d мин телефон заблокируется на ночь</string>
 
     <!-- Blackhole-VPN (веха 5) -->
     <string name="vpn_channel_name">Блокировка интернета</string>
