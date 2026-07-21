@@ -1,6 +1,8 @@
 package ru.homelab.kidguard.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -8,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
+import ru.homelab.kidguard.data.db.entity.BreakHourEntity
+import ru.homelab.kidguard.data.db.entity.BreakRulesEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.EmergencyContactEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
@@ -175,6 +179,35 @@ interface PolicyDao {
     @Query("DELETE FROM pin_protection")
     suspend fun deletePin()
 
+    /** Настройки перерывов (веха «принудительные перерывы») — single-row таблица, `id = 0`. */
+    @Query("SELECT * FROM break_rules WHERE id = 0")
+    fun breakRules(): Flow<BreakRulesEntity?>
+
+    /** Часы перерыва режима HOURS, по возрастанию — так же, как читает `BreakRules.activeHoursWindow`. */
+    @Query("SELECT minuteOfDay FROM break_hour ORDER BY minuteOfDay")
+    fun breakHours(): Flow<List<Int>>
+
+    /**
+     * Настройки перерывов сохраняются целиком одним экраном (в отличие от `policy_flags`, где
+     * несколько несвязанных тумблеров живут в одной строке) — здесь upsert не грабли, а корректный
+     * способ: строка `break_rules` целиком принадлежит этой фиче.
+     */
+    @Upsert
+    suspend fun upsertBreakRules(entity: BreakRulesEntity)
+
+    @Query("DELETE FROM break_hour")
+    suspend fun deleteAllBreakHours()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBreakHours(entities: List<BreakHourEntity>)
+
+    /** Полная замена списка часов режима HOURS: удалить старые, вставить новые, одной транзакцией. */
+    @Transaction
+    suspend fun replaceBreakHours(minutes: Collection<Int>) {
+        deleteAllBreakHours()
+        insertBreakHours(minutes.map(::BreakHourEntity))
+    }
+
     /**
      * Транзакционно заменяет ВСЮ политику разом (применение серверного документа — веха 4.3):
      * либо применяется целиком, либо не применяется вовсе — исполнители (блокировка/учёт)
@@ -189,6 +222,7 @@ interface PolicyDao {
         deleteAllBlockedSites()
         deleteAllScheduleWindows()
         deleteAllEmergencyContacts()
+        deleteAllBreakHours()
         entities.dayLimits.forEach { upsertDayLimit(it) }
         entities.appLimits.forEach { upsertAppLimit(it) }
         entities.whitelist.forEach { addToWhitelist(it) }
@@ -196,7 +230,9 @@ interface PolicyDao {
         entities.blockedSites.forEach { upsertBlockedSite(it) }
         entities.scheduleWindows.forEach { upsertScheduleWindow(it) }
         entities.emergencyContacts.forEach { upsertEmergencyContact(it) }
+        insertBreakHours(entities.breakHours.map(::BreakHourEntity))
         upsertPolicyFlags(entities.flags)
+        upsertBreakRules(entities.breakRules)
         entities.pin?.let { upsertPin(it) } ?: deletePin()
     }
 }
@@ -215,5 +251,7 @@ data class PolicyEntities(
     val scheduleWindows: List<ScheduleWindowEntity>,
     val emergencyContacts: List<EmergencyContactEntity>,
     val flags: PolicyFlagsEntity,
-    val pin: PinEntity?
+    val pin: PinEntity?,
+    val breakRules: BreakRulesEntity,
+    val breakHours: List<Int>
 )

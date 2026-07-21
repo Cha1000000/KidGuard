@@ -21,5 +21,6 @@ data class PolicySnapshot(
     val sleepSchedule: ScheduleRules = ScheduleRules.EMPTY,
     val emergencyContacts: List<EmergencyContact> = emptyList(),
     val pinHash: String? = null,
-    val pinSalt: String? = null
+    val pinSalt: String? = null,
+    val breakRules: BreakRules = BreakRules.EMPTY
 )

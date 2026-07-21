@@ -3,6 +3,7 @@ package ru.homelab.kidguard.core.domain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import ru.homelab.kidguard.core.domain.model.BlockedSite
+import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
@@ -42,6 +43,7 @@ class FakePolicyRepository(
     override val sleepSchedule: Flow<ScheduleRules> = flowOf(sleepSchedule)
     override val emergencyContacts: Flow<List<EmergencyContact>> = flowOf(emptyList())
     override val pinProtection: Flow<PinProtection?> = flowOf(pinProtection)
+    override val breakRules: Flow<BreakRules> = flowOf(BreakRules.EMPTY)
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
@@ -58,5 +60,7 @@ class FakePolicyRepository(
     override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) = Unit
     override suspend fun setPin(hash: String, salt: String) = Unit
     override suspend fun clearPin() = Unit
+    override suspend fun setBreakRules(rules: BreakRules) = Unit
+    override suspend fun resetBreaks() = Unit
     override suspend fun replaceAll(snapshot: PolicySnapshot) = Unit
 }

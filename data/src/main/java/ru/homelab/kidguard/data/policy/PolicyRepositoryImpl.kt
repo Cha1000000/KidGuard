@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.homelab.kidguard.core.domain.model.BlockedSite
+import ru.homelab.kidguard.core.domain.model.BreakMode
+import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
@@ -18,6 +20,7 @@ import ru.homelab.kidguard.data.db.dao.PolicyEntities
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
+import ru.homelab.kidguard.data.db.entity.BreakRulesEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
 import ru.homelab.kidguard.data.db.entity.EmergencyContactEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
@@ -71,6 +74,23 @@ class PolicyRepositoryImpl @Inject constructor(
 
     override val emergencyContacts: Flow<List<EmergencyContact>> =
         policyDao.emergencyContacts().map { rows -> rows.map { EmergencyContact(it.name, it.phone) } }
+
+    // Строка настроек + отдельная таблица часов режима HOURS склеиваются в одну модель домена.
+    override val breakRules: Flow<BreakRules> =
+        combine(policyDao.breakRules(), policyDao.breakHours()) { row, hours ->
+            if (row == null) {
+                BreakRules.EMPTY
+            } else {
+                BreakRules(
+                    enabled = row.enabled,
+                    mode = BreakMode.valueOf(row.mode),
+                    intervalMinutes = row.intervalMinutes,
+                    hours = hours.toSet(),
+                    durationMinutes = row.durationMinutes,
+                    message = row.message
+                )
+            }
+        }
 
     override val pinProtection: Flow<PinProtection?> = policyDao.pin().map { entity ->
         val hash = entity?.pinHash
@@ -166,6 +186,13 @@ class PolicyRepositoryImpl @Inject constructor(
         policyDao.deletePin()
     }
 
+    override suspend fun setBreakRules(rules: BreakRules) {
+        policyDao.upsertBreakRules(rules.toEntity())
+        policyDao.replaceBreakHours(rules.hours)
+    }
+
+    override suspend fun resetBreaks() = setBreakRules(BreakRules.EMPTY)
+
     override suspend fun replaceAll(snapshot: PolicySnapshot) {
         val hash = snapshot.pinHash
         val salt = snapshot.pinSalt
@@ -184,7 +211,9 @@ class PolicyRepositoryImpl @Inject constructor(
                     studyScheduleEnabled = snapshot.studySchedule.enabled,
                     sleepScheduleEnabled = snapshot.sleepSchedule.enabled
                 ),
-                pin = if (hash != null && salt != null) PinEntity(pinHash = hash, pinSalt = salt) else null
+                pin = if (hash != null && salt != null) PinEntity(pinHash = hash, pinSalt = salt) else null,
+                breakRules = snapshot.breakRules.toEntity(),
+                breakHours = snapshot.breakRules.hours.toList()
             )
         )
     }
@@ -203,4 +232,12 @@ class PolicyRepositoryImpl @Inject constructor(
         windowsByDay.map { (day, window) ->
             ScheduleWindowEntity(kind.name, day.value, window.startMinute, window.endMinute)
         }
+
+    private fun BreakRules.toEntity(): BreakRulesEntity = BreakRulesEntity(
+        enabled = enabled,
+        mode = mode.name,
+        intervalMinutes = intervalMinutes,
+        durationMinutes = durationMinutes,
+        message = message
+    )
 }

@@ -119,3 +119,28 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         )
     }
 }
+
+/**
+ * v8 → v9 (вехa «принудительные перерывы»): настройки перерывов и их часы (режим HOURS) —
+ * по образцу `policy_flags`/`schedule_window`: скалярная single-row строка плюс отдельная таблица
+ * для переменного числа значений.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `break_rules` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`enabled` INTEGER NOT NULL DEFAULT 0, " +
+                "`mode` TEXT NOT NULL DEFAULT 'INTERVAL', " +
+                "`intervalMinutes` INTEGER NOT NULL DEFAULT 0, " +
+                "`durationMinutes` INTEGER NOT NULL DEFAULT 0, " +
+                "`message` TEXT NOT NULL DEFAULT '', " +
+                "PRIMARY KEY(`id`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `break_hour` (" +
+                "`minuteOfDay` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`minuteOfDay`))"
+        )
+    }
+}

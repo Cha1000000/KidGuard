@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.BlockedSite
+import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
@@ -138,6 +139,7 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override val studySchedule: Flow<ScheduleRules> get() = unused()
     override val sleepSchedule: Flow<ScheduleRules> get() = unused()
     override val emergencyContacts: Flow<List<EmergencyContact>> get() = unused()
+    override val breakRules: Flow<BreakRules> get() = unused()
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = unused()
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = unused()
@@ -154,5 +156,7 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) = unused()
     override suspend fun setPin(hash: String, salt: String) = unused()
     override suspend fun clearPin() = unused()
+    override suspend fun setBreakRules(rules: BreakRules) = unused()
+    override suspend fun resetBreaks() = unused()
     override suspend fun replaceAll(snapshot: PolicySnapshot) = unused()
 }

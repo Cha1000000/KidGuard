@@ -2,6 +2,7 @@ package ru.homelab.kidguard.core.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.BlockedSite
+import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
@@ -51,6 +52,9 @@ interface PolicyRepository {
     /** Родительский PIN (соль + хеш), защищающий критичные настройки (веха 6.1); null — PIN не задан. */
     val pinProtection: Flow<PinProtection?>
 
+    /** Настройки принудительных перерывов; [BreakRules.EMPTY] — родитель ничего не задал. */
+    val breakRules: Flow<BreakRules>
+
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
 
@@ -98,6 +102,12 @@ interface PolicyRepository {
 
     /** Убрать PIN-защиту. */
     suspend fun clearPin()
+
+    /** Сохранить настройки перерывов целиком — экран сохраняет их одним действием. */
+    suspend fun setBreakRules(rules: BreakRules)
+
+    /** Общий сброс: обнуляет и интервал, и часы, и длительность, выключает перерывы. */
+    suspend fun resetBreaks()
 
     /**
      * Транзакционно заменить всю политику разом — применение серверного документа при
