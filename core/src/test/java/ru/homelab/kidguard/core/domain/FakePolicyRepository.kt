@@ -55,6 +55,7 @@ class FakePolicyRepository(
     override suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean) = Unit
     override suspend fun addEmergencyContact(contact: EmergencyContact) = Unit
     override suspend fun removeEmergencyContact(phone: String) = Unit
+    override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) = Unit
     override suspend fun setPin(hash: String, salt: String) = Unit
     override suspend fun clearPin() = Unit
     override suspend fun replaceAll(snapshot: PolicySnapshot) = Unit

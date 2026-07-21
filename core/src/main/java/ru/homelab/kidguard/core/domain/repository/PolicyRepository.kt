@@ -87,6 +87,12 @@ interface PolicyRepository {
     /** Убрать контакт из списка экстренных. */
     suspend fun removeEmergencyContact(phone: String)
 
+    /**
+     * Исправить контакт: родитель мог ошибиться в имени или номере. [oldPhone] нужен отдельным
+     * параметром, потому что номер — ключ контакта, и при его правке старую запись надо убрать.
+     */
+    suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact)
+
     /** Задать родительский PIN — хеш и соль уже посчитаны вызывающей стороной ([PinHasher][ru.homelab.kidguard.core.domain.security.PinHasher]). */
     suspend fun setPin(hash: String, salt: String)
 

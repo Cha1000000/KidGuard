@@ -176,6 +176,9 @@
     <string name="schedule_contact_phone_placeholder">+7 900 …</string>
     <string name="schedule_contact_add">Добавить</string>
     <string name="schedule_contact_remove">Удалить</string>
+    <string name="schedule_contact_save">Сохранить изменения</string>
+    <string name="schedule_contact_editing">Правим контакт «%1$s»</string>
+    <string name="schedule_contact_editing_cancel">Отмена</string>
     <string name="schedule_contact_preview_prefix">На замке ребёнок увидит:</string>
     <string name="schedule_contact_preview_call">Позвонить %1$s</string>
     <string name="schedule_contacts_empty">Список пуст. Добавьте, кому можно позвонить ночью.</string>

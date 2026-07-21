@@ -151,6 +151,7 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean) = unused()
     override suspend fun addEmergencyContact(contact: EmergencyContact) = unused()
     override suspend fun removeEmergencyContact(phone: String) = unused()
+    override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) = unused()
     override suspend fun setPin(hash: String, salt: String) = unused()
     override suspend fun clearPin() = unused()
     override suspend fun replaceAll(snapshot: PolicySnapshot) = unused()

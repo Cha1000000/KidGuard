@@ -25,6 +25,7 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -117,6 +118,8 @@ fun ScheduleScreen(
     var resetConfirmKind by remember { mutableStateOf<ScheduleKind?>(null) }
     var contactName by remember { mutableStateOf("") }
     var contactPhone by remember { mutableStateOf("") }
+    // Номер контакта до правки: null — форма добавляет новый контакт, иначе исправляет этот.
+    var editingContactPhone by remember { mutableStateOf<String?>(null) }
 
     // Затемнённые варианты в светлой теме — на светлом фоне исходные (тёмная тема) значения
     // дают контраст ~2:1, почти не читаются (см. заметку в макете).
@@ -198,16 +201,35 @@ fun ScheduleScreen(
                     onNameChange = { contactName = it },
                     phone = contactPhone,
                     onPhoneChange = { contactPhone = it },
-                    onAdd = {
+                    isEditing = editingContactPhone != null,
+                    onSubmit = {
                         if (contactName.isNotBlank() && contactPhone.isNotBlank()) {
-                            viewModel.addEmergencyContact(
-                                EmergencyContact(contactName.trim(), contactPhone.trim())
-                            )
+                            val contact = EmergencyContact(contactName.trim(), contactPhone.trim())
+                            val oldPhone = editingContactPhone
+                            if (oldPhone == null) {
+                                viewModel.addEmergencyContact(contact)
+                            } else {
+                                viewModel.updateEmergencyContact(oldPhone, contact)
+                            }
                             contactName = ""
                             contactPhone = ""
+                            editingContactPhone = null
                         }
                     }
                 )
+            }
+            editingContactPhone?.let { phone ->
+                item {
+                    EditingContactHint(
+                        onCancel = {
+                            contactName = ""
+                            contactPhone = ""
+                            editingContactPhone = null
+                        },
+                        // Имя берём из формы: пока родитель правит его, подпись едет следом.
+                        name = contactName.ifBlank { phone }
+                    )
+                }
             }
             if (contactName.isNotBlank()) {
                 item {
@@ -232,7 +254,23 @@ fun ScheduleScreen(
                 itemsIndexed(contacts, key = { _, contact -> contact.phone }) { index, contact ->
                     EmergencyContactRow(
                         contact = contact,
-                        onRemove = { viewModel.removeEmergencyContact(contact.phone) },
+                        isEditing = editingContactPhone == contact.phone,
+                        accentColor = sleepColor,
+                        // Правка по тапу на саму карточку: отдельный «карандаш» на строке из
+                        // трёх элементов только загромождал бы её.
+                        onEdit = {
+                            editingContactPhone = contact.phone
+                            contactName = contact.name
+                            contactPhone = contact.phone
+                        },
+                        onRemove = {
+                            if (editingContactPhone == contact.phone) {
+                                contactName = ""
+                                contactPhone = ""
+                                editingContactPhone = null
+                            }
+                            viewModel.removeEmergencyContact(contact.phone)
+                        },
                         // Первую карточку отделяем от полей ввода заметнее, чем контакты друг
                         // от друга: иначе поле ввода номера слипается со списком в одну кашу.
                         modifier = Modifier.padding(
@@ -476,13 +514,18 @@ private fun PinWarningCard(onOpenPinSetup: () -> Unit, modifier: Modifier = Modi
     }
 }
 
+/**
+ * Форма контакта. Одна и та же и для добавления, и для правки — в режиме правки меняется только
+ * иконка кнопки («+» → «✓»), поля и так уже заполнены выбранным контактом.
+ */
 @Composable
 private fun EmergencyContactInputRow(
     name: String,
     onNameChange: (String) -> Unit,
     phone: String,
     onPhoneChange: (String) -> Unit,
-    onAdd: () -> Unit
+    isEditing: Boolean,
+    onSubmit: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -509,14 +552,42 @@ private fun EmergencyContactInputRow(
                 .height(InputRowHeight)
         )
         IconButton(
-            onClick = onAdd,
+            onClick = onSubmit,
             modifier = Modifier.height(InputRowHeight)
         ) {
             Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.schedule_contact_add),
+                imageVector = if (isEditing) Icons.Filled.Check else Icons.Filled.Add,
+                contentDescription = stringResource(
+                    if (isEditing) R.string.schedule_contact_save else R.string.schedule_contact_add
+                ),
                 tint = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+/** Подпись под формой в режиме правки: что именно правим и как выйти, ничего не меняя. */
+@Composable
+private fun EditingContactHint(
+    name: String,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp, start = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.schedule_contact_editing, name),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = onCancel) {
+            Text(stringResource(R.string.schedule_contact_editing_cancel))
         }
     }
 }
@@ -534,13 +605,26 @@ private fun buildContactPreview(name: String, accentColor: Color) = buildAnnotat
 @Composable
 private fun EmergencyContactRow(
     contact: EmergencyContact,
+    isEditing: Boolean,
+    accentColor: Color,
+    onEdit: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     GlassCard(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // Обводка акцентом показывает, какой контакт сейчас в форме наверху.
+            .then(
+                if (isEditing) {
+                    Modifier.border(1.5.dp, accentColor, RoundedCornerShape(12.dp))
+                } else {
+                    Modifier
+                }
+            ),
         cornerRadius = 12.dp,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        onClick = onEdit
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -554,7 +638,7 @@ private fun EmergencyContactRow(
             )
             Text(
                 text = contact.phone,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             IconButton(onClick = onRemove) {

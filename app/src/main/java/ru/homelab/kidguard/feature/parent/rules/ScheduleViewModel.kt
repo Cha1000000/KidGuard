@@ -66,6 +66,11 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch { policyRepository.addEmergencyContact(contact) }
     }
 
+    /** Исправить контакт: [oldPhone] — номер до правки (он же ключ записи). */
+    fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) {
+        viewModelScope.launch { policyRepository.updateEmergencyContact(oldPhone, contact) }
+    }
+
     fun removeEmergencyContact(phone: String) {
         viewModelScope.launch { policyRepository.removeEmergencyContact(phone) }
     }

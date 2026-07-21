@@ -147,6 +147,13 @@ class PolicyRepositoryImpl @Inject constructor(
         policyDao.upsertEmergencyContact(EmergencyContactEntity(contact.phone, contact.name))
     }
 
+    override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact) {
+        policyDao.updateEmergencyContact(
+            oldPhone,
+            EmergencyContactEntity(contact.phone, contact.name)
+        )
+    }
+
     override suspend fun removeEmergencyContact(phone: String) {
         policyDao.removeEmergencyContact(phone)
     }

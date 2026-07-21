@@ -133,6 +133,17 @@ interface PolicyDao {
     @Query("DELETE FROM emergency_contact WHERE phone = :phone")
     suspend fun removeEmergencyContact(phone: String)
 
+    /**
+     * Правка контакта. Номер — первичный ключ, поэтому смена номера это не UPDATE, а удаление
+     * старой строки плюс вставка новой; в транзакции, чтобы при сбое контакт не исчез совсем.
+     * Смена только имени попадает под тот же путь: удалить и вставить строку с тем же ключом.
+     */
+    @Transaction
+    suspend fun updateEmergencyContact(oldPhone: String, entity: EmergencyContactEntity) {
+        removeEmergencyContact(oldPhone)
+        upsertEmergencyContact(entity)
+    }
+
     @Query("DELETE FROM day_limit")
     suspend fun deleteAllDayLimits()
 
