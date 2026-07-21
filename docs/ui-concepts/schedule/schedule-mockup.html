@@ -8,87 +8,109 @@
   :root {
     --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
     --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
-    --scr-bg0: #0c1512; --scr-bg1: #0f1c17; --scr-fg: #e9f2ee; --scr-muted: #8fa39b;
-    --scr-glass: rgba(255,255,255,.055); --scr-glass-border: rgba(255,255,255,.09);
-    --scr-accent: #35e0ad; --scr-danger: #ef5350; --scr-warn: #f5b301;
-    /* Два расписания различаются цветом: день/школа — янтарный, ночь/сон — холодный индиго. */
-    --study: #f5b301; --sleep: #8aa4f7;
   }
   @media (prefers-color-scheme: dark) {
     :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
             --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
-  }
-  :root[data-theme="dark"] {
-    --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
-    --page-border:rgba(255,255,255,.09); --accent:#35e0ad;
-  }
-  :root[data-theme="light"] {
-    --page-bg:#eef2f0; --page-fg:#14201b; --page-muted:#5c6b64; --page-card:#fff;
-    --page-border:rgba(20,32,27,.10); --accent:#0f9d74;
   }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
          color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
   .wrap { max-width: 1180px; margin:0 auto; padding: 32px 20px 64px; }
   .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
-  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; text-wrap:balance; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
   .intro p { margin:0; color:var(--page-muted); max-width:66ch; }
 
-  .screens { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:24px; margin-top:30px; align-items:start; }
-  @media (max-width:1000px){ .screens{ grid-template-columns:1fr; gap:32px; } }
+  /* --- Переключатель темы экрана: цвета расписаний надо проверить на обоих фонах --- */
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+  .tabs button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
+  .screens { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:24px; margin-top:18px; align-items:start; }
+  @media (max-width:1000px){ .screens{ grid-template-columns:1fr; gap:32px; } }
   .col { display:flex; flex-direction:column; gap:10px; }
   .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
   .caption b { color:var(--page-fg); font-weight:600; }
 
   .phone { width:100%; max-width:390px; margin:0 auto; border-radius:40px; padding:12px;
     background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
-  .screen { border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
-    color:var(--scr-fg); padding:14px 14px 18px; min-height:620px; }
+
+  /* Тёмная тема приложения (Deep Teal) — значения из ui/theme/Color.kt */
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#ef5350;
+    --study:#f5b301; --study-bg:rgba(245,179,1,.16); --study-line:rgba(245,179,1,.28); --study-soft:#f3d79a;
+    --sleep:#8aa4f7; --sleep-bg:rgba(138,164,247,.16); --sleep-fade:#1b2338;
+    --sheet-bg:#16231e; --field-bg:rgba(255,255,255,.03);
+    border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:14px 14px 18px; min-height:660px;
+  }
+  /* Светлая тема приложения — фирменная палитра + затемнённые акценты расписаний */
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#c62828;
+    --study:#96670e; --study-bg:rgba(150,103,14,.12); --study-line:rgba(150,103,14,.30); --study-soft:#5a3f07;
+    --sleep:#3b4da6; --sleep-bg:rgba(59,77,166,.12); --sleep-fade:#e7eaf7;
+    --sheet-bg:#ffffff; --field-bg:rgba(22,35,42,.04);
+  }
+
   .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:4px 6px 10px; }
   .topbar { display:flex; align-items:center; gap:10px; padding:0 2px 4px; }
   .topbar .back { color:var(--scr-muted); font-size:20px; }
   .topbar h2 { font-size:20px; margin:0; font-weight:700; }
   .subtitle { font-size:12.5px; color:var(--scr-muted); margin:8px 4px 14px; }
 
-  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:14px; margin-bottom:14px; }
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:14px; margin-bottom:12px; }
   .card.locked { opacity:.55; }
-  .chead { display:flex; align-items:flex-start; gap:12px; margin-bottom:4px; }
+  .chead { display:flex; align-items:flex-start; gap:12px; }
   .chead .ico { width:30px; height:30px; border-radius:9px; flex:none; display:grid; place-items:center; font-size:15px; }
-  .ico.study { background:rgba(245,179,1,.16); }
-  .ico.sleep { background:rgba(138,164,247,.16); }
+  .ico.study { background:var(--study-bg); }
+  .ico.sleep { background:var(--sleep-bg); }
   .chead .tinfo { flex:1; }
   .chead .ttitle { font-size:15px; font-weight:600; }
   .chead .thint { font-size:11.5px; color:var(--scr-muted); margin-top:3px; }
-  .sw { width:44px; height:26px; border-radius:999px; flex:none; position:relative; background:rgba(255,255,255,.14); margin-top:2px; }
-  .sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#8fa39b; }
+  .sw { width:44px; height:26px; border-radius:999px; flex:none; position:relative; background:rgba(128,128,128,.30); margin-top:2px; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#9aa7ab; }
   .sw.on { background:var(--scr-accent); }
-  .sw.on::after { left:21px; background:#06120d; }
+  .sw.on::after { left:21px; background:var(--scr-on-accent); }
 
   .days { display:flex; flex-direction:column; margin-top:10px; }
   .day { display:flex; align-items:center; gap:8px; padding:9px 2px; border-top:1px solid var(--scr-glass-border); font-size:14px; }
   .day:first-child { border-top:none; }
   .day .nm { flex:1; }
-  .day .today { font-size:10px; font-weight:700; color:#06120d; background:var(--scr-accent); border-radius:6px; padding:1px 6px; }
+  .day .today { font-size:10px; font-weight:700; color:var(--scr-on-accent); background:var(--scr-accent); border-radius:6px; padding:1px 6px; }
   .day .val { font-variant-numeric: tabular-nums; font-weight:700; font-size:13.5px; }
   .day.study .val { color:var(--study); }
   .day.sleep .val { color:var(--sleep); }
   .day .val.off { color:var(--scr-muted); font-weight:500; }
 
-  .warn { display:flex; gap:9px; align-items:flex-start; background:rgba(245,179,1,.10); border:1px solid rgba(245,179,1,.28);
-    border-radius:12px; padding:10px 12px; margin-top:10px; font-size:11.5px; color:#f3d79a; }
-  .warn button { margin-top:7px; border:none; border-radius:9px; padding:6px 12px; background:var(--scr-warn);
-    color:#06120d; font-weight:700; font-size:11.5px; cursor:pointer; }
+  .reset { width:100%; margin-top:10px; background:transparent; border:1px solid var(--scr-glass-border);
+    border-radius:11px; padding:9px 0; color:var(--scr-danger); font-size:12.5px; font-weight:600;
+    font-family:inherit; cursor:pointer; }
+
+  .warn { display:flex; gap:9px; align-items:flex-start; background:var(--study-bg); border:1px solid var(--study-line);
+    border-radius:12px; padding:10px 12px; margin-top:10px; font-size:11.5px; color:var(--study-soft); }
+  .warn button { margin-top:7px; border:none; border-radius:9px; padding:6px 12px; background:var(--study);
+    color:#fff; font-weight:700; font-size:11.5px; cursor:pointer; font-family:inherit; }
 
   .section-title { font-size:13px; font-weight:700; margin:2px 4px 9px; }
-  .add { display:flex; gap:8px; margin-bottom:10px; }
-  .add input { flex:1; min-width:0; background:rgba(255,255,255,.03); border:1px solid var(--scr-glass-border);
+  .add { display:flex; gap:8px; margin-bottom:6px; }
+  .add .fld { flex:1; min-width:0; background:var(--field-bg); border:1px solid var(--scr-glass-border);
     border-radius:12px; padding:9px 11px; color:var(--scr-fg); font-size:12.5px; }
-  .add input::placeholder { color:var(--scr-muted); }
-  .add button { border:none; border-radius:12px; padding:0 14px; background:var(--scr-accent); color:#06120d;
-    font-weight:700; font-size:12.5px; cursor:pointer; }
+  .add .fld.ph-empty { color:var(--scr-muted); }
+  .add button { border:none; border-radius:12px; padding:0 15px; background:var(--scr-accent); color:var(--scr-on-accent);
+    font-weight:700; font-size:15px; cursor:pointer; font-family:inherit; }
+  .preview { font-size:11px; color:var(--scr-muted); margin:0 4px 11px; }
+  .preview b { color:var(--sleep); font-weight:600; }
   .items { display:flex; flex-direction:column; gap:6px; }
-  .item { display:flex; align-items:center; gap:11px; background:rgba(255,255,255,.03); border:1px solid var(--scr-glass-border);
+  .item { display:flex; align-items:center; gap:11px; background:var(--field-bg); border:1px solid var(--scr-glass-border);
     border-radius:12px; padding:8px 11px; }
   .item .nm2 { flex:1; font-size:13.5px; }
   .item .ph { font-size:11.5px; color:var(--scr-muted); font-variant-numeric: tabular-nums; }
@@ -96,45 +118,56 @@
     color:var(--scr-danger); display:grid; place-items:center; font-size:15px; cursor:pointer; background:transparent; }
   .hint { font-size:11px; color:var(--scr-muted); margin:12px 4px 0; display:flex; gap:6px; }
 
-  /* --- Bottom sheet --- */
+  /* --- Шторка выбора времени: барабаны --- */
   .sheet-host { position:relative; }
   .scrim { position:absolute; inset:0; background:rgba(4,8,7,.62); border-radius:30px; }
-  .sheet { position:absolute; left:0; right:0; bottom:0; background:#16231e; border:1px solid var(--scr-glass-border);
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--sheet-bg); border:1px solid var(--scr-glass-border);
     border-bottom:none; border-radius:22px 22px 30px 30px; padding:16px 18px 20px; }
-  .grab { width:34px; height:4px; border-radius:99px; background:rgba(255,255,255,.2); margin:0 auto 14px; }
+  .grab { width:34px; height:4px; border-radius:99px; background:rgba(128,128,128,.35); margin:0 auto 14px; }
   .sheet h3 { margin:0 0 2px; font-size:17px; }
-  .sheet .sh { font-size:11.5px; color:var(--scr-muted); margin:0 0 16px; }
-  .times { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-  .tfield { flex:1; text-align:center; border:1px solid var(--scr-glass-border); border-radius:14px; padding:11px 6px;
-    background:rgba(255,255,255,.03); }
-  .tfield.sel { border-color:var(--sleep); background:rgba(138,164,247,.10); }
-  .tfield .lb { font-size:10.5px; color:var(--scr-muted); text-transform:uppercase; letter-spacing:.08em; }
-  .tfield .tv { font-size:25px; font-weight:700; font-variant-numeric: tabular-nums; margin-top:2px; }
-  .tfield.sel .tv { color:var(--sleep); }
-  .dash { color:var(--scr-muted); }
-  .dial { height:158px; border-radius:50%; width:158px; margin:2px auto 14px; position:relative;
-    background:rgba(255,255,255,.04); border:1px solid var(--scr-glass-border); }
-  .dial .hand { position:absolute; left:50%; top:50%; width:2px; height:56px; background:var(--sleep);
-    transform-origin: top center; transform: rotate(210deg); }
-  .dial .knob { position:absolute; width:30px; height:30px; border-radius:50%; background:var(--sleep);
-    left:22px; top:96px; display:grid; place-items:center; color:#06120d; font-weight:700; font-size:12px; }
-  .dial .center { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%; background:var(--sleep); }
-  .dial span.n { position:absolute; font-size:11px; color:var(--scr-muted); }
-  .allweek { display:flex; align-items:center; gap:10px; font-size:12.5px; margin-bottom:14px; }
+  .sheet .sh { font-size:11.5px; color:var(--scr-muted); margin:0 0 14px; }
+
+  .tblock { border:1px solid var(--scr-glass-border); border-radius:15px; background:var(--scr-glass);
+    padding:10px 12px 12px; margin-bottom:10px; }
+  .tblock.sel { border-color:var(--sleep); background:var(--sleep-bg); }
+  .tblock .lb { font-size:10.5px; color:var(--scr-muted); text-transform:uppercase; letter-spacing:.09em; margin-bottom:4px; }
+  .wheels { display:flex; align-items:center; justify-content:center; gap:6px; }
+  .wheel { width:74px; height:112px; position:relative; overflow:hidden; }
+  .wheel .list { display:flex; flex-direction:column; align-items:center; font-variant-numeric: tabular-nums;
+    line-height:28px; font-size:16px; color:var(--scr-muted); }
+  .wheel .list .cur { font-size:26px; line-height:34px; font-weight:700; color:var(--scr-fg); }
+  .tblock.sel .wheel .list .cur { color:var(--sleep); }
+  .wheel::before, .wheel::after { content:""; position:absolute; left:0; right:0; height:38px; pointer-events:none; z-index:2; }
+  .wheel::before { top:0; background:linear-gradient(var(--sheet-bg), transparent); }
+  .wheel::after { bottom:0; background:linear-gradient(transparent, var(--sheet-bg)); }
+  .tblock.sel .wheel::before { background:linear-gradient(var(--sleep-fade), transparent); }
+  .tblock.sel .wheel::after { background:linear-gradient(transparent, var(--sleep-fade)); }
+  .wsep { font-size:22px; font-weight:700; color:var(--scr-muted); padding-bottom:2px; }
+  .selband { position:absolute; left:0; right:0; top:39px; height:34px; border-top:1px solid var(--scr-glass-border);
+    border-bottom:1px solid var(--scr-glass-border); z-index:1; }
+
+  .allweek { display:flex; align-items:center; gap:10px; font-size:12.5px; margin:12px 0 14px; }
   .chk { width:19px; height:19px; border-radius:6px; flex:none; border:2px solid var(--scr-accent); display:grid; place-items:center; }
   .chk.on { background:var(--scr-accent); }
-  .chk.on::after { content:"✓"; color:#06120d; font-size:12px; font-weight:800; }
+  .chk.on::after { content:"✓"; color:var(--scr-on-accent); font-size:12px; font-weight:800; }
   .sheet-actions { display:flex; gap:10px; }
-  .btn { flex:1; border:none; border-radius:12px; padding:11px 0; font-weight:700; font-size:13px; cursor:pointer; }
+  .btn { flex:1; border:none; border-radius:12px; padding:11px 0; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
   .btn.ghost { background:transparent; border:1px solid var(--scr-glass-border); color:var(--scr-muted); }
-  .btn.main { background:var(--scr-accent); color:#06120d; }
+  .btn.main { background:var(--scr-accent); color:var(--scr-on-accent); }
 
-  /* --- Ночной замок --- */
-  .lock { background:radial-gradient(120% 90% at 50% 0%,#182142,#080b18); min-height:620px; display:flex;
-    flex-direction:column; align-items:center; justify-content:center; padding:26px 18px; }
-  .moon { font-size:38px; }
-  .lock h2 { margin:12px 0 2px; font-size:23px; font-weight:700; }
-  .lock .until { color:#a9b7e8; font-size:14px; font-variant-numeric: tabular-nums; }
+  /* --- Ночной замок: всегда тёмный, это ночной экран --- */
+  .lock { position:relative; overflow:hidden; background:radial-gradient(125% 95% at 50% 0%,#20295a,#070a16);
+    min-height:660px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:26px 18px; border-radius:30px; color:#eef1ff; }
+  .stars { position:absolute; inset:0; pointer-events:none; }
+  .stars i { position:absolute; display:block; background:#c8d0f0; border-radius:50%; opacity:.30; }
+  .moon { width:62px; height:62px; position:relative; }
+  .moon::before { content:""; position:absolute; inset:0; border-radius:50%; background:#f5c451;
+    box-shadow:0 0 26px rgba(245,196,81,.34); }
+  .moon::after { content:""; position:absolute; width:50px; height:50px; border-radius:50%;
+    left:-13px; top:-4px; background:radial-gradient(120% 95% at 50% 0%,#20295a,#141a3a); }
+  .lock h2 { margin:16px 0 2px; font-size:23px; font-weight:700; }
+  .lock .until { color:#aeb9e8; font-size:14px; font-variant-numeric: tabular-nums; }
   .dots { display:flex; gap:14px; margin:22px 0 18px; }
   .dot { width:13px; height:13px; border-radius:50%; background:rgba(255,255,255,.22); }
   .dot.on { background:#fff; }
@@ -145,7 +178,7 @@
   .calls { display:flex; flex-direction:column; gap:9px; width:100%; max-width:250px; margin-top:24px; }
   .call { display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid rgba(255,255,255,.20);
     border-radius:13px; padding:11px 14px; font-size:14px; font-weight:600; }
-  .locknote { margin-top:18px; font-size:11px; color:#8a97c9; text-align:center; max-width:250px; }
+  .locknote { margin-top:18px; font-size:11px; color:#8f9bcc; text-align:center; max-width:250px; }
 
   .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
   @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
@@ -154,19 +187,28 @@
   .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
   .ncard p + p { margin-top:8px; }
   .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
   .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
 </style>
 </head>
 <body>
-
 <div class="wrap">
   <header class="intro">
-    <p class="eyebrow">KidGuard · макет на согласование</p>
+    <p class="eyebrow">KidGuard · макет на согласование · ред. 2</p>
     <h1>Расписание: «Время учёбы» и «Время сна»</h1>
     <p>Новый экран (Правила → «Расписание»). Дневной лимит отвечает на вопрос «сколько всего»,
        расписание — «когда нельзя». Учёба блокирует мягко, как исчерпанный лимит: телефон и смс
        остаются доступны. Сон блокирует наглухо — несмахиваемый замок, снимается только PIN.</p>
   </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+    <span class="lbl">— проверить, что янтарный и индиго читаются на обоих фонах</span>
+  </div>
 
   <div class="screens">
 
@@ -196,6 +238,7 @@
               <div class="day study"><span class="nm">Суббота</span><span class="val off">Не задано</span></div>
               <div class="day study"><span class="nm">Воскресенье</span><span class="val off">Не задано</span></div>
             </div>
+            <button type="button" class="reset">Сбросить время учёбы</button>
           </div>
 
           <div class="card">
@@ -216,17 +259,19 @@
               <div class="day sleep"><span class="nm">Суббота</span><span class="val">23:00 – 09:00</span></div>
               <div class="day sleep"><span class="nm">Воскресенье</span><span class="val">21:00 – 07:00</span></div>
             </div>
+            <button type="button" class="reset">Сбросить время сна</button>
           </div>
 
           <div class="section-title">Кому можно позвонить ночью</div>
           <div class="add">
-            <input placeholder="Имя" style="max-width:38%" />
-            <input placeholder="+7 900 123-45-67" />
-            <button>+</button>
+            <span class="fld" style="max-width:38%">Мама</span>
+            <span class="fld ph-empty">+7 900 …</span>
+            <button type="button">+</button>
           </div>
+          <div class="preview">На замке ребёнок увидит: <b>Позвонить маме</b></div>
           <div class="items">
-            <div class="item"><span class="nm2">Мама</span><span class="ph">+7 900 111-22-33</span><button class="del">−</button></div>
-            <div class="item"><span class="nm2">Папа</span><span class="ph">+7 900 444-55-66</span><button class="del">−</button></div>
+            <div class="item"><span class="nm2">Мама</span><span class="ph">+7 900 111-22-33</span><button type="button" class="del">−</button></div>
+            <div class="item"><span class="nm2">Папа</span><span class="ph">+7 900 444-55-66</span><button type="button" class="del">−</button></div>
           </div>
 
           <div class="hint">ⓘ Ночью с замка можно позвонить только по этим номерам. Список общий:
@@ -236,7 +281,7 @@
       <p class="caption"><b>1.</b> Правила → Расписание</p>
     </div>
 
-    <!-- 2. Редактор времени + состояние без PIN -->
+    <!-- 2. Шторка выбора времени + состояние без PIN -->
     <div class="col">
       <div class="phone">
         <div class="screen sheet-host">
@@ -258,7 +303,7 @@
             <span>⚠</span>
             <div>Ночную блокировку снимает только родительский PIN. Задайте его, иначе телефон
               будет нечем разблокировать до утра.
-              <br /><button>Задать PIN</button></div>
+              <br /><button type="button">Задать PIN</button></div>
           </div>
 
           <div class="scrim"></div>
@@ -266,36 +311,63 @@
             <div class="grab"></div>
             <h3>Вторник · время сна</h3>
             <p class="sh">Блокировка включится вечером и снимется утром следующего дня</p>
-            <div class="times">
-              <div class="tfield"><div class="lb">Начало</div><div class="tv">21:00</div></div>
-              <span class="dash">→</span>
-              <div class="tfield sel"><div class="lb">Конец</div><div class="tv">07:00</div></div>
+
+            <div class="tblock">
+              <div class="lb">Начало</div>
+              <div class="wheels">
+                <div class="wheel"><div class="selband"></div><div class="list">
+                  <span>19</span><span>20</span><span class="cur">21</span><span>22</span><span>23</span>
+                </div></div>
+                <span class="wsep">:</span>
+                <div class="wheel"><div class="selband"></div><div class="list">
+                  <span>50</span><span>55</span><span class="cur">00</span><span>05</span><span>10</span>
+                </div></div>
+              </div>
             </div>
-            <div class="dial">
-              <span class="n" style="left:50%;top:7px;transform:translateX(-50%)">12</span>
-              <span class="n" style="right:9px;top:50%;transform:translateY(-50%)">3</span>
-              <span class="n" style="left:50%;bottom:7px;transform:translateX(-50%)">6</span>
-              <span class="n" style="left:11px;top:50%;transform:translateY(-50%)">9</span>
-              <div class="hand"></div>
-              <div class="center"></div>
-              <div class="knob">7</div>
+
+            <div class="tblock sel">
+              <div class="lb">Конец</div>
+              <div class="wheels">
+                <div class="wheel"><div class="selband"></div><div class="list">
+                  <span>05</span><span>06</span><span class="cur">07</span><span>08</span><span>09</span>
+                </div></div>
+                <span class="wsep">:</span>
+                <div class="wheel"><div class="selband"></div><div class="list">
+                  <span>50</span><span>55</span><span class="cur">00</span><span>05</span><span>10</span>
+                </div></div>
+              </div>
             </div>
+
             <div class="allweek"><div class="chk on"></div><span>Применить ко всем дням недели</span></div>
             <div class="sheet-actions">
-              <button class="btn ghost">Убрать</button>
-              <button class="btn main">Сохранить</button>
+              <button type="button" class="btn ghost">Убрать</button>
+              <button type="button" class="btn main">Сохранить</button>
             </div>
           </div>
         </div>
       </div>
-      <p class="caption"><b>2.</b> Тап по дню — выбор часов. Позади: как выглядит блок «сна», пока PIN не задан</p>
+      <p class="caption"><b>2.</b> Тап по дню — барабаны часов и минут. Позади: блок «сна», пока PIN не задан</p>
     </div>
 
     <!-- 3. Ночной замок -->
     <div class="col">
       <div class="phone">
-        <div class="screen lock">
-          <div class="moon">🌙</div>
+        <div class="lock">
+          <div class="stars">
+            <i style="left:12%;top:9%;width:3px;height:3px"></i>
+            <i style="left:26%;top:19%;width:2px;height:2px;opacity:.20"></i>
+            <i style="left:78%;top:12%;width:3px;height:3px;opacity:.26"></i>
+            <i style="left:88%;top:26%;width:2px;height:2px;opacity:.18"></i>
+            <i style="left:63%;top:6%;width:2px;height:2px;opacity:.22"></i>
+            <i style="left:8%;top:34%;width:2px;height:2px;opacity:.16"></i>
+            <i style="left:93%;top:47%;width:2px;height:2px;opacity:.16"></i>
+            <i style="left:5%;top:62%;width:3px;height:3px;opacity:.14"></i>
+            <i style="left:90%;top:73%;width:2px;height:2px;opacity:.14"></i>
+            <i style="left:18%;top:88%;width:2px;height:2px;opacity:.12"></i>
+            <i style="left:72%;top:92%;width:3px;height:3px;opacity:.12"></i>
+          </div>
+
+          <div class="moon"></div>
           <h2>Время сна</h2>
           <div class="until">Телефон откроется в 07:00</div>
 
@@ -321,52 +393,62 @@
 
   <div class="notes">
     <div class="ncard">
-      <h3>Почему у каждого дня своё время</h3>
-      <p>Как на экране «Дневной лимит»: 7 строк, тап по строке открывает выбор часов. В пятницу и
-         субботу спать позже — обычное дело, а уроки в субботу бывают не у всех. В шторке есть
-         галка <b>«Применить ко всем дням»</b> — задать одинаково можно в один тап.</p>
+      <h3>Барабаны вместо циферблата</h3>
+      <p>Два блока — <b>Начало</b> и <b>Конец</b>, в каждом барабан часов и барабан минут. Активный
+         блок подсвечен индиго, выбранное значение крупное, соседние приглушены и уходят под
+         градиент. Минуты шагом 5: ночной отбой не назначают на 21:37.</p>
+      <p>Циферблат Material для «21:00 → 07:00» требует четырёх касаний и попадания по цифре;
+         барабаны крутятся пальцем и занимают меньше высоты.</p>
     </div>
     <div class="ncard">
-      <h3>Переход через полночь</h3>
-      <p>Окно <b>21:00 – 07:00</b> относится к дню, в который оно <b>началось</b>: строка
-         «Понедельник» — это ночь с понедельника на вторник. Иначе блокировка отпускала бы ровно
-         в полночь. Логика уже написана и покрыта тестами.</p>
+      <h3>Сброс — у каждого расписания свой</h3>
+      <p>Кнопка внизу карточки: <b>«Сбросить время учёбы»</b> и <b>«Сбросить время сна»</b>. Стирает
+         часы всех семи дней только своего расписания, с диалогом подтверждения — как «Сбросить все
+         лимиты» на экране дневного лимита. Тумблер при этом не трогаем.</p>
     </div>
     <div class="ncard">
-      <h3>Учёба ≠ сон</h3>
-      <p><b>Учёба</b> — тот же смахиваемый оверлей, что при исчерпанном лимите, только текст свой:
-         «Сейчас время учёбы, телефон будет доступен в 14:00». Телефон, смс и всё из «Всегда
-         доступные» работают — ребёнок на связи.</p>
-      <p><b>Сон</b> — отдельный замок поверх всего, включая рабочий стол. Не смахивается,
-         «Домой» и «Назад» его не убирают. За 10 минут до начала ребёнок получает предупреждение.</p>
+      <h3>Цвета в светлой теме</h3>
+      <p>На тёмном фоне работают <code>#f5b301</code> и <code>#8aa4f7</code>. На светлом они блёкнут
+         (контраст около 2:1), поэтому там берём затемнённые: янтарный <code>#96670e</code> и индиго
+         <code>#3b4da6</code> — оба дают 5:1 и выше. Оттенок и смысл сохраняются, меняется только
+         светлота. Переключатель темы вверху страницы — сравни сам.</p>
     </div>
     <div class="ncard">
-      <h3>Замок без PIN не включить</h3>
-      <p>Пока родительский PIN не задан, тумблер «Время сна» неактивен, а под ним — плашка с
-         кнопкой «Задать PIN». Иначе ночной замок оказался бы нечем снять и телефон окирпичился бы
-         до утра.</p>
-      <p>Верный PIN снимает замок <b>на 15 минут</b>, потом он возвращается сам — не нужно помнить,
-         что защиту надо включить обратно.</p>
+      <h3>Ночной замок</h3>
+      <p>Индиго-градиент, жёлтый полумесяц и редкие звёздочки на 12–30% прозрачности — фон, а не
+         украшение: взгляд остаётся на PIN-клавиатуре. Замок всегда тёмный независимо от темы
+         приложения: это ночной экран, светить в глаза в три часа ночи он не должен.</p>
     </div>
     <div class="ncard">
-      <h3>Экстренные звонки</h3>
-      <p>Список «имя + номер» ведут оба родителя, он приезжает на телефон вместе с остальными
-         правилами. На замке — по кнопке на контакт, тап сразу звонит. Набрать другой номер или
-         залезть в контакты нельзя. Список пуст — кнопок нет.</p>
-      <p>Пока идёт разговор, замок прячется сам и возвращается, как только ребёнок выйдет из
-         телефона.</p>
+      <h3>Падежи имён</h3>
+      <p>Родитель пишет <b>«Мама»</b>, ребёнок видит <b>«Позвонить маме»</b>. Склоняем по правилам
+         дательного падежа: <code>-а/-я → -е</code> (мама→маме, папа→папе, Оля→Оле),
+         <code>-ия → -ии</code> (Мария→Марии), <code>-й → -ю</code> (Андрей→Андрею), согласная
+         <code>→ -у</code> (Дед→Деду).</p>
+      <p>Правила русского языка на все случаи не натянуть, поэтому под полем ввода — <b>живой
+         предпросмотр</b>: «На замке ребёнок увидит: Позвонить маме». Вышло криво — родитель видит
+         это сразу и вводит имя в нужной форме сам; готовая форма («маме») правилами не портится.</p>
     </div>
     <div class="ncard">
       <h3>Что уже сделано</h3>
       <p>Доменная логика окон (включая переход через полночь) и её тесты, хранение в базе, миграция
-         и синхронизация с сервером — готовы и проверены. Сервер менять не пришлось.
-         Осталось это: экран родителя, оверлей учёбы и ночной замок.</p>
+         и синхронизация с сервером — готовы и проверены на живой базе эмулятора. Сервер менять не
+         пришлось. Осталось это: экран родителя, оверлей учёбы и ночной замок.</p>
     </div>
   </div>
 
-  <p class="foot">Вопросы к согласованию: устраивает ли выбор часов «циферблатом» (штатный Material
-    TimePicker) или удобнее два барабана? Нужна ли кнопка «Сбросить всё расписание», как на экране
-    дневного лимита?</p>
+  <p class="foot">Правки ред. 2: барабаны вместо циферблата, отдельные кнопки сброса, цвета для
+    светлой темы, полумесяц и звёзды на замке, склонение имён с предпросмотром.</p>
 </div>
+
+<script>
+  function setTheme(mode) {
+    document.querySelectorAll('.screen').forEach(function (s) {
+      s.classList.toggle('light', mode === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', mode !== 'light');
+    document.getElementById('btn-light').classList.toggle('on', mode === 'light');
+  }
+</script>
 </body>
 </html>
