@@ -19,6 +19,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.overlay.BlockingController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
 import ru.homelab.kidguard.platform.vpn.VpnController
@@ -59,7 +60,7 @@ class KidGuardForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForeground(NotificationIds.FOREGROUND_SERVICE, buildNotification())
         Timber.tag(TAG).d("Foreground-сервис запущен")
         // Запускаем движок учёта и контроллер блокировки по одному разу
         // (onStartCommand может вызываться повторно).
@@ -117,7 +118,6 @@ class KidGuardForegroundService : Service() {
     companion object {
         private const val TAG = "KidGuardFgs"
         private const val CHANNEL_ID = "kidguard_control"
-        private const val NOTIFICATION_ID = 1
 
         /** Запустить сервис контроля (idempotent — повторный вызов безопасен). */
         fun start(context: Context) {

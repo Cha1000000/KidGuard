@@ -16,6 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.vpn.dns.DnsProxyLoop
 import timber.log.Timber
 import javax.inject.Inject
@@ -193,13 +194,16 @@ class KidGuardVpnService : VpnService() {
 
     private fun startVpnForeground() {
         // minSdk = 33, поэтому трёхаргументный startForeground (с типом FGS) доступен всегда.
-        startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        startForeground(
+            NotificationIds.VPN_SERVICE,
+            buildNotification(),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        )
     }
 
     companion object {
         private const val TAG = "KidGuardVpnSvc"
         private const val CHANNEL_ID = "kidguard_vpn"
-        private const val NOTIFICATION_ID = 3
         private const val TUN_ADDRESS = "10.111.222.1"
 
         /** Виртуальный DNS-сервер, который видит система в режиме [MODE_DNS_FILTER]. */

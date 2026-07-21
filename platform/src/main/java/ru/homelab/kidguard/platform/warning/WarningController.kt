@@ -61,6 +61,7 @@ class WarningController @Inject constructor(
             .distinctUntilChanged()
             .collect { minutesLeft ->
                 if (minutesLeft != null && minutesLeft in 0..SLEEP_WARNING_THRESHOLD_MINUTES) {
+                    Timber.tag(TAG).d("Предупреждение о сне: осталось %d мин", minutesLeft)
                     warningNotifier.showSleepWarning(minutesLeft)
                 } else {
                     warningNotifier.clearSleepWarning()
