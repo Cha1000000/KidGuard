@@ -24,6 +24,17 @@ Accessibility overlays.
 - Заготовленных значений интервала/часов/длительности нет: 0 = «не задано».
 - Приоритет блокировок: **сон > перерыв**; мягкие блокировки (лимит, учёба) перерыву не мешают.
 - Новые id уведомлений — только через `NotificationIds` (реестр заведён после коллизии с VPN).
+- Broadcast-ресиверы — только через `ContextCompat.registerReceiver` с `RECEIVER_NOT_EXPORTED`
+  и обязательным `unregisterReceiver` (targetSdk 36).
+
+## Известные ограничения (осознанные)
+
+- **Окно режима HOURS не переносится через полночь:** перерыв, назначенный на 23:58 при
+  длительности 15 минут, закончится в 00:00. Ночью действует «Время сна», поэтому городить
+  перенос ради этого случая не стоит — но поведение закреплено тестом, чтобы не выглядело багом.
+- **В режиме INTERVAL таймер перерыва идёт по экранному времени, а не по стенным часам:** если
+  ребёнок гасит экран посреди перерыва, перерыв замирает. Отдых при этом засчитывается через сброс
+  счётчика по паузе, так что «пересидеть» перерыв с выключенным экраном не получится.
 
 ---
 
@@ -669,18 +680,124 @@ class StickinessTracker @Inject constructor(
 }
 ```
 
-- [ ] **Шаг 2: Тест на состояние перерыва**
+- [ ] **Шаг 2: Чистая функция состояния и тесты на неё**
 
-Тест проверяет три вещи на фейковых потоках: перерыв не наступает в день с лимитом ≤ 3 ч; перерыв
-наступает по достижении интервала; внутри окна сна состояние всегда `Idle`.
+Чтобы состояние не зависело от Flow и часов, выносим решение в чистую функцию рядом с моделью
+(`BreakRules.kt`) и тестируем именно её:
+
+```kotlin
+/**
+ * Состояние перерывов «здесь и сейчас».
+ *
+ * В режиме INTERVAL таймер перерыва идёт по тому же счётчику залипания: перерыв занимает отрезок
+ * [порог; порог + длительность). Это не описка — счётчик копится только при включённом экране,
+ * поэтому если ребёнок гасит экран посреди перерыва, перерыв «замирает». Отдых при этом всё равно
+ * засчитывается: пауза длиной с перерыв обнуляет счётчик (см. StickinessTracker), и состояние
+ * само возвращается в Idle.
+ */
+fun breakStateAt(
+    rules: BreakRules,
+    dayLimitMinutes: Int?,
+    sleepActive: Boolean,
+    stickySeconds: Int,
+    nowMinuteOfDay: Int
+): BreakState {
+    if (sleepActive) return BreakState.Idle
+    if (!rules.isConfigured) return BreakState.Idle
+    if (!breaksApplyToday(dayLimitMinutes)) return BreakState.Idle
+
+    return when (rules.mode) {
+        BreakMode.INTERVAL -> {
+            val threshold = rules.intervalMinutes * 60
+            val breakEnd = threshold + rules.durationMinutes * 60
+            when {
+                stickySeconds >= breakEnd -> BreakState.Idle
+                stickySeconds >= threshold -> BreakState.Active(breakEnd - stickySeconds)
+                stickySeconds >= threshold - WARNING_LEAD_SECONDS -> BreakState.Warning
+                else -> BreakState.Idle
+            }
+        }
+        BreakMode.HOURS -> {
+            val window = rules.activeHoursWindow(nowMinuteOfDay)
+            val minutesLeft = rules.minutesUntilNextHour(nowMinuteOfDay)
+            when {
+                window != null -> BreakState.Active((window.endMinute - nowMinuteOfDay) * 60)
+                minutesLeft != null && minutesLeft <= WARNING_LEAD_SECONDS / 60 -> BreakState.Warning
+                else -> BreakState.Idle
+            }
+        }
+    }
+}
+
+const val WARNING_LEAD_SECONDS = 5 * 60
+```
+
+Тесты дописываются в тот же `BreakRulesTest`:
+
+```kotlin
+@Test
+fun `сон бьёт перерыв`() {
+    val r = rules(intervalMinutes = 30, durationMinutes = 10)
+    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = true,
+        stickySeconds = 40 * 60, nowMinuteOfDay = 600)
+    assertEquals(BreakState.Idle, state)
+}
+
+@Test
+fun `в день с малым лимитом перерывов нет`() {
+    val r = rules(intervalMinutes = 30, durationMinutes = 10)
+    val state = breakStateAt(r, dayLimitMinutes = 120, sleepActive = false,
+        stickySeconds = 40 * 60, nowMinuteOfDay = 600)
+    assertEquals(BreakState.Idle, state)
+}
+
+@Test
+fun `перерыв активен с корректным остатком`() {
+    val r = rules(intervalMinutes = 30, durationMinutes = 10)
+    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+        stickySeconds = 31 * 60, nowMinuteOfDay = 600)
+    assertEquals(BreakState.Active(9 * 60), state)
+}
+
+@Test
+fun `после перерыва снова Idle`() {
+    val r = rules(intervalMinutes = 30, durationMinutes = 10)
+    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+        stickySeconds = 40 * 60, nowMinuteOfDay = 600)
+    assertEquals(BreakState.Idle, state)
+}
+
+@Test
+fun `за пять минут до перерыва - предупреждение`() {
+    val r = rules(intervalMinutes = 30, durationMinutes = 10)
+    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+        stickySeconds = 26 * 60, nowMinuteOfDay = 600)
+    assertEquals(BreakState.Warning, state)
+}
+
+@Test
+fun `окно под полночь обрывается в полночь`() {
+    val r = rules(mode = BreakMode.HOURS, hours = setOf(1438), durationMinutes = 15)
+    // Известное ограничение: окно не переносится на следующие сутки.
+    assertNull(r.activeHoursWindow(nowMinuteOfDay = 5))
+}
+```
 
 - [ ] **Шаг 3: ObserveBreakStateUseCase**
 
-`combine` из `breakRules`, `dailyLimits`, `sleepSchedule`, `stickySeconds` и тика раз в 15 секунд.
-Логика: если идёт сон, или `!breaksApplyToday(dailyLimits.limitFor(today))`, или
-`!rules.isConfigured` → `Idle`.
-Иначе для `INTERVAL` сравниваем `stickySeconds` с порогом (`Active` с остатком, `Warning` за 5 минут
-до порога), для `HOURS` — `activeHoursWindow` и `minutesUntilNextHour`.
+Тонкая обёртка: `combine` из `breakRules`, `dailyLimits`, `sleepSchedule`, `stickySeconds` и тика
+раз в 15 секунд, внутри — вызов `breakStateAt`. Своей логики в use case нет, вся она в чистой
+функции из шага 2.
+
+**Сброс счётчика при смене настроек.** Родитель может выставить интервал 30 минут, когда ребёнок
+залип уже на 50 — замок упал бы мгновенно, без предупреждения. Поэтому в use case (или в
+контроллере задачи 7) держим `distinctUntilChanged` по «значимой» части правил и на каждое
+изменение зовём `stickinessSource.reset()`:
+
+```kotlin
+private data class BreakTiming(val mode: BreakMode, val interval: Int, val duration: Int)
+// при смене BreakTiming → stickinessSource.reset()
+```
 
 - [ ] **Шаг 4: Запустить тесты**
 
@@ -738,8 +855,29 @@ when {
 ```
 
 Снятие PIN на замке перерыва ставит флаг `unlockedUntilScreenOff = true`, который сбрасывается по
-`ACTION_SCREEN_OFF` (BroadcastReceiver, регистрируется на время работы контроллера) и по окончании
-перерыва. У ночного замка остаётся прежнее окно 15 минут — механику ему не меняем.
+`ACTION_SCREEN_OFF` и по окончании перерыва. У ночного замка остаётся прежнее окно 15 минут —
+механику ему не меняем.
+
+Ресивер регистрируем **через `ContextCompat`** (targetSdk 36; готовый образец —
+`PlatformInstalledAppsSource.kt:120`) и обязательно снимаем при завершении контроллера, иначе
+утечка при остановке сервиса:
+
+```kotlin
+val receiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        unlockedUntilScreenOff = false
+    }
+}
+ContextCompat.registerReceiver(
+    context, receiver, IntentFilter(Intent.ACTION_SCREEN_OFF),
+    ContextCompat.RECEIVER_NOT_EXPORTED
+)
+try {
+    // основной collect контроллера
+} finally {
+    context.unregisterReceiver(receiver)
+}
+```
 
 - [ ] **Шаг 4: Фраза-шаблон при пустом тексте родителя**
 
