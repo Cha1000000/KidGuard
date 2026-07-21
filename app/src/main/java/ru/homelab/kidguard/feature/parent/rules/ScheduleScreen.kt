@@ -233,8 +233,10 @@ fun ScheduleScreen(
                     EmergencyContactRow(
                         contact = contact,
                         onRemove = { viewModel.removeEmergencyContact(contact.phone) },
+                        // Первую карточку отделяем от полей ввода заметнее, чем контакты друг
+                        // от друга: иначе поле ввода номера слипается со списком в одну кашу.
                         modifier = Modifier.padding(
-                            top = if (index == 0) 0.dp else 6.dp
+                            top = if (index == 0) 12.dp else 6.dp
                         )
                     )
                 }
