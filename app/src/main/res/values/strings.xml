@@ -88,6 +88,8 @@
     <string name="rules_blocked_apps_subtitle">Полностью недоступные ребёнку приложения</string>
     <string name="rules_blocked_sites_title">Запрет сайтов</string>
     <string name="rules_blocked_sites_subtitle">Сайты, недоступные ребёнку в любой сети</string>
+    <string name="rules_schedule_title">Расписание</string>
+    <string name="rules_schedule_subtitle">Часы учёбы и сна, когда телефон закрыт</string>
     <string name="rules_pin_title">PIN-защита</string>
     <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
     <string name="common_back">Назад</string>
@@ -139,6 +141,45 @@
     <string name="blocked_sites_empty">Список пуст. Добавьте домены, к которым закрыть доступ.</string>
     <string name="blocked_sites_invalid">Неверный домен</string>
     <string name="blocked_sites_hint">Домен или URL (напр. vk.com). Галка = заблокирован; снимите, чтобы временно разрешить, не удаляя. Приложения с собственным DNS (DoH) или системный Private DNS могут обойти фильтр — блок бывает неполным.</string>
+
+    <!-- Расписание блокировки: «Время учёбы» (мягкая) и «Время сна» (полная, снимается PIN) -->
+    <string name="schedule_subtitle">Часы, когда телефон закрыт независимо от остатка дневного лимита</string>
+    <string name="schedule_study_title">Время учёбы</string>
+    <string name="schedule_study_hint">Мягкая блокировка: «Всегда доступные» работают</string>
+    <string name="schedule_sleep_title">Время сна</string>
+    <string name="schedule_sleep_hint">Полная блокировка, снимается только PIN</string>
+    <string name="schedule_kind_study_label">время учёбы</string>
+    <string name="schedule_kind_sleep_label">время сна</string>
+    <string name="schedule_not_set">Не задано</string>
+    <string name="schedule_time_hm">%1$02d:%2$02d</string>
+    <string name="schedule_window_range">%1$s – %2$s</string>
+    <string name="schedule_wheel_separator">:</string>
+    <string name="schedule_wheel_value">%1$02d</string>
+    <string name="schedule_reset_study">Сбросить время учёбы</string>
+    <string name="schedule_reset_sleep">Сбросить время сна</string>
+    <string name="schedule_reset_study_title">Сбросить время учёбы?</string>
+    <string name="schedule_reset_sleep_title">Сбросить время сна?</string>
+    <string name="schedule_reset_message">Часы будут стёрты для всех дней недели. Тумблер расписания останется как есть.</string>
+    <string name="schedule_reset_action">Сбросить</string>
+    <string name="schedule_pin_warning">Ночную блокировку снимает только родительский PIN. Задайте его, иначе телефон будет нечем разблокировать до утра.</string>
+    <string name="schedule_pin_warning_action">Задать PIN</string>
+    <string name="schedule_sheet_title">%1$s · %2$s</string>
+    <string name="schedule_sheet_hint_study">Блокировка действует в указанные часы в этот день</string>
+    <string name="schedule_sheet_hint_sleep">Блокировка включится вечером и снимется утром следующего дня</string>
+    <string name="schedule_sheet_start">Начало</string>
+    <string name="schedule_sheet_end">Конец</string>
+    <string name="schedule_apply_all">Применить ко всем дням недели</string>
+    <string name="schedule_remove">Убрать</string>
+    <string name="schedule_save">Сохранить</string>
+    <string name="schedule_contacts_title">Кому можно позвонить ночью</string>
+    <string name="schedule_contact_name_placeholder">Имя</string>
+    <string name="schedule_contact_phone_placeholder">+7 900 …</string>
+    <string name="schedule_contact_add">Добавить</string>
+    <string name="schedule_contact_remove">Удалить</string>
+    <string name="schedule_contact_preview_prefix">На замке ребёнок увидит:</string>
+    <string name="schedule_contact_preview_call">Позвонить %1$s</string>
+    <string name="schedule_contacts_empty">Список пуст. Добавьте, кому можно позвонить ночью.</string>
+    <string name="schedule_contacts_hint">Ночью с замка можно позвонить только по этим номерам. Список общий: его видят и правят оба родителя.</string>
 
     <!-- Лимиты приложений (пер-app) -->
     <string name="app_limits_subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</string>

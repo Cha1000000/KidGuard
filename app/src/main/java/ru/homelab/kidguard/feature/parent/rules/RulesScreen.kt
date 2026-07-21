@@ -37,6 +37,7 @@ fun RulesScreen(
     onOpenAppLimits: () -> Unit,
     onOpenBlockedApps: () -> Unit,
     onOpenBlockedSites: () -> Unit,
+    onOpenSchedule: () -> Unit,
     onOpenWhitelist: () -> Unit,
     onOpenPinProtection: () -> Unit,
     modifier: Modifier = Modifier
@@ -59,6 +60,12 @@ fun RulesScreen(
                 title = R.string.rules_app_limits_title,
                 subtitle = R.string.rules_app_limits_subtitle,
                 onClick = onOpenAppLimits
+            )
+            RuleCard(
+                icon = ImageVector.vectorResource(R.drawable.ic_schedule),
+                title = R.string.rules_schedule_title,
+                subtitle = R.string.rules_schedule_subtitle,
+                onClick = onOpenSchedule
             )
             RuleCard(
                 icon = ImageVector.vectorResource(R.drawable.ic_block),

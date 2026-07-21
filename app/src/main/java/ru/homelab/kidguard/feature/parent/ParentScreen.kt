@@ -27,6 +27,7 @@ import ru.homelab.kidguard.feature.parent.rules.BlockedSitesScreen
 import ru.homelab.kidguard.feature.parent.rules.DailyLimitScreen
 import ru.homelab.kidguard.feature.parent.rules.PinSetupScreen
 import ru.homelab.kidguard.feature.parent.rules.RulesScreen
+import ru.homelab.kidguard.feature.parent.rules.ScheduleScreen
 import ru.homelab.kidguard.feature.parent.rules.WhitelistScreen
 import ru.homelab.kidguard.feature.parent.statistics.StatisticsScreen
 
@@ -35,6 +36,7 @@ private const val ROUTE_RULES_WHITELIST = "parent/rules/whitelist"
 private const val ROUTE_RULES_APP_LIMITS = "parent/rules/app-limits"
 private const val ROUTE_RULES_BLOCKED_APPS = "parent/rules/blocked-apps"
 private const val ROUTE_RULES_BLOCKED_SITES = "parent/rules/blocked-sites"
+private const val ROUTE_RULES_SCHEDULE = "parent/rules/schedule"
 private const val ROUTE_RULES_PIN = "parent/rules/pin"
 
 /**
@@ -71,6 +73,7 @@ fun ParentScreen(
                     onOpenAppLimits = { navController.navigate(ROUTE_RULES_APP_LIMITS) },
                     onOpenBlockedApps = { navController.navigate(ROUTE_RULES_BLOCKED_APPS) },
                     onOpenBlockedSites = { navController.navigate(ROUTE_RULES_BLOCKED_SITES) },
+                    onOpenSchedule = { navController.navigate(ROUTE_RULES_SCHEDULE) },
                     onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) },
                     onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) }
                 )
@@ -86,6 +89,12 @@ fun ParentScreen(
             }
             composable(ROUTE_RULES_BLOCKED_SITES) {
                 BlockedSitesScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RULES_SCHEDULE) {
+                ScheduleScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPinSetup = { navController.navigate(ROUTE_RULES_PIN) }
+                )
             }
             composable(ROUTE_RULES_WHITELIST) {
                 WhitelistScreen(onBack = { navController.popBackStack() })

@@ -52,3 +52,12 @@ val DarkSurfaceContainerLow = Color(0xFF13252B)
 val DarkSurfaceContainer = Color(0xFF17282E)
 val DarkSurfaceContainerHigh = Color(0xFF1E353C)
 val DarkSurfaceContainerHighest = Color(0xFF264048)
+
+// Цвета расписаний блокировки («Время учёбы» / «Время сна», см. docs/ui-concepts/schedule).
+// На светлом фоне исходные (тёмная тема) значения дают контраст ~2:1 — почти не читаются, поэтому
+// в светлой теме берут затемнённые варианты того же оттенка (контраст 5:1 и выше). Выбор между
+// парой делает экран через isSystemInDarkTheme().
+val ScheduleStudyDark = Color(0xFFF5B301)
+val ScheduleStudyLight = Color(0xFF96670E)
+val ScheduleSleepDark = Color(0xFF8AA4F7)
+val ScheduleSleepLight = Color(0xFF3B4DA6)
