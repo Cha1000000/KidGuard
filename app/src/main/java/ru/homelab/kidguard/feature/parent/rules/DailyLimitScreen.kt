@@ -1,7 +1,9 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,6 +40,8 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.ui.theme.BreaksAccentDark
+import ru.homelab.kidguard.ui.theme.BreaksAccentLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -43,6 +49,7 @@ import java.time.LocalDate
 @Composable
 fun DailyLimitScreen(
     onBack: () -> Unit,
+    onOpenBreaks: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DailyLimitViewModel = hiltViewModel()
 ) {
@@ -88,6 +95,20 @@ fun DailyLimitScreen(
                         if (index < days.lastIndex) HorizontalDivider()
                     }
                 }
+            }
+            // Кнопка видна всегда, вне зависимости от текущих лимитов — родитель может настроить
+            // перерывы заранее, а перерывы сработают позже, если лимит на день не задан или
+            // окажется больше 3 часов (см. подпись на самом экране «Перерывы»).
+            val breaksAccent = if (isSystemInDarkTheme()) BreaksAccentDark else BreaksAccentLight
+            OutlinedButton(
+                onClick = onOpenBreaks,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = breaksAccent),
+                border = BorderStroke(1.dp, breaksAccent.copy(alpha = 0.4f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Text("☕ " + stringResource(R.string.daily_limit_breaks_button))
             }
             TextButton(
                 onClick = { showResetConfirm = true },

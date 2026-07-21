@@ -118,6 +118,14 @@
     <string name="day_friday">Пятница</string>
     <string name="day_saturday">Суббота</string>
     <string name="day_sunday">Воскресенье</string>
+    <!-- Сокращённые названия — для подписи «Действуют: Вт, Ср, Пт» на экране «Перерывы» -->
+    <string name="day_monday_short">Пн</string>
+    <string name="day_tuesday_short">Вт</string>
+    <string name="day_wednesday_short">Ср</string>
+    <string name="day_thursday_short">Чт</string>
+    <string name="day_friday_short">Пт</string>
+    <string name="day_saturday_short">Сб</string>
+    <string name="day_sunday_short">Вс</string>
 
     <!-- Всегда доступные (белый список) -->
     <string name="whitelist_subtitle">Эти приложения работают даже после того, как время закончилось</string>
@@ -183,6 +191,36 @@
     <string name="schedule_contact_preview_call">Позвонить %1$s</string>
     <string name="schedule_contacts_empty">Список пуст. Добавьте, кому можно позвонить ночью.</string>
     <string name="schedule_contacts_hint">Ночью с замка можно позвонить только по этим номерам. Список общий: его видят и правят оба родителя.</string>
+
+    <!-- Перерывы (принудительный «режим перерыва»): кнопка на дневном лимите + отдельный экран -->
+    <string name="daily_limit_breaks_button">Перерывы</string>
+    <string name="breaks_title">Перерывы</string>
+    <string name="breaks_subtitle">Чтобы ребёнок не залипал в телефон часами подряд</string>
+    <string name="breaks_enable_title">Включить перерывы</string>
+    <string name="breaks_enable_hint_disabled">Сначала задайте, как часто и насколько</string>
+    <string name="breaks_enable_hint_none">Не действуют ни в один день — везде лимит 3 ч или меньше</string>
+    <string name="breaks_enable_hint_active_all">Действуют каждый день</string>
+    <string name="breaks_enable_hint_active">Действуют: %1$s — в остальные дни лимит 3 ч или меньше</string>
+    <string name="breaks_mode_interval">Через интервал залипания</string>
+    <string name="breaks_mode_hours">В определённые часы</string>
+    <string name="breaks_interval_label">Интервал</string>
+    <string name="breaks_interval_unset">не задан</string>
+    <string name="breaks_duration_label">Длительность перерыва</string>
+    <string name="breaks_duration_unset">не задана</string>
+    <string name="breaks_hours_label">Часы перерывов</string>
+    <string name="breaks_hours_add">+ Добавить час</string>
+    <string name="breaks_hour_remove">Убрать час</string>
+    <string name="breaks_hour_sheet_title">Час перерыва</string>
+    <string name="breaks_hour_sheet_hint">Перерыв начнётся в это время</string>
+    <string name="breaks_hour_sheet_time_label">Время</string>
+    <string name="breaks_hour_already_added">Этот час уже добавлен</string>
+    <string name="breaks_message_label">Что увидит ребёнок</string>
+    <string name="breaks_message_hint">Поле пустое — это подсказка. Если ничего не ввести, ребёнок увидит на экране именно эту фразу.</string>
+    <string name="breaks_default_message">Сделай перерыв! Дай глазам отдохнуть</string>
+    <string name="breaks_reset">Сбросить перерывы</string>
+    <string name="breaks_reset_title">Сбросить перерывы?</string>
+    <string name="breaks_reset_message">Интервал, часы, длительность и текст будут стёрты. Перерывы выключатся.</string>
+    <string name="breaks_reset_action">Сбросить</string>
 
     <!-- Лимиты приложений (пер-app) -->
     <string name="app_limits_subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</string>

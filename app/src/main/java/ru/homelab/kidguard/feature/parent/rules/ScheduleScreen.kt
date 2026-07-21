@@ -657,7 +657,9 @@ private fun EmergencyContactRow(
 
 private val DEFAULT_STUDY_WINDOW = TimeWindow(8 * 60, 14 * 60)
 private val DEFAULT_SLEEP_WINDOW = TimeWindow(21 * 60, 7 * 60)
-private const val MINUTE_STEP = 5
+
+/** internal — переиспользуется BreaksScreen для барабанов часа перерыва (шаг минут тот же). */
+internal const val MINUTE_STEP = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -777,9 +779,14 @@ private fun ScheduleKind.labelRes(): Int = when (this) {
     ScheduleKind.SLEEP -> R.string.schedule_kind_sleep_label
 }
 
-/** Блок «Начало»/«Конец»: подпись + пара барабанов (часы, минуты). */
+/**
+ * Блок «Начало»/«Конец»: подпись + пара барабанов (часы, минуты).
+ *
+ * internal — переиспользуется BreaksScreen для выбора часа перерыва одним таким блоком (без пары
+ * «начало/конец»), чтобы не писать свой барабан времени.
+ */
 @Composable
-private fun TimeBlock(
+internal fun TimeBlock(
     @StringRes labelRes: Int,
     hour: Int,
     minute: Int,
@@ -829,19 +836,21 @@ private fun TimeBlock(
     }
 }
 
-private val HOURS = (0..23).toList()
-private val MINUTES = (0..55 step MINUTE_STEP).toList()
-private val WheelItemHeight = 36.dp
-private const val WHEEL_VISIBLE_COUNT = 3
+internal val HOURS = (0..23).toList()
+internal val MINUTES = (0..55 step MINUTE_STEP).toList()
+internal val WheelItemHeight = 36.dp
+internal const val WHEEL_VISIBLE_COUNT = 3
 
 /**
  * Барабан значений на LazyColumn: три видимых строки, выбранное значение — центральное, крупнее и
  * акцентным цветом. Снаппинг к центру строки — [SnapPosition.Center]; contentPadding сверху/снизу
  * в половину видимой высоты минус пол-элемента даёт докрутить до центра даже крайние значения
  * (0 час, 55 минут).
+ *
+ * internal — переиспользуется BreaksScreen (барабаны часа перерыва), не пишем второй такой же.
  */
 @Composable
-private fun WheelColumn(
+internal fun WheelColumn(
     values: List<Int>,
     selectedValue: Int,
     onValueChange: (Int) -> Unit,
