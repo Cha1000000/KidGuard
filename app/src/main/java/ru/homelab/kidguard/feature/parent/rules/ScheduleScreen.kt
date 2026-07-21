@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -592,7 +593,12 @@ private fun ScheduleTimeSheet(
 
     val window = TimeWindow(startHour * 60 + startMinute, endHour * 60 + endMinute)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    // Сразу на всю высоту: в наполовину раскрытой шторке барабаны занимают весь экран, а
+    // «Сохранить» и галку «применить ко всем» приходится доставать свайпом — их просто не видно.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
                 text = stringResource(
