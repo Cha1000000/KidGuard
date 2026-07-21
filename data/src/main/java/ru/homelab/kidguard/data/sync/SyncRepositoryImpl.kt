@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
+import ru.homelab.kidguard.core.domain.model.BreakMode
+import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
@@ -36,6 +38,7 @@ import ru.homelab.kidguard.data.auth.AuthLocalStore
 import ru.homelab.kidguard.data.network.AppsApi
 import ru.homelab.kidguard.data.network.BlockedSiteDto
 import ru.homelab.kidguard.data.network.BonusEntryDto
+import ru.homelab.kidguard.data.network.BreakRulesDto
 import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.DeviceHealthApi
@@ -134,6 +137,7 @@ class SyncRepositoryImpl @Inject constructor(
             .combine(policyRepository.studySchedule) { _, _ -> Unit }
             .combine(policyRepository.sleepSchedule) { _, _ -> Unit }
             .combine(policyRepository.emergencyContacts) { _, _ -> Unit }
+            .combine(policyRepository.breakRules) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -311,7 +315,8 @@ class SyncRepositoryImpl @Inject constructor(
                 sleepSchedule = data.sleepSchedule.toRules(data.sleepScheduleEnabled),
                 emergencyContacts = data.emergencyContacts.map { EmergencyContact(it.name, it.phone) },
                 pinHash = data.pinHash,
-                pinSalt = data.pinSalt
+                pinSalt = data.pinSalt,
+                breakRules = data.breaks.toDomain()
             )
         )
         bonusRepository.replaceAll(
@@ -374,7 +379,8 @@ class SyncRepositoryImpl @Inject constructor(
             studyScheduleEnabled = study.enabled,
             sleepScheduleEnabled = sleep.enabled,
             emergencyContacts = policyRepository.emergencyContacts.first()
-                .map { EmergencyContactDto(it.name, it.phone) }
+                .map { EmergencyContactDto(it.name, it.phone) },
+            breaks = policyRepository.breakRules.first().toDto()
         )
     }
 
@@ -390,6 +396,29 @@ class SyncRepositoryImpl @Inject constructor(
         windowsByDay.entries.associate { (day, window) ->
             day.name to TimeWindowDto(window.startMinute, window.endMinute)
         }
+
+    /**
+     * mode — строка в документе (не enum.ordinal), чтобы будущее добавление режима не сдвигало
+     * старые значения. Незнакомое/битое значение (ручная правка документа) не должно ронять pull —
+     * откатываемся на INTERVAL, как BreakRules.EMPTY.
+     */
+    private fun BreakRulesDto.toDomain(): BreakRules = BreakRules(
+        enabled = enabled,
+        mode = runCatching { BreakMode.valueOf(mode) }.getOrDefault(BreakMode.INTERVAL),
+        intervalMinutes = intervalMinutes,
+        hours = hours.toSet(),
+        durationMinutes = durationMinutes,
+        message = message
+    )
+
+    private fun BreakRules.toDto(): BreakRulesDto = BreakRulesDto(
+        enabled = enabled,
+        mode = mode.name,
+        intervalMinutes = intervalMinutes,
+        hours = hours.sorted(),
+        durationMinutes = durationMinutes,
+        message = message
+    )
 
     /**
      * Стабильное строковое представление документа для сравнения содержимого: map/list
@@ -413,7 +442,10 @@ class SyncRepositoryImpl @Inject constructor(
             sleepSchedule = document.sleepSchedule.toSortedMap(),
             studyScheduleEnabled = document.studyScheduleEnabled,
             sleepScheduleEnabled = document.sleepScheduleEnabled,
-            emergencyContacts = document.emergencyContacts.sortedBy { it.phone }
+            emergencyContacts = document.emergencyContacts.sortedBy { it.phone },
+            // hours сортируем по той же причине, что и остальные списки выше: порядок элементов в
+            // множестве часов не несёт смысла, а без сортировки перестановка выглядела бы правкой.
+            breaks = document.breaks.copy(hours = document.breaks.hours.sorted())
         )
     )
 

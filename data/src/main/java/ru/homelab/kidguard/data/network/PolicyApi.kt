@@ -33,7 +33,11 @@ data class PolicyDocumentDto(
     val studyScheduleEnabled: Boolean = false,
     val sleepScheduleEnabled: Boolean = false,
     /** Контакты для экстренного звонка с ночного замка. */
-    val emergencyContacts: List<EmergencyContactDto> = emptyList()
+    val emergencyContacts: List<EmergencyContactDto> = emptyList(),
+    // Настройки принудительных перерывов (план forced-breaks, задача 3). Дефолт — BreakRulesDto()
+    // с enabled=false: старые документы без поля breaks должны применяться как раньше, без
+    // перерывов, а не падать при парсинге на уже работающих устройствах.
+    val breaks: BreakRulesDto = BreakRulesDto()
 )
 
 /** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
@@ -63,6 +67,21 @@ data class BonusEntryDto(
     val date: String,
     val packageName: String,
     val minutes: Int
+)
+
+/**
+ * Настройки принудительных перерывов в policy-документе. Все поля с дефолтами «не задано» —
+ * ровно так же, как у BreakRules.EMPTY в домене: старый документ без блока breaks должен
+ * читаться как «перерывы выключены», а не валить парсинг.
+ */
+@Serializable
+data class BreakRulesDto(
+    val enabled: Boolean = false,
+    val mode: String = "INTERVAL",
+    val intervalMinutes: Int = 0,
+    val hours: List<Int> = emptyList(),
+    val durationMinutes: Int = 0,
+    val message: String = ""
 )
 
 @Serializable
