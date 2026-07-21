@@ -1,0 +1,480 @@
+package ru.homelab.kidguard.platform.overlay
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.Shader
+import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.homelab.kidguard.core.domain.model.EmergencyContact
+import ru.homelab.kidguard.core.domain.security.PinVerifyResult
+import ru.homelab.kidguard.core.domain.text.RussianDative
+import ru.homelab.kidguard.platform.R
+import kotlin.random.Random
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Ночной замок «Времени сна»: полноэкранный несмахиваемый экран поверх всего, включая рабочий
+ * стол. Снимается только верным родительским PIN — этим он и отличается от [OverlayManager],
+ * который ребёнок закрывает свайпом.
+ *
+ * Тип окна — `TYPE_ACCESSIBILITY_OVERLAY` и WindowManager самого accessibility-сервиса (как в
+ * [PinOverlayManager]): обычный `SYSTEM_ALERT_WINDOW` система прячет на защищённых экранах, а
+ * нам замок нужен именно везде.
+ *
+ * Единственная лазейка наружу — кнопки экстренных контактов: ребёнку ночью должно быть куда
+ * позвонить. Набрать произвольный номер нельзя, список задаёт родитель.
+ *
+ * Экран всегда тёмный, независимо от темы приложения: светить в глаза в три часа ночи он не
+ * должен.
+ */
+@Singleton
+class SleepLockOverlayManager @Inject constructor(
+    @param:ApplicationContext private val context: Context
+) {
+
+    private var windowManager: WindowManager? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // PBKDF2-проверка PIN тяжёлая — считаем вне главного потока (как в PinOverlayManager).
+    private val verifyScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private var overlayView: View? = null
+    private var verifyJob: Job? = null
+    private val enteredDigits = StringBuilder()
+
+    /** Сервис отдаёт свой WindowManager при подключении — без него замок показать нельзя. */
+    fun attach(serviceWindowManager: WindowManager) {
+        windowManager = serviceWindowManager
+    }
+
+    fun isShowing(): Boolean = overlayView != null
+
+    /**
+     * Показать замок (idempotent: повторный вызов, пока замок висит, ничего не делает — иначе
+     * повторные тики контроллера сбрасывали бы уже набранные цифры).
+     *
+     * @param untilText время окончания окна сна — «07:00».
+     * @param contacts кому можно позвонить; пустой список — блок кнопок не рисуется.
+     * @param verifyPin проверка PIN через `PinGuard` (хеш + защита от перебора).
+     * @param onUnlocked верный PIN: замок уже скрыт к моменту вызова.
+     * @param onCall тап по контакту — звонок наружу делает вызывающая сторона.
+     */
+    fun show(
+        untilText: String,
+        contacts: List<EmergencyContact>,
+        verifyPin: suspend (String) -> PinVerifyResult,
+        onUnlocked: () -> Unit,
+        onCall: (EmergencyContact) -> Unit
+    ) = mainHandler.post {
+        if (overlayView != null) return@post
+        // Без WindowManager замок показать нечем: foreground-сервис может стартовать раньше,
+        // чем accessibility-сервис вызовет attach() (типично после перезагрузки). Выходим, НЕ
+        // запоминая view — иначе isShowing() соврёт, и контроллер решит, что замок уже висит.
+        val manager = windowManager
+        if (manager == null) {
+            android.util.Log.w(TAG, "WindowManager ещё не привязан — замок покажем на следующем тике")
+            return@post
+        }
+        enteredDigits.clear()
+        val view = createOverlayView(untilText, contacts, verifyPin, onUnlocked, onCall)
+        try {
+            manager.addView(view, buildLayoutParams())
+            overlayView = view
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Не удалось показать ночной замок", e)
+        }
+    }
+
+    /** Убрать замок без коллбэков — например, когда окно сна закончилось само. */
+    fun hide() = mainHandler.post {
+        val view = overlayView ?: return@post
+        dismiss(view)
+    }
+
+    private fun dismiss(view: View) {
+        if (overlayView !== view) return
+        verifyJob?.cancel()
+        verifyJob = null
+        try {
+            windowManager?.removeView(view)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Не удалось убрать ночной замок", e)
+        }
+        overlayView = null
+    }
+
+    private fun createOverlayView(
+        untilText: String,
+        contacts: List<EmergencyContact>,
+        verifyPin: suspend (String) -> PinVerifyResult,
+        onUnlocked: () -> Unit,
+        onCall: (EmergencyContact) -> Unit
+    ): View {
+        val container = FrameLayout(context).apply {
+            isClickable = true
+            setOnTouchListener { _, _ -> true } // поглощаем всё, что под замком
+            addView(
+                NightSkyView(context),
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
+
+        val title = TextView(context).apply {
+            text = context.getString(R.string.sleep_lock_title)
+            setTextColor(Color.WHITE)
+            textSize = 23f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(14), 0, 0)
+        }
+        val until = TextView(context).apply {
+            text = context.getString(R.string.sleep_lock_until, untilText)
+            setTextColor(Color.parseColor(UNTIL_COLOR))
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, dp(20))
+        }
+        val subtitle = TextView(context).apply {
+            text = context.getString(R.string.sleep_lock_hint)
+            setTextColor(Color.parseColor(HINT_COLOR))
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(16), dp(24), 0)
+        }
+
+        val dots = List(PIN_LENGTH) { buildDotView() }
+        val dotsRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            // Отступ задаём самому ряду, а не точкам: bottomMargin у детей внутри WRAP_CONTENT
+            // приплющивал кружки в чёрточки.
+            setPadding(0, dp(4), 0, dp(22))
+            dots.forEach { dot ->
+                addView(
+                    dot,
+                    LinearLayout.LayoutParams(dp(DOT_SIZE_DP), dp(DOT_SIZE_DP)).apply {
+                        marginStart = dp(DOT_MARGIN_DP)
+                        marginEnd = dp(DOT_MARGIN_DP)
+                    }
+                )
+            }
+        }
+        updateDots(dots, filledCount = 0, isError = false)
+
+        fun handleDigit(digit: Int) {
+            if (enteredDigits.length >= PIN_LENGTH) return
+            until.text = context.getString(R.string.sleep_lock_until, untilText)
+            until.setTextColor(Color.parseColor(UNTIL_COLOR))
+            enteredDigits.append(digit)
+            updateDots(dots, enteredDigits.length, isError = false)
+            if (enteredDigits.length < PIN_LENGTH) return
+
+            val pin = enteredDigits.toString()
+            verifyJob = verifyScope.launch {
+                val result = verifyPin(pin)
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        // NoPinSet сюда не доходит: без PIN родитель не может включить расписание
+                        // сна (тумблер заблокирован), но трактуем как проход — иначе замок было
+                        // бы нечем снять.
+                        is PinVerifyResult.Success, is PinVerifyResult.NoPinSet -> {
+                            dismiss(container)
+                            onUnlocked()
+                        }
+                        is PinVerifyResult.Wrong -> showError(
+                            until, dots, context.getString(R.string.pin_overlay_wrong)
+                        )
+                        is PinVerifyResult.Blocked -> showError(
+                            until, dots,
+                            context.getString(R.string.pin_overlay_blocked, result.secondsLeft)
+                        )
+                    }
+                }
+            }
+        }
+        fun handleBackspace() {
+            if (enteredDigits.isEmpty()) return
+            enteredDigits.deleteCharAt(enteredDigits.length - 1)
+            updateDots(dots, enteredDigits.length, isError = false)
+        }
+
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20), dp(28), dp(20), dp(28))
+            addView(MoonView(context), LinearLayout.LayoutParams(dp(62), dp(62)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            })
+            addView(title, wrapContent())
+            addView(until, wrapContent())
+            addView(dotsRow, wrapContent())
+            addView(buildKeypad(::handleDigit, ::handleBackspace), wrapContent())
+            if (contacts.isNotEmpty()) {
+                addView(buildCallButtons(contacts, onCall), LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(20) })
+            }
+            addView(subtitle, wrapContent())
+        }
+
+        // Прокрутка: с несколькими контактами и на невысоких экранах клавиатура иначе уезжает
+        // за границу — а без неё замок не снять.
+        val scroll = ScrollView(context).apply {
+            isFillViewport = true
+            addView(
+                content,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        container.addView(
+            scroll,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+        return container
+    }
+
+    private fun showError(until: TextView, dots: List<View>, message: String) {
+        enteredDigits.clear()
+        updateDots(dots, filledCount = PIN_LENGTH, isError = true)
+        until.text = message
+        until.setTextColor(Color.parseColor(ERROR_COLOR))
+    }
+
+    private fun buildCallButtons(
+        contacts: List<EmergencyContact>,
+        onCall: (EmergencyContact) -> Unit
+    ): View = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        contacts.forEach { contact ->
+            val button = TextView(context).apply {
+                // «Мама» → «Позвонить маме»: имя склоняется в дательный падеж.
+                text = context.getString(R.string.sleep_lock_call, RussianDative.of(contact.name))
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                gravity = Gravity.CENTER
+                setPadding(dp(18), dp(11), dp(18), dp(11))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(13).toFloat()
+                    setStroke(dp(1), Color.parseColor(CALL_BORDER_COLOR))
+                }
+                setOnClickListener { onCall(contact) }
+            }
+            addView(
+                button,
+                LinearLayout.LayoutParams(dp(CALL_WIDTH_DP), LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(9) }
+            )
+        }
+    }
+
+    private fun wrapContent() =
+        LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+
+    private fun buildKeypad(onDigit: (Int) -> Unit, onBackspace: () -> Unit): View {
+        val keypad = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9)).forEach { row ->
+            keypad.addView(buildKeyRow(row.map { digit -> buildKeyView(digit.toString()) { onDigit(digit) } }))
+        }
+        keypad.addView(
+            buildKeyRow(
+                listOf(
+                    View(context),
+                    buildKeyView("0") { onDigit(0) },
+                    buildKeyView(context.getString(R.string.pin_overlay_backspace_glyph)) { onBackspace() }
+                )
+            )
+        )
+        return keypad
+    }
+
+    private fun buildKeyRow(keys: List<View>): LinearLayout = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        keys.forEach { key ->
+            addView(
+                key,
+                LinearLayout.LayoutParams(dp(KEY_SIZE_DP), dp(KEY_SIZE_DP)).apply {
+                    marginStart = dp(KEY_MARGIN_DP)
+                    marginEnd = dp(KEY_MARGIN_DP)
+                    topMargin = dp(KEY_MARGIN_DP)
+                    bottomMargin = dp(KEY_MARGIN_DP)
+                }
+            )
+        }
+    }
+
+    private fun buildKeyView(label: String, onClick: () -> Unit): TextView = TextView(context).apply {
+        text = label
+        setTextColor(Color.WHITE)
+        textSize = 20f
+        gravity = Gravity.CENTER
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor(KEY_BACKGROUND_COLOR))
+        }
+        setOnClickListener { onClick() }
+        setOnTouchListener { v, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    v.animate().scaleX(0.85f).scaleY(0.85f).alpha(0.6f).setDuration(80).start()
+                    false
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(120).start()
+                    false
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun buildDotView(): View = View(context).apply {
+        background = circleDrawable(Color.parseColor(DOT_EMPTY_COLOR))
+    }
+
+    private fun updateDots(dots: List<View>, filledCount: Int, isError: Boolean) {
+        val filledColor = if (isError) Color.parseColor(ERROR_COLOR) else Color.WHITE
+        val emptyColor = if (isError) Color.parseColor(ERROR_COLOR) else Color.parseColor(DOT_EMPTY_COLOR)
+        dots.forEachIndexed { index, dot ->
+            val filled = isError || index < filledCount
+            dot.background = circleDrawable(if (filled) filledColor else emptyColor)
+        }
+    }
+
+    private fun circleDrawable(color: Int): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(color)
+    }
+
+    private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
+
+    private fun buildLayoutParams() = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+        android.graphics.PixelFormat.TRANSLUCENT
+    )
+
+    /** Ночное небо: индиго-градиент и редкие звёзды. Рисуем сами — это дешевле картинки. */
+    private class NightSkyView(context: Context) : View(context) {
+
+        private val skyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor(STAR_COLOR)
+        }
+        // Фиксированное зерно: звёзды не должны прыгать при каждом повороте или перерисовке.
+        private val stars = Random(STAR_SEED).let { random ->
+            List(STAR_COUNT) {
+                Triple(random.nextFloat(), random.nextFloat(), random.nextFloat())
+            }
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            skyPaint.shader = RadialGradient(
+                w / 2f, 0f, maxOf(w, h) * 1.2f,
+                Color.parseColor(SKY_TOP_COLOR), Color.parseColor(SKY_BOTTOM_COLOR),
+                Shader.TileMode.CLAMP
+            )
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            canvas.drawPaint(skyPaint)
+            val density = resources.displayMetrics.density
+            stars.forEach { (xFraction, yFraction, sizeFraction) ->
+                // Звёзды приглушены (12–30% прозрачности) — фон, а не украшение: взгляд должен
+                // оставаться на PIN-клавиатуре.
+                starPaint.alpha = (STAR_MIN_ALPHA + sizeFraction * STAR_ALPHA_SPREAD).toInt()
+                canvas.drawCircle(
+                    xFraction * width,
+                    yFraction * height,
+                    (1f + sizeFraction) * density,
+                    starPaint
+                )
+            }
+        }
+    }
+
+    /** Жёлтый полумесяц: круг, из которого вырезан второй круг со сдвигом. */
+    private class MoonView(context: Context) : View(context) {
+
+        private val moonPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor(MOON_COLOR)
+        }
+        private val cutPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+        }
+
+        init {
+            // Вырезание через PorterDuff требует отдельного слоя у самого View.
+            setLayerType(LAYER_TYPE_HARDWARE, null)
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            val radius = minOf(width, height) / 2f
+            canvas.drawCircle(width / 2f, height / 2f, radius, moonPaint)
+            canvas.drawCircle(width / 2f - radius * 0.42f, height / 2f - radius * 0.12f, radius * 0.86f, cutPaint)
+        }
+    }
+
+    private companion object {
+        const val TAG = "SleepLock"
+        const val PIN_LENGTH = 4
+        const val DOT_SIZE_DP = 13
+        const val DOT_MARGIN_DP = 7
+        const val KEY_SIZE_DP = 58
+        const val KEY_MARGIN_DP = 9
+        const val CALL_WIDTH_DP = 230
+
+        const val SKY_TOP_COLOR = "#20295A"
+        const val SKY_BOTTOM_COLOR = "#070A16"
+        const val STAR_COLOR = "#C8D0F0"
+        const val STAR_COUNT = 14
+        const val STAR_SEED = 20260721
+        const val STAR_MIN_ALPHA = 30f
+        const val STAR_ALPHA_SPREAD = 46f
+        const val MOON_COLOR = "#F5C451"
+        const val UNTIL_COLOR = "#AEB9E8"
+        const val HINT_COLOR = "#8F9BCC"
+        const val KEY_BACKGROUND_COLOR = "#1AFFFFFF"
+        const val DOT_EMPTY_COLOR = "#38FFFFFF"
+        const val ERROR_COLOR = "#FF8A80"
+        const val CALL_BORDER_COLOR = "#33FFFFFF"
+    }
+}

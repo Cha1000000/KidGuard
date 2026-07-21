@@ -21,6 +21,7 @@ import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.overlay.BlockingController
+import ru.homelab.kidguard.platform.schedule.SleepLockController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
 import ru.homelab.kidguard.platform.vpn.VpnController
 import ru.homelab.kidguard.platform.warning.WarningController
@@ -45,6 +46,9 @@ class KidGuardForegroundService : Service() {
     lateinit var warningController: WarningController
 
     @Inject
+    lateinit var sleepLockController: SleepLockController
+
+    @Inject
     lateinit var vpnController: VpnController
 
     @Inject
@@ -54,6 +58,7 @@ class KidGuardForegroundService : Service() {
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
     private var warningJob: Job? = null
+    private var sleepLockJob: Job? = null
     private var vpnJob: Job? = null
     private var policySyncJob: Job? = null
 
@@ -72,6 +77,11 @@ class KidGuardForegroundService : Service() {
         }
         if (warningJob == null) {
             warningJob = scope.launch { warningController.run() }
+        }
+        if (sleepLockJob == null) {
+            // Ночной замок «Времени сна»: отдельный контроллер, потому что он накрывает всё,
+            // включая лаунчер, и не зависит от активного приложения.
+            sleepLockJob = scope.launch { sleepLockController.run() }
         }
         if (vpnJob == null) {
             // Веха 5: blackhole-VPN — блокирует интернет всем, кроме KidGuard и белого списка,

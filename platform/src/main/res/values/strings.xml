@@ -50,6 +50,12 @@
     <string name="lockdown_warning_message">Опция «Блокировать соединения без VPN» вместе с запретом сайтов оставит телефон совсем без интернета. Поэтому KidGuard не даёт её включить. На остальную защиту это не влияет.</string>
     <string name="lockdown_warning_ok">Понятно</string>
 
+    <!-- Ночной замок «Время сна»: несмахиваемый экран, снимается только родительским PIN -->
+    <string name="sleep_lock_title">Время сна</string>
+    <string name="sleep_lock_until">Телефон откроется в %1$s</string>
+    <string name="sleep_lock_hint">Экран закроется, когда родитель введёт PIN</string>
+    <string name="sleep_lock_call">Позвонить %1$s</string>
+
     <!-- Device Admin (веха 6.3) -->
     <string name="device_admin_disable_warning">Отключение защитит телефон от KidGuard-контроля. Для отключения нужен родительский PIN.</string>
 </resources>

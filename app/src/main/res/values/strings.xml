@@ -258,6 +258,8 @@
     <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Нужен, чтобы блокировать интернет всем приложениям, кроме KidGuard и белого списка, после исчерпания лимита.</string>
+    <string name="permission_emergency_call_title">Экстренный звонок</string>
+    <string name="permission_emergency_call_desc">Чтобы с ночного экрана блокировки ребёнок звонил вам одним нажатием. Без разрешения откроется телефон с уже набранным номером — на одно нажатие больше.</string>
     <!-- Watchdog (веха 6): что видит родитель, когда контроль на телефоне ребёнка сломан.
          Ребёнку не показывается ничего — это подсказка «защиты нет, можно гулять». -->
     <string name="child_health_broken">⚠ Не работает: %1$s</string>

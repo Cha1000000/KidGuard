@@ -11,6 +11,7 @@ import android.net.VpnService
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.homelab.kidguard.core.domain.model.DevicePermission
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService
@@ -35,6 +36,9 @@ class PermissionsManager @Inject constructor(
         DevicePermission.BATTERY_OPTIMIZATION -> isIgnoringBatteryOptimizations()
         DevicePermission.NOTIFICATIONS -> NotificationManagerCompat.from(context).areNotificationsEnabled()
         DevicePermission.VPN -> VpnService.prepare(context) == null
+        DevicePermission.EMERGENCY_CALL -> ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CALL_PHONE
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     /**
@@ -65,6 +69,10 @@ class PermissionsManager @Inject constructor(
 
         DevicePermission.VPN ->
             VpnService.prepare(context)
+
+        // Runtime-разрешение: выдаётся системным диалогом, а не экраном настроек — интента нет,
+        // мастер запрашивает его своим launcher'ом.
+        DevicePermission.EMERGENCY_CALL -> null
     }
 
     /**

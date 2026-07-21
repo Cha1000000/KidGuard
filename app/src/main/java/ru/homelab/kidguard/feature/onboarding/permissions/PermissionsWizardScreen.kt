@@ -1,8 +1,10 @@
 package ru.homelab.kidguard.feature.onboarding.permissions
 
+import android.Manifest
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,6 +57,12 @@ fun PermissionsWizardScreen(
         viewModel.refresh()
     }
 
+    // CALL_PHONE — единственное runtime-разрешение в проекте: его выдаёт системный диалог, а не
+    // экран настроек, поэтому у него отдельный контракт.
+    val callPermissionLauncher = rememberLauncherForActivityResult(RequestPermission()) {
+        viewModel.refresh()
+    }
+
     // Перепроверяем статусы при каждом возврате на экран (в т.ч. из системных настроек).
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
@@ -102,7 +110,13 @@ fun PermissionsWizardScreen(
                     PermissionRow(
                         permission = permission,
                         granted = statuses[permission] == true,
-                        onGrant = { viewModel.grantIntent(permission)?.let(launcher::launch) }
+                        onGrant = {
+                            if (permission == DevicePermission.EMERGENCY_CALL) {
+                                callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                            } else {
+                                viewModel.grantIntent(permission)?.let(launcher::launch)
+                            }
+                        }
                     )
                 }
                 item {
