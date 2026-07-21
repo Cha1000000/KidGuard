@@ -22,7 +22,8 @@ Accessibility overlays.
 - Все UI-тексты — в `strings.xml`, хардкода в коде нет.
 - Порог «перерывы действуют» — лимит не задан **или** > 180 минут, **бонусы не учитываются**.
 - Заготовленных значений интервала/часов/длительности нет: 0 = «не задано».
-- Приоритет блокировок: **сон > перерыв**; мягкие блокировки (лимит, учёба) перерыву не мешают.
+- Приоритет блокировок: **расписание > перерыв**. Перерывы действуют только в «свободные» часы —
+  когда не идёт ни «Время учёбы», ни «Время сна».
 - Новые id уведомлений — только через `NotificationIds` (реестр заведён после коллизии с VPN).
 - Broadcast-ресиверы — только через `ContextCompat.registerReceiver` с `RECEIVER_NOT_EXPORTED`
   и обязательным `unregisterReceiver` (targetSdk 36).
@@ -30,8 +31,8 @@ Accessibility overlays.
 ## Известные ограничения (осознанные)
 
 - **Окно режима HOURS не переносится через полночь:** перерыв, назначенный на 23:58 при
-  длительности 15 минут, закончится в 00:00. Ночью действует «Время сна», поэтому городить
-  перенос ради этого случая не стоит — но поведение закреплено тестом, чтобы не выглядело багом.
+  длительности 15 минут, закончится в 00:00. Случай почти нереален — ночью действует «Время сна»,
+  а в его окне перерывов нет вовсе — но поведение закреплено тестом, чтобы не выглядело багом.
 - **В режиме INTERVAL таймер перерыва идёт по экранному времени, а не по стенным часам:** если
   ребёнок гасит экран посреди перерыва, перерыв замирает. Отдых при этом засчитывается через сброс
   счётчика по паузе, так что «пересидеть» перерыв с выключенным экраном не получится.
@@ -590,7 +591,8 @@ git commit -m "feat(breaks): родительский экран «Переры�
 
 **Интерфейсы:**
 - Использует: `BreakRules`, `BreakState`, `breaksApplyToday` (задача 1);
-  `PolicyRepository.breakRules`, `dailyLimits`, `sleepSchedule`; `DailyLimits.limitFor(day)`.
+  `PolicyRepository.breakRules`, `dailyLimits`; `DailyLimits.limitFor(day)`;
+  `ObserveScheduleStateUseCase` (готовый, отдаёт `ScheduleState` — учёба и сон одним потоком).
 - Отдаёт наружу: `StickinessSource.stickySeconds: Flow<Int>`, `StickinessSource.reset()`,
   `ObserveBreakStateUseCase(): Flow<BreakState>`.
 
@@ -616,6 +618,13 @@ interface StickinessSource {
 
     /** Сбросить счётчик — вызывается, когда перерыв доиграл свой таймер. */
     fun reset()
+
+    /**
+     * Заморозить накопление на время окна расписания («Время учёбы» / «Время сна»): в эти часы
+     * перерывов нет, поэтому и залипание копить незачем. Паузу с выключенным экраном при этом
+     * продолжаем считать — иначе ночной сброс счётчика не сработал бы.
+     */
+    fun pause(paused: Boolean)
 }
 ```
 
@@ -632,7 +641,9 @@ abstract fun bindStickinessSource(impl: StickinessTracker): StickinessSource
 раз в 15 секунд:
 
 Проверка активности — та же, что у `ScreenTimeTracker` (экран включён И разблокирован); свой тик
-раз в 15 секунд. Порог паузы читается лямбдой, потому что зависит от текущей длительности перерыва
+раз в 15 секунд. Внутри окна расписания счётчик **замирает** — контроллер задачи 7 передаёт признак
+через `pause(paused: Boolean)`; обнулять его там не нужно: ночью экран всё равно погаснет и сработает
+общее правило паузы, а после учёбы залипание честно продолжится с накопленного. Порог паузы читается лямбдой, потому что зависит от текущей длительности перерыва
 (её родитель может поменять на лету).
 
 ```kotlin
@@ -648,6 +659,7 @@ class StickinessTracker @Inject constructor(
     override val stickySeconds: Flow<Int> = _stickySeconds.asStateFlow()
 
     private var idleSeconds = 0
+    @Volatile private var paused = false
 
     /** [resetAfterIdleSeconds] — сколько паузы засчитываем за состоявшийся перерыв. */
     suspend fun run(resetAfterIdleSeconds: () -> Int) {
@@ -656,8 +668,9 @@ class StickinessTracker @Inject constructor(
             delay(TICK_SECONDS * 1000L)
             if (isUserActive()) {
                 idleSeconds = 0
-                _stickySeconds.value += TICK_SECONDS
+                if (!paused) _stickySeconds.value += TICK_SECONDS
             } else {
+                // Паузу копим всегда, даже под расписанием: ночью именно она обнуляет счётчик.
                 idleSeconds += TICK_SECONDS
                 val threshold = resetAfterIdleSeconds()
                 if (threshold > 0 && idleSeconds >= threshold) reset()
@@ -668,6 +681,10 @@ class StickinessTracker @Inject constructor(
     override fun reset() {
         _stickySeconds.value = 0
         idleSeconds = 0
+    }
+
+    override fun pause(paused: Boolean) {
+        this.paused = paused
     }
 
     private fun isUserActive(): Boolean =
@@ -698,11 +715,12 @@ class StickinessTracker @Inject constructor(
 fun breakStateAt(
     rules: BreakRules,
     dayLimitMinutes: Int?,
-    sleepActive: Boolean,
+    scheduleActive: Boolean,
     stickySeconds: Int,
     nowMinuteOfDay: Int
 ): BreakState {
-    if (sleepActive) return BreakState.Idle
+    // Любое окно расписания (учёба или сон) отменяет перерыв: телефон и так ограничен.
+    if (scheduleActive) return BreakState.Idle
     if (!rules.isConfigured) return BreakState.Idle
     if (!breaksApplyToday(dayLimitMinutes)) return BreakState.Idle
 
@@ -736,17 +754,17 @@ const val WARNING_LEAD_SECONDS = 5 * 60
 
 ```kotlin
 @Test
-fun `сон бьёт перерыв`() {
+fun `окно расписания бьёт перерыв`() {
     val r = rules(intervalMinutes = 30, durationMinutes = 10)
-    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = true,
-        stickySeconds = 40 * 60, nowMinuteOfDay = 600)
+    val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = true,
+        stickySeconds = 31 * 60, nowMinuteOfDay = 600)
     assertEquals(BreakState.Idle, state)
 }
 
 @Test
 fun `в день с малым лимитом перерывов нет`() {
     val r = rules(intervalMinutes = 30, durationMinutes = 10)
-    val state = breakStateAt(r, dayLimitMinutes = 120, sleepActive = false,
+    val state = breakStateAt(r, dayLimitMinutes = 120, scheduleActive = false,
         stickySeconds = 40 * 60, nowMinuteOfDay = 600)
     assertEquals(BreakState.Idle, state)
 }
@@ -754,7 +772,7 @@ fun `в день с малым лимитом перерывов нет`() {
 @Test
 fun `перерыв активен с корректным остатком`() {
     val r = rules(intervalMinutes = 30, durationMinutes = 10)
-    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+    val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
         stickySeconds = 31 * 60, nowMinuteOfDay = 600)
     assertEquals(BreakState.Active(9 * 60), state)
 }
@@ -762,7 +780,7 @@ fun `перерыв активен с корректным остатком`() {
 @Test
 fun `после перерыва снова Idle`() {
     val r = rules(intervalMinutes = 30, durationMinutes = 10)
-    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+    val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
         stickySeconds = 40 * 60, nowMinuteOfDay = 600)
     assertEquals(BreakState.Idle, state)
 }
@@ -770,7 +788,7 @@ fun `после перерыва снова Idle`() {
 @Test
 fun `за пять минут до перерыва - предупреждение`() {
     val r = rules(intervalMinutes = 30, durationMinutes = 10)
-    val state = breakStateAt(r, dayLimitMinutes = null, sleepActive = false,
+    val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
         stickySeconds = 26 * 60, nowMinuteOfDay = 600)
     assertEquals(BreakState.Warning, state)
 }
@@ -785,8 +803,9 @@ fun `окно под полночь обрывается в полночь`() {
 
 - [ ] **Шаг 3: ObserveBreakStateUseCase**
 
-Тонкая обёртка: `combine` из `breakRules`, `dailyLimits`, `sleepSchedule`, `stickySeconds` и тика
-раз в 15 секунд, внутри — вызов `breakStateAt`. Своей логики в use case нет, вся она в чистой
+Тонкая обёртка: `combine` из `breakRules`, `dailyLimits`, `ObserveScheduleStateUseCase()`,
+`stickySeconds` и тика раз в 15 секунд, внутри — вызов `breakStateAt` с
+`scheduleActive = scheduleState !is ScheduleState.Inactive`. Своей логики в use case нет, вся она в чистой
 функции из шага 2.
 
 **Сброс счётчика при смене настроек.** Родитель может выставить интервал 30 минут, когда ребёнок
@@ -849,10 +868,15 @@ ticker)`. Решение по приоритету:
 ```kotlin
 when {
     sleep != null -> showSleepLock(sleep)
+    // Учёба сюда не попадает: её мягкий оверлей рисует BlockingController. Но пока идёт любое
+    // окно расписания, breakState уже равен Idle — правило зашито в breakStateAt.
     breakState is BreakState.Active && !unlockedUntilScreenOff -> showBreakLock(breakState)
     else -> hideIfShowing("нечего показывать")
 }
 ```
+
+Счётчик залипания на время любого окна расписания ставим на паузу:
+`stickinessTracker.pause(scheduleState !is ScheduleState.Inactive)`.
 
 Снятие PIN на замке перерыва ставит флаг `unlockedUntilScreenOff = true`, который сбрасывается по
 `ACTION_SCREEN_OFF` и по окончании перерыва. У ночного замка остаётся прежнее окно 15 минут —
@@ -972,7 +996,7 @@ git commit -m "feat(breaks): неблокирующая плашка-преду�
 
 Все 13 пунктов раздела «Verification» из спеки, в первую очередь:
 интервальный режим с коротким интервалом; сброс счётчика паузой; режим часов с пропуском окна;
-приоритет сна; день с лимитом 2 часа; пустой текст → фраза-шаблон; миграция 8→9 на живой БД.
+приоритет расписания (перерыв не приходит ни в учёбу, ни в сон); день с лимитом 2 часа; пустой текст → фраза-шаблон; миграция 8→9 на живой БД.
 
 - [ ] **Шаг 2: Вернуть эмуляторы в исходное состояние**
 
