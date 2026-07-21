@@ -21,6 +21,10 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
+import ru.homelab.kidguard.core.domain.model.EmergencyContact
+import ru.homelab.kidguard.core.domain.model.PolicySnapshot
+import ru.homelab.kidguard.core.domain.model.ScheduleRules
+import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
@@ -35,6 +39,8 @@ import ru.homelab.kidguard.data.network.BonusEntryDto
 import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.DeviceHealthApi
+import ru.homelab.kidguard.data.network.EmergencyContactDto
+import ru.homelab.kidguard.data.network.TimeWindowDto
 import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.DeviceHealthRequest
 import ru.homelab.kidguard.data.network.PolicyApi
@@ -125,6 +131,9 @@ class SyncRepositoryImpl @Inject constructor(
             .combine(bonusRepository.observeAll()) { _, _ -> Unit }
             .combine(policyRepository.blockedSites) { _, _ -> Unit }
             .combine(policyRepository.blockGoogleSearch) { _, _ -> Unit }
+            .combine(policyRepository.studySchedule) { _, _ -> Unit }
+            .combine(policyRepository.sleepSchedule) { _, _ -> Unit }
+            .combine(policyRepository.emergencyContacts) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -289,16 +298,21 @@ class SyncRepositoryImpl @Inject constructor(
     /** Целиком заменяет локальную политику (включая бонусы) содержимым серверного документа. */
     private suspend fun applyDocument(data: PolicyDocumentDto) {
         policyRepository.replaceAll(
-            dailyLimits = data.dailyLimits.mapNotNull { (key, minutes) ->
-                runCatching { DayOfWeek.valueOf(key) to minutes }.getOrNull()
-            }.toMap(),
-            appLimits = data.appLimits,
-            whitelist = data.whitelist.toSet(),
-            blockedApps = data.blockedApps.toSet(),
-            blockedSites = data.blockedSites.map { BlockedSite(it.domain, it.enabled) },
-            blockGoogleSearch = data.blockGoogleSearch,
-            pinHash = data.pinHash,
-            pinSalt = data.pinSalt
+            PolicySnapshot(
+                dailyLimits = data.dailyLimits.mapNotNull { (key, minutes) ->
+                    runCatching { DayOfWeek.valueOf(key) to minutes }.getOrNull()
+                }.toMap(),
+                appLimits = data.appLimits,
+                whitelist = data.whitelist.toSet(),
+                blockedApps = data.blockedApps.toSet(),
+                blockedSites = data.blockedSites.map { BlockedSite(it.domain, it.enabled) },
+                blockGoogleSearch = data.blockGoogleSearch,
+                studySchedule = data.studySchedule.toRules(data.studyScheduleEnabled),
+                sleepSchedule = data.sleepSchedule.toRules(data.sleepScheduleEnabled),
+                emergencyContacts = data.emergencyContacts.map { EmergencyContact(it.name, it.phone) },
+                pinHash = data.pinHash,
+                pinSalt = data.pinSalt
+            )
         )
         bonusRepository.replaceAll(
             data.bonuses.mapNotNull { dto ->
@@ -339,6 +353,8 @@ class SyncRepositoryImpl @Inject constructor(
 
     private suspend fun currentLocalDocument(): PolicyDocumentDto {
         val pin = policyRepository.pinProtection.first()
+        val study = policyRepository.studySchedule.first()
+        val sleep = policyRepository.sleepSchedule.first()
         return PolicyDocumentDto(
             dailyLimits = policyRepository.dailyLimits.first().minutesByDay
                 .mapKeys { it.key.name },
@@ -352,9 +368,28 @@ class SyncRepositoryImpl @Inject constructor(
             pinHash = pin?.hash,
             pinSalt = pin?.salt,
             blockedSites = policyRepository.blockedSites.first().map { BlockedSiteDto(it.domain, it.enabled) },
-            blockGoogleSearch = policyRepository.blockGoogleSearch.first()
+            blockGoogleSearch = policyRepository.blockGoogleSearch.first(),
+            studySchedule = study.toDto(),
+            sleepSchedule = sleep.toDto(),
+            studyScheduleEnabled = study.enabled,
+            sleepScheduleEnabled = sleep.enabled,
+            emergencyContacts = policyRepository.emergencyContacts.first()
+                .map { EmergencyContactDto(it.name, it.phone) }
         )
     }
+
+    private fun Map<String, TimeWindowDto>.toRules(enabled: Boolean) = ScheduleRules(
+        windowsByDay = mapNotNull { (key, window) ->
+            runCatching { DayOfWeek.valueOf(key) to TimeWindow(window.startMinute, window.endMinute) }
+                .getOrNull()
+        }.toMap(),
+        enabled = enabled
+    )
+
+    private fun ScheduleRules.toDto(): Map<String, TimeWindowDto> =
+        windowsByDay.entries.associate { (day, window) ->
+            day.name to TimeWindowDto(window.startMinute, window.endMinute)
+        }
 
     /**
      * Стабильное строковое представление документа для сравнения содержимого: map/list
@@ -373,7 +408,12 @@ class SyncRepositoryImpl @Inject constructor(
             pinHash = document.pinHash,
             pinSalt = document.pinSalt,
             blockedSites = document.blockedSites.sortedBy { it.domain },
-            blockGoogleSearch = document.blockGoogleSearch
+            blockGoogleSearch = document.blockGoogleSearch,
+            studySchedule = document.studySchedule.toSortedMap(),
+            sleepSchedule = document.sleepSchedule.toSortedMap(),
+            studyScheduleEnabled = document.studyScheduleEnabled,
+            sleepScheduleEnabled = document.sleepScheduleEnabled,
+            emergencyContacts = document.emergencyContacts.sortedBy { it.phone }
         )
     )
 

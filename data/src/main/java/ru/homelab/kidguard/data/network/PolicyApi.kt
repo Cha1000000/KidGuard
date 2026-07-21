@@ -25,7 +25,29 @@ data class PolicyDocumentDto(
     // Запрет сайтов (веха 4.1.2, по образцу blockedApps). Дефолты обязательны — обратная
     // совместимость со старыми документами без этих полей.
     val blockedSites: List<BlockedSiteDto> = emptyList(),
-    val blockGoogleSearch: Boolean = false
+    val blockGoogleSearch: Boolean = false,
+    // Расписания «Время учёбы» и «Время сна». Ключи карт — имена java.time.DayOfWeek, как в
+    // dailyLimits. Дефолты обязательны: у Олега сейчас стоит версия без этих полей.
+    val studySchedule: Map<String, TimeWindowDto> = emptyMap(),
+    val sleepSchedule: Map<String, TimeWindowDto> = emptyMap(),
+    val studyScheduleEnabled: Boolean = false,
+    val sleepScheduleEnabled: Boolean = false,
+    /** Контакты для экстренного звонка с ночного замка. */
+    val emergencyContacts: List<EmergencyContactDto> = emptyList()
+)
+
+/** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
+@Serializable
+data class TimeWindowDto(
+    val startMinute: Int,
+    val endMinute: Int
+)
+
+/** Контакт для экстренного звонка с ночного замка. */
+@Serializable
+data class EmergencyContactDto(
+    val name: String,
+    val phone: String
 )
 
 /** Запрещённый сайт (домен) в policy-документе; `enabled = true` по умолчанию. */

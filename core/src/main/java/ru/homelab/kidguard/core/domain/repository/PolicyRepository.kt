@@ -3,8 +3,13 @@ package ru.homelab.kidguard.core.domain.repository
 import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.PolicySnapshot
+import ru.homelab.kidguard.core.domain.model.ScheduleKind
+import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.SiteBlockRules
+import ru.homelab.kidguard.core.domain.model.TimeWindow
 import java.time.DayOfWeek
 
 /**
@@ -34,6 +39,15 @@ interface PolicyRepository {
     /** Готовые правила для DNS-фильтра: только enabled-домены из [blockedSites] + [blockGoogleSearch]. */
     val siteBlockRules: Flow<SiteBlockRules>
 
+    /** Расписание «Время учёбы»: мягкая блокировка в школьные часы. */
+    val studySchedule: Flow<ScheduleRules>
+
+    /** Расписание «Время сна»: полная блокировка ночным замком, снимается только PIN. */
+    val sleepSchedule: Flow<ScheduleRules>
+
+    /** Контакты для экстренного звонка с ночного замка (общий список обоих родителей). */
+    val emergencyContacts: Flow<List<EmergencyContact>>
+
     /** Родительский PIN (соль + хеш), защищающий критичные настройки (веха 6.1); null — PIN не задан. */
     val pinProtection: Flow<PinProtection?>
 
@@ -61,6 +75,18 @@ interface PolicyRepository {
     /** Задать тумблер «блокировать google-поиск». */
     suspend fun setBlockGoogleSearch(enabled: Boolean)
 
+    /** Задать окно расписания на день недели; null убирает окно (в этот день расписание не действует). */
+    suspend fun setScheduleWindow(kind: ScheduleKind, day: DayOfWeek, window: TimeWindow?)
+
+    /** Включить/выключить расписание целиком, не стирая заданные часы. */
+    suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean)
+
+    /** Добавить контакт для экстренного звонка (upsert по номеру — имя можно переписать). */
+    suspend fun addEmergencyContact(contact: EmergencyContact)
+
+    /** Убрать контакт из списка экстренных. */
+    suspend fun removeEmergencyContact(phone: String)
+
     /** Задать родительский PIN — хеш и соль уже посчитаны вызывающей стороной ([PinHasher][ru.homelab.kidguard.core.domain.security.PinHasher]). */
     suspend fun setPin(hash: String, salt: String)
 
@@ -71,14 +97,5 @@ interface PolicyRepository {
      * Транзакционно заменить всю политику разом — применение серверного документа при
      * синхронизации (веха 4.3). Локальные правила полностью перезаписываются.
      */
-    suspend fun replaceAll(
-        dailyLimits: Map<DayOfWeek, Int>,
-        appLimits: Map<String, Int>,
-        whitelist: Set<String>,
-        blockedApps: Set<String>,
-        blockedSites: List<BlockedSite>,
-        blockGoogleSearch: Boolean,
-        pinHash: String?,
-        pinSalt: String?
-    )
+    suspend fun replaceAll(snapshot: PolicySnapshot)
 }

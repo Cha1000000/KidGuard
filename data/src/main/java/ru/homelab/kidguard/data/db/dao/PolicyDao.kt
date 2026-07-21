@@ -9,8 +9,10 @@ import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
+import ru.homelab.kidguard.data.db.entity.EmergencyContactEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
 import ru.homelab.kidguard.data.db.entity.PolicyFlagsEntity
+import ru.homelab.kidguard.data.db.entity.ScheduleWindowEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 
 @Dao
@@ -71,6 +73,66 @@ interface PolicyDao {
     @Upsert
     suspend fun upsertPolicyFlags(entity: PolicyFlagsEntity)
 
+    /**
+     * Флаги правятся точечными UPDATE, а не пересозданием строки: тумблеров здесь несколько
+     * (google-поиск, два расписания), и upsert целой сущности затирал бы соседние значения.
+     * [ensurePolicyFlagsRow] создаёт строку с дефолтами, если её ещё нет.
+     */
+    @Query(
+        "INSERT OR IGNORE INTO policy_flags " +
+            "(id, blockGoogleSearch, studyScheduleEnabled, sleepScheduleEnabled) VALUES (0, 0, 0, 0)"
+    )
+    suspend fun ensurePolicyFlagsRow()
+
+    @Transaction
+    suspend fun setBlockGoogleSearchFlag(enabled: Boolean) {
+        ensurePolicyFlagsRow()
+        updateBlockGoogleSearch(enabled)
+    }
+
+    @Transaction
+    suspend fun setStudyScheduleEnabledFlag(enabled: Boolean) {
+        ensurePolicyFlagsRow()
+        updateStudyScheduleEnabled(enabled)
+    }
+
+    @Transaction
+    suspend fun setSleepScheduleEnabledFlag(enabled: Boolean) {
+        ensurePolicyFlagsRow()
+        updateSleepScheduleEnabled(enabled)
+    }
+
+    @Query("UPDATE policy_flags SET blockGoogleSearch = :enabled WHERE id = 0")
+    suspend fun updateBlockGoogleSearch(enabled: Boolean)
+
+    @Query("UPDATE policy_flags SET studyScheduleEnabled = :enabled WHERE id = 0")
+    suspend fun updateStudyScheduleEnabled(enabled: Boolean)
+
+    @Query("UPDATE policy_flags SET sleepScheduleEnabled = :enabled WHERE id = 0")
+    suspend fun updateSleepScheduleEnabled(enabled: Boolean)
+
+    /** Окна расписаний обоих типов; фильтрацию по `kind` делает репозиторий. */
+    @Query("SELECT * FROM schedule_window")
+    fun scheduleWindows(): Flow<List<ScheduleWindowEntity>>
+
+    @Upsert
+    suspend fun upsertScheduleWindow(entity: ScheduleWindowEntity)
+
+    @Query("DELETE FROM schedule_window WHERE kind = :kind AND dayOfWeek = :dayOfWeek")
+    suspend fun deleteScheduleWindow(kind: String, dayOfWeek: Int)
+
+    @Query("DELETE FROM schedule_window WHERE kind = :kind")
+    suspend fun deleteScheduleWindows(kind: String)
+
+    @Query("SELECT * FROM emergency_contact ORDER BY name")
+    fun emergencyContacts(): Flow<List<EmergencyContactEntity>>
+
+    @Upsert
+    suspend fun upsertEmergencyContact(entity: EmergencyContactEntity)
+
+    @Query("DELETE FROM emergency_contact WHERE phone = :phone")
+    suspend fun removeEmergencyContact(phone: String)
+
     @Query("DELETE FROM day_limit")
     suspend fun deleteAllDayLimits()
 
@@ -85,6 +147,12 @@ interface PolicyDao {
 
     @Query("DELETE FROM blocked_site")
     suspend fun deleteAllBlockedSites()
+
+    @Query("DELETE FROM schedule_window")
+    suspend fun deleteAllScheduleWindows()
+
+    @Query("DELETE FROM emergency_contact")
+    suspend fun deleteAllEmergencyContacts()
 
     /** Родительский PIN (веха 6.1) — single-row таблица, `id = 0`; null-строка означает «PIN не задан». */
     @Query("SELECT * FROM pin_protection WHERE id = 0")
@@ -102,26 +170,39 @@ interface PolicyDao {
      * не увидят промежуточного полупустого состояния.
      */
     @Transaction
-    suspend fun replaceAllPolicy(
-        dayLimits: List<DayLimitEntity>,
-        appLimits: List<AppLimitEntity>,
-        whitelist: List<WhitelistedAppEntity>,
-        blockedApps: List<BlockedAppEntity>,
-        blockedSites: List<BlockedSiteEntity>,
-        blockGoogleSearch: Boolean,
-        pin: PinEntity?
-    ) {
+    suspend fun replaceAllPolicy(entities: PolicyEntities) {
         deleteAllDayLimits()
         deleteAllAppLimits()
         deleteAllWhitelist()
         deleteAllBlocked()
         deleteAllBlockedSites()
-        dayLimits.forEach { upsertDayLimit(it) }
-        appLimits.forEach { upsertAppLimit(it) }
-        whitelist.forEach { addToWhitelist(it) }
-        blockedApps.forEach { addToBlocked(it) }
-        blockedSites.forEach { upsertBlockedSite(it) }
-        upsertPolicyFlags(PolicyFlagsEntity(blockGoogleSearch = blockGoogleSearch))
-        if (pin != null) upsertPin(pin) else deletePin()
+        deleteAllScheduleWindows()
+        deleteAllEmergencyContacts()
+        entities.dayLimits.forEach { upsertDayLimit(it) }
+        entities.appLimits.forEach { upsertAppLimit(it) }
+        entities.whitelist.forEach { addToWhitelist(it) }
+        entities.blockedApps.forEach { addToBlocked(it) }
+        entities.blockedSites.forEach { upsertBlockedSite(it) }
+        entities.scheduleWindows.forEach { upsertScheduleWindow(it) }
+        entities.emergencyContacts.forEach { upsertEmergencyContact(it) }
+        upsertPolicyFlags(entities.flags)
+        entities.pin?.let { upsertPin(it) } ?: deletePin()
     }
 }
+
+/**
+ * Полный набор строк политики для [PolicyDao.replaceAllPolicy]. Отдельный контейнер вместо
+ * десятка параметров: список правил растёт с каждой фичей, а перепутанные местами аргументы
+ * одинакового типа компилятор бы не поймал.
+ */
+data class PolicyEntities(
+    val dayLimits: List<DayLimitEntity>,
+    val appLimits: List<AppLimitEntity>,
+    val whitelist: List<WhitelistedAppEntity>,
+    val blockedApps: List<BlockedAppEntity>,
+    val blockedSites: List<BlockedSiteEntity>,
+    val scheduleWindows: List<ScheduleWindowEntity>,
+    val emergencyContacts: List<EmergencyContactEntity>,
+    val flags: PolicyFlagsEntity,
+    val pin: PinEntity?
+)

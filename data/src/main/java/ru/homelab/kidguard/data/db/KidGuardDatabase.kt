@@ -11,8 +11,10 @@ import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
 import ru.homelab.kidguard.data.db.entity.BonusGrantEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
+import ru.homelab.kidguard.data.db.entity.EmergencyContactEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
 import ru.homelab.kidguard.data.db.entity.PolicyFlagsEntity
+import ru.homelab.kidguard.data.db.entity.ScheduleWindowEntity
 import ru.homelab.kidguard.data.db.entity.ScreenTimeEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 
@@ -27,9 +29,11 @@ import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
         BlockedAppEntity::class,
         PinEntity::class,
         BlockedSiteEntity::class,
-        PolicyFlagsEntity::class
+        PolicyFlagsEntity::class,
+        ScheduleWindowEntity::class,
+        EmergencyContactEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class KidGuardDatabase : RoomDatabase() {

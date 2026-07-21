@@ -87,3 +87,35 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
     }
 }
+
+/**
+ * v7 → v8 (расписания): окна «Время учёбы» и «Время сна» по дням недели, их тумблеры и список
+ * контактов для экстренного звонка с ночного замка.
+ *
+ * Тумблеры добавляются в существующую `policy_flags` через ALTER TABLE с DEFAULT 0 — у уже
+ * установленного приложения строка флагов есть, и без DEFAULT миграция упала бы на NOT NULL.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `schedule_window` (" +
+                "`kind` TEXT NOT NULL, " +
+                "`dayOfWeek` INTEGER NOT NULL, " +
+                "`startMinute` INTEGER NOT NULL, " +
+                "`endMinute` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`kind`, `dayOfWeek`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `emergency_contact` (" +
+                "`phone` TEXT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "PRIMARY KEY(`phone`))"
+        )
+        db.execSQL(
+            "ALTER TABLE `policy_flags` ADD COLUMN `studyScheduleEnabled` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `policy_flags` ADD COLUMN `sleepScheduleEnabled` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}

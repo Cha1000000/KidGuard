@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.Child
+import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
@@ -120,16 +121,8 @@ class ChildrenViewModel @Inject constructor(
                             syncRepository.switchActiveChild(next.id)
                                 .onFailure { Timber.tag(TAG).w(it, "switch_active_child_after_delete_failed") }
                         } else {
-                            policyRepository.replaceAll(
-                                dailyLimits = emptyMap(),
-                                appLimits = emptyMap(),
-                                whitelist = emptySet(),
-                                blockedApps = emptySet(),
-                                blockedSites = emptyList(),
-                                blockGoogleSearch = false,
-                                pinHash = null,
-                                pinSalt = null
-                            )
+                            // Детей не осталось — стираем локальный кэш правил целиком.
+                            policyRepository.replaceAll(PolicySnapshot())
                         }
                     }
                     refresh()

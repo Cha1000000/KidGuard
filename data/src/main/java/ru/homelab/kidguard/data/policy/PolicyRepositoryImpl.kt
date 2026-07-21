@@ -5,16 +5,24 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
+import ru.homelab.kidguard.core.domain.model.PolicySnapshot
+import ru.homelab.kidguard.core.domain.model.ScheduleKind
+import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.SiteBlockRules
+import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.data.db.dao.PolicyDao
+import ru.homelab.kidguard.data.db.dao.PolicyEntities
 import ru.homelab.kidguard.data.db.entity.AppLimitEntity
 import ru.homelab.kidguard.data.db.entity.BlockedAppEntity
 import ru.homelab.kidguard.data.db.entity.BlockedSiteEntity
 import ru.homelab.kidguard.data.db.entity.DayLimitEntity
+import ru.homelab.kidguard.data.db.entity.EmergencyContactEntity
 import ru.homelab.kidguard.data.db.entity.PinEntity
 import ru.homelab.kidguard.data.db.entity.PolicyFlagsEntity
+import ru.homelab.kidguard.data.db.entity.ScheduleWindowEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -48,6 +56,21 @@ class PolicyRepositoryImpl @Inject constructor(
     override val siteBlockRules: Flow<SiteBlockRules> = combine(blockedSites, blockGoogleSearch) { sites, google ->
         SiteBlockRules(sites.filter { it.enabled }.map { it.domain }.toSet(), google)
     }
+
+    // Окна обоих расписаний лежат в одной таблице — делим по kind и склеиваем с тумблером.
+    private val scheduleWindows: Flow<Map<String, Map<DayOfWeek, TimeWindow>>> =
+        policyDao.scheduleWindows().map { rows ->
+            rows.groupBy { it.kind }.mapValues { (_, windows) ->
+                windows.associate { DayOfWeek.of(it.dayOfWeek) to TimeWindow(it.startMinute, it.endMinute) }
+            }
+        }
+
+    override val studySchedule: Flow<ScheduleRules> = scheduleRules(ScheduleKind.STUDY)
+
+    override val sleepSchedule: Flow<ScheduleRules> = scheduleRules(ScheduleKind.SLEEP)
+
+    override val emergencyContacts: Flow<List<EmergencyContact>> =
+        policyDao.emergencyContacts().map { rows -> rows.map { EmergencyContact(it.name, it.phone) } }
 
     override val pinProtection: Flow<PinProtection?> = policyDao.pin().map { entity ->
         val hash = entity?.pinHash
@@ -100,7 +123,32 @@ class PolicyRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setBlockGoogleSearch(enabled: Boolean) {
-        policyDao.upsertPolicyFlags(PolicyFlagsEntity(blockGoogleSearch = enabled))
+        policyDao.setBlockGoogleSearchFlag(enabled)
+    }
+
+    override suspend fun setScheduleWindow(kind: ScheduleKind, day: DayOfWeek, window: TimeWindow?) {
+        if (window == null) {
+            policyDao.deleteScheduleWindow(kind.name, day.value)
+        } else {
+            policyDao.upsertScheduleWindow(
+                ScheduleWindowEntity(kind.name, day.value, window.startMinute, window.endMinute)
+            )
+        }
+    }
+
+    override suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean) {
+        when (kind) {
+            ScheduleKind.STUDY -> policyDao.setStudyScheduleEnabledFlag(enabled)
+            ScheduleKind.SLEEP -> policyDao.setSleepScheduleEnabledFlag(enabled)
+        }
+    }
+
+    override suspend fun addEmergencyContact(contact: EmergencyContact) {
+        policyDao.upsertEmergencyContact(EmergencyContactEntity(contact.phone, contact.name))
+    }
+
+    override suspend fun removeEmergencyContact(phone: String) {
+        policyDao.removeEmergencyContact(phone)
     }
 
     override suspend fun setPin(hash: String, salt: String) {
@@ -111,24 +159,41 @@ class PolicyRepositoryImpl @Inject constructor(
         policyDao.deletePin()
     }
 
-    override suspend fun replaceAll(
-        dailyLimits: Map<DayOfWeek, Int>,
-        appLimits: Map<String, Int>,
-        whitelist: Set<String>,
-        blockedApps: Set<String>,
-        blockedSites: List<BlockedSite>,
-        blockGoogleSearch: Boolean,
-        pinHash: String?,
-        pinSalt: String?
-    ) {
+    override suspend fun replaceAll(snapshot: PolicySnapshot) {
+        val hash = snapshot.pinHash
+        val salt = snapshot.pinSalt
         policyDao.replaceAllPolicy(
-            dayLimits = dailyLimits.map { (day, minutes) -> DayLimitEntity(day.value, minutes) },
-            appLimits = appLimits.map { (pkg, minutes) -> AppLimitEntity(pkg, minutes) },
-            whitelist = whitelist.map { WhitelistedAppEntity(it) },
-            blockedApps = blockedApps.map { BlockedAppEntity(it) },
-            blockedSites = blockedSites.map { BlockedSiteEntity(it.domain, it.enabled) },
-            blockGoogleSearch = blockGoogleSearch,
-            pin = if (pinHash != null && pinSalt != null) PinEntity(pinHash = pinHash, pinSalt = pinSalt) else null
+            PolicyEntities(
+                dayLimits = snapshot.dailyLimits.map { (day, minutes) -> DayLimitEntity(day.value, minutes) },
+                appLimits = snapshot.appLimits.map { (pkg, minutes) -> AppLimitEntity(pkg, minutes) },
+                whitelist = snapshot.whitelist.map { WhitelistedAppEntity(it) },
+                blockedApps = snapshot.blockedApps.map { BlockedAppEntity(it) },
+                blockedSites = snapshot.blockedSites.map { BlockedSiteEntity(it.domain, it.enabled) },
+                scheduleWindows = snapshot.studySchedule.toEntities(ScheduleKind.STUDY) +
+                    snapshot.sleepSchedule.toEntities(ScheduleKind.SLEEP),
+                emergencyContacts = snapshot.emergencyContacts.map { EmergencyContactEntity(it.phone, it.name) },
+                flags = PolicyFlagsEntity(
+                    blockGoogleSearch = snapshot.blockGoogleSearch,
+                    studyScheduleEnabled = snapshot.studySchedule.enabled,
+                    sleepScheduleEnabled = snapshot.sleepSchedule.enabled
+                ),
+                pin = if (hash != null && salt != null) PinEntity(pinHash = hash, pinSalt = salt) else null
+            )
         )
     }
+
+    /** Окна расписания [kind] + его тумблер из общей строки флагов. */
+    private fun scheduleRules(kind: ScheduleKind): Flow<ScheduleRules> =
+        combine(scheduleWindows, policyDao.policyFlags()) { windowsByKind, flags ->
+            val enabled = when (kind) {
+                ScheduleKind.STUDY -> flags?.studyScheduleEnabled
+                ScheduleKind.SLEEP -> flags?.sleepScheduleEnabled
+            } ?: false
+            ScheduleRules(windowsByKind[kind.name].orEmpty(), enabled)
+        }
+
+    private fun ScheduleRules.toEntities(kind: ScheduleKind): List<ScheduleWindowEntity> =
+        windowsByDay.map { (day, window) ->
+            ScheduleWindowEntity(kind.name, day.value, window.startMinute, window.endMinute)
+        }
 }
