@@ -23,10 +23,16 @@ data class BreakRules(
             BreakMode.HOURS -> hours.isNotEmpty()
         }
 
-    /** Окно перерыва режима HOURS, внутри которого мы сейчас находимся (или null). */
+    /**
+     * Окно перерыва режима HOURS, внутри которого мы сейчас находимся (или null).
+     *
+     * Часы перебираем по возрастанию, а не в порядке множества: если родитель задал два часа
+     * ближе, чем длительность перерыва (15:00 и 15:05 при десятиминутном перерыве), их окна
+     * пересекаются — и без сортировки замок показывал бы то один остаток, то другой.
+     */
     fun activeHoursWindow(nowMinuteOfDay: Int): TimeWindow? {
         if (!isConfigured || mode != BreakMode.HOURS) return null
-        val start = hours.firstOrNull { start ->
+        val start = hours.sorted().firstOrNull { start ->
             nowMinuteOfDay >= start && nowMinuteOfDay < start + durationMinutes
         } ?: return null
         return TimeWindow(start, start + durationMinutes)
