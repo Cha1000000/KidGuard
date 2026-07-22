@@ -56,6 +56,13 @@
     <string name="sleep_lock_hint">Экран закроется, когда родитель введёт PIN</string>
     <string name="sleep_lock_call">Позвонить %1$s</string>
 
+    <!-- Замок принудительного перерыва: тот же несмахиваемый экран, но с обратным отсчётом -->
+    <string name="break_lock_title">Перерыв</string>
+    <string name="break_lock_hint">Экран откроется сам. Родитель может снять его PIN-ом.</string>
+    <string name="break_lock_default_message">Сделай перерыв! Дай глазам отдохнуть</string>
+    <string name="break_warning_title">Перерыв через 5 минут</string>
+    <string name="break_warning_subtitle">Успей сохраниться</string>
+
     <!-- Device Admin (веха 6.3) -->
     <string name="device_admin_disable_warning">Отключение защитит телефон от KidGuard-контроля. Для отключения нужен родительский PIN.</string>
 </resources>

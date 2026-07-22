@@ -62,8 +62,12 @@ sealed interface BreakState {
     data object Idle : BreakState
     /** Скоро перерыв — повод показать плашку. */
     data object Warning : BreakState
-    /** Идёт перерыв; [secondsLeft] питает обратный отсчёт на замке. */
-    data class Active(val secondsLeft: Int) : BreakState
+    /**
+     * Идёт перерыв; [secondsLeft] питает обратный отсчёт на замке, [message] — фраза родителя.
+     * Текст едет прямо в состоянии, чтобы замку не пришлось отдельно ходить за правилами.
+     * Пустая строка — родитель поле не заполнил, показывающая сторона подставит фразу-шаблон.
+     */
+    data class Active(val secondsLeft: Int, val message: String = "") : BreakState
 }
 
 /**
@@ -103,7 +107,8 @@ fun breakStateAt(
             val breakEnd = threshold + rules.durationMinutes * 60
             when {
                 stickySeconds >= breakEnd -> BreakState.Idle
-                stickySeconds >= threshold -> BreakState.Active(breakEnd - stickySeconds)
+                stickySeconds >= threshold ->
+                    BreakState.Active(breakEnd - stickySeconds, rules.message)
                 stickySeconds >= threshold - WARNING_LEAD_SECONDS -> BreakState.Warning
                 else -> BreakState.Idle
             }
@@ -112,7 +117,8 @@ fun breakStateAt(
             val window = rules.activeHoursWindow(nowMinuteOfDay)
             val minutesLeft = rules.minutesUntilNextHour(nowMinuteOfDay)
             when {
-                window != null -> BreakState.Active((window.endMinute - nowMinuteOfDay) * 60)
+                window != null ->
+                    BreakState.Active((window.endMinute - nowMinuteOfDay) * 60, rules.message)
                 minutesLeft != null && minutesLeft <= WARNING_LEAD_SECONDS / 60 -> BreakState.Warning
                 else -> BreakState.Idle
             }

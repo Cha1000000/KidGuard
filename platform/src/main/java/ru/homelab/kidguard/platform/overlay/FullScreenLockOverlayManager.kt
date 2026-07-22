@@ -31,23 +31,31 @@ import kotlin.random.Random
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Оформление замка: ночное со звёздами или дневной перерыв на том же градиенте. */
+enum class LockAppearance { NIGHT, BREAK }
+
 /**
- * Ночной замок «Времени сна»: полноэкранный несмахиваемый экран поверх всего, включая рабочий
- * стол. Снимается только верным родительским PIN — этим он и отличается от [OverlayManager],
- * который ребёнок закрывает свайпом.
+ * Полноэкранный несмахиваемый замок поверх всего, включая рабочий стол. Обслуживает оба сценария
+ * полной блокировки — «Время сна» и «Перерыв», — отличаются они только оформлением и текстами.
+ * Снимается верным родительским PIN, этим и отличается от [OverlayManager], который ребёнок
+ * закрывает свайпом.
+ *
+ * Менеджер намеренно один на оба сценария: окно тоже одно, и два независимых владельца дрались бы
+ * за него (кто последний в тике, тот и прав). Кто именно показывает замок сейчас, решает
+ * единственный контроллер.
  *
  * Тип окна — `TYPE_ACCESSIBILITY_OVERLAY` и WindowManager самого accessibility-сервиса (как в
  * [PinOverlayManager]): обычный `SYSTEM_ALERT_WINDOW` система прячет на защищённых экранах, а
  * нам замок нужен именно везде.
  *
- * Единственная лазейка наружу — кнопки экстренных контактов: ребёнку ночью должно быть куда
- * позвонить. Набрать произвольный номер нельзя, список задаёт родитель.
+ * Единственная лазейка наружу — кнопки экстренных контактов: ребёнку должно быть куда позвонить.
+ * Набрать произвольный номер нельзя, список задаёт родитель.
  *
  * Экран всегда тёмный, независимо от темы приложения: светить в глаза в три часа ночи он не
  * должен.
  */
 @Singleton
-class SleepLockOverlayManager @Inject constructor(
+class FullScreenLockOverlayManager @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
 
@@ -59,6 +67,7 @@ class SleepLockOverlayManager @Inject constructor(
 
     private var overlayView: View? = null
     private var verifyJob: Job? = null
+    private var countdownTick: Runnable? = null
     private val enteredDigits = StringBuilder()
 
     /** Сервис отдаёт свой WindowManager при подключении — без него замок показать нельзя. */
@@ -72,14 +81,20 @@ class SleepLockOverlayManager @Inject constructor(
      * Показать замок (idempotent: повторный вызов, пока замок висит, ничего не делает — иначе
      * повторные тики контроллера сбрасывали бы уже набранные цифры).
      *
-     * @param untilText время окончания окна сна — «07:00».
+     * @param appearance ночное оформление или перерыв.
+     * @param title заголовок — «Время сна» или «Перерыв».
+     * @param subtitle вторая строка: у сна «Телефон откроется в 07:00», у перерыва — текст родителя.
+     * @param countdownSeconds сколько секунд осталось до конца перерыва; null — отсчёта нет (сон).
      * @param contacts кому можно позвонить; пустой список — блок кнопок не рисуется.
      * @param verifyPin проверка PIN через `PinGuard` (хеш + защита от перебора).
      * @param onUnlocked верный PIN: замок уже скрыт к моменту вызова.
      * @param onCall тап по контакту — звонок наружу делает вызывающая сторона.
      */
     fun show(
-        untilText: String,
+        appearance: LockAppearance,
+        title: String,
+        subtitle: String,
+        countdownSeconds: Int?,
         contacts: List<EmergencyContact>,
         verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
@@ -95,7 +110,9 @@ class SleepLockOverlayManager @Inject constructor(
             return@post
         }
         enteredDigits.clear()
-        val view = createOverlayView(untilText, contacts, verifyPin, onUnlocked, onCall)
+        val view = createOverlayView(
+            appearance, title, subtitle, countdownSeconds, contacts, verifyPin, onUnlocked, onCall
+        )
         try {
             manager.addView(view, buildLayoutParams())
             overlayView = view
@@ -114,16 +131,21 @@ class SleepLockOverlayManager @Inject constructor(
         if (overlayView !== view) return
         verifyJob?.cancel()
         verifyJob = null
+        countdownTick?.let(mainHandler::removeCallbacks)
+        countdownTick = null
         try {
             windowManager?.removeView(view)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Не удалось убрать ночной замок", e)
+            android.util.Log.e(TAG, "Не удалось убрать замок", e)
         }
         overlayView = null
     }
 
     private fun createOverlayView(
-        untilText: String,
+        appearance: LockAppearance,
+        titleText: String,
+        subtitleText: String,
+        countdownSeconds: Int?,
         contacts: List<EmergencyContact>,
         verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
@@ -133,7 +155,7 @@ class SleepLockOverlayManager @Inject constructor(
             isClickable = true
             setOnTouchListener { _, _ -> true } // поглощаем всё, что под замком
             addView(
-                NightSkyView(context),
+                NightSkyView(context, appearance),
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
@@ -142,22 +164,41 @@ class SleepLockOverlayManager @Inject constructor(
         }
 
         val title = TextView(context).apply {
-            text = context.getString(R.string.sleep_lock_title)
+            text = titleText
             setTextColor(Color.WHITE)
             textSize = 23f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(0, dp(14), 0, 0)
         }
+        // Вторая строка: у сна — «Телефон откроется в 07:00», у перерыва — фраза родителя.
+        // Она же место для ошибки ввода PIN, поэтому исходный текст запоминаем для восстановления.
         val until = TextView(context).apply {
-            text = context.getString(R.string.sleep_lock_until, untilText)
+            text = subtitleText
             setTextColor(Color.parseColor(UNTIL_COLOR))
             textSize = 14f
             gravity = Gravity.CENTER
-            setPadding(0, dp(2), 0, dp(20))
+            setPadding(dp(24), dp(2), dp(24), if (countdownSeconds == null) dp(20) else dp(6))
         }
-        val subtitle = TextView(context).apply {
-            text = context.getString(R.string.sleep_lock_hint)
+        val countdown = countdownSeconds?.let { seconds ->
+            TextView(context).apply {
+                text = formatCountdown(seconds)
+                setTextColor(Color.WHITE)
+                textSize = 40f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                gravity = Gravity.CENTER
+                setPadding(0, dp(4), 0, dp(16))
+                startCountdown(this, seconds)
+            }
+        }
+        val hint = TextView(context).apply {
+            text = context.getString(
+                if (appearance == LockAppearance.BREAK) {
+                    R.string.break_lock_hint
+                } else {
+                    R.string.sleep_lock_hint
+                }
+            )
             setTextColor(Color.parseColor(HINT_COLOR))
             textSize = 12f
             gravity = Gravity.CENTER
@@ -185,7 +226,8 @@ class SleepLockOverlayManager @Inject constructor(
 
         fun handleDigit(digit: Int) {
             if (enteredDigits.length >= PIN_LENGTH) return
-            until.text = context.getString(R.string.sleep_lock_until, untilText)
+            // Возвращаем исходную подпись: там могла остаться ошибка прошлой попытки.
+            until.text = subtitleText
             until.setTextColor(Color.parseColor(UNTIL_COLOR))
             enteredDigits.append(digit)
             updateDots(dots, enteredDigits.length, isError = false)
@@ -198,7 +240,7 @@ class SleepLockOverlayManager @Inject constructor(
                     when (result) {
                         // NoPinSet сюда не доходит: без PIN родитель не может включить расписание
                         // сна (тумблер заблокирован), но трактуем как проход — иначе замок было
-                        // бы нечем снять.
+                        // бы нечем снять. Для перерыва то же самое: он уйдёт и сам по таймеру.
                         is PinVerifyResult.Success, is PinVerifyResult.NoPinSet -> {
                             dismiss(container)
                             onUnlocked()
@@ -224,11 +266,15 @@ class SleepLockOverlayManager @Inject constructor(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(20), dp(28), dp(20), dp(28))
-            addView(MoonView(context), LinearLayout.LayoutParams(dp(62), dp(62)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-            })
+            // Полумесяц — только ночью: перерыв про отдых глаз, а не про сон.
+            if (appearance == LockAppearance.NIGHT) {
+                addView(MoonView(context), LinearLayout.LayoutParams(dp(62), dp(62)).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                })
+            }
             addView(title, wrapContent())
             addView(until, wrapContent())
+            countdown?.let { addView(it, wrapContent()) }
             addView(dotsRow, wrapContent())
             addView(buildKeypad(::handleDigit, ::handleBackspace), wrapContent())
             if (contacts.isNotEmpty()) {
@@ -237,7 +283,7 @@ class SleepLockOverlayManager @Inject constructor(
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(20) })
             }
-            addView(subtitle, wrapContent())
+            addView(hint, wrapContent())
         }
 
         // Прокрутка: с несколькими контактами и на невысоких экранах клавиатура иначе уезжает
@@ -278,6 +324,28 @@ class SleepLockOverlayManager @Inject constructor(
             insets
         }
     }
+
+    /**
+     * Обратный отсчёт тикает в самом оверлее, а не в контроллере: гонять контроллер раз в секунду
+     * ради одной строки незачем. Отсчёт идёт от значения, выданного контроллером при показе, —
+     * дальше он живёт сам, а следующий тик контроллера всё равно сверит его с настоящим остатком.
+     */
+    private fun startCountdown(view: TextView, initialSeconds: Int) {
+        var left = initialSeconds
+        val tick = object : Runnable {
+            override fun run() {
+                left -= 1
+                if (left <= 0) return  // замок уберёт контроллер: перерыв кончился
+                view.text = formatCountdown(left)
+                mainHandler.postDelayed(this, 1_000L)
+            }
+        }
+        countdownTick = tick
+        mainHandler.postDelayed(tick, 1_000L)
+    }
+
+    private fun formatCountdown(seconds: Int): String =
+        "%d:%02d".format(seconds / 60, seconds % 60)
 
     private fun showError(until: TextView, dots: List<View>, message: String) {
         enteredDigits.clear()
@@ -422,8 +490,14 @@ class SleepLockOverlayManager @Inject constructor(
             WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
     }
 
-    /** Ночное небо: индиго-градиент и редкие звёзды. Рисуем сами — это дешевле картинки. */
-    private class NightSkyView(context: Context) : View(context) {
+    /**
+     * Фон замка: индиго-градиент, а поверх него — редкие звёзды, но только в ночном оформлении.
+     * Рисуем сами — это дешевле картинки.
+     */
+    private class NightSkyView(
+        context: Context,
+        private val appearance: LockAppearance
+    ) : View(context) {
 
         private val skyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -447,6 +521,7 @@ class SleepLockOverlayManager @Inject constructor(
 
         override fun onDraw(canvas: Canvas) {
             canvas.drawPaint(skyPaint)
+            if (appearance != LockAppearance.NIGHT) return
             val density = resources.displayMetrics.density
             stars.forEach { (xFraction, yFraction, sizeFraction) ->
                 // Звёзды приглушены (12–30% прозрачности) — фон, а не украшение: взгляд должен
@@ -485,7 +560,7 @@ class SleepLockOverlayManager @Inject constructor(
     }
 
     private companion object {
-        const val TAG = "SleepLock"
+        const val TAG = "FullScreenLock"
         const val PIN_LENGTH = 4
         const val DOT_SIZE_DP = 13
         const val DOT_MARGIN_DP = 7

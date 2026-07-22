@@ -17,12 +17,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.overlay.BlockingController
-import ru.homelab.kidguard.platform.schedule.SleepLockController
+import ru.homelab.kidguard.platform.schedule.FullScreenLockController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
+import ru.homelab.kidguard.platform.tracking.StickinessTracker
 import ru.homelab.kidguard.platform.vpn.VpnController
 import ru.homelab.kidguard.platform.warning.WarningController
 import timber.log.Timber
@@ -46,7 +48,13 @@ class KidGuardForegroundService : Service() {
     lateinit var warningController: WarningController
 
     @Inject
-    lateinit var sleepLockController: SleepLockController
+    lateinit var fullScreenLockController: FullScreenLockController
+
+    @Inject
+    lateinit var stickinessTracker: StickinessTracker
+
+    @Inject
+    lateinit var policyRepository: PolicyRepository
 
     @Inject
     lateinit var vpnController: VpnController
@@ -58,7 +66,12 @@ class KidGuardForegroundService : Service() {
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
     private var warningJob: Job? = null
-    private var sleepLockJob: Job? = null
+    private var fullScreenLockJob: Job? = null
+    private var stickinessJob: Job? = null
+
+    /** Порог сброса счётчика залипания (сек) — длительность перерыва, заданная родителем. */
+    @Volatile
+    private var breakResetSeconds: Int = 0
     private var vpnJob: Job? = null
     private var policySyncJob: Job? = null
 
@@ -78,10 +91,22 @@ class KidGuardForegroundService : Service() {
         if (warningJob == null) {
             warningJob = scope.launch { warningController.run() }
         }
-        if (sleepLockJob == null) {
-            // Ночной замок «Времени сна»: отдельный контроллер, потому что он накрывает всё,
-            // включая лаунчер, и не зависит от активного приложения.
-            sleepLockJob = scope.launch { sleepLockController.run() }
+        if (fullScreenLockJob == null) {
+            // Полноэкранные замки («Время сна» и перерыв): отдельный контроллер, потому что они
+            // накрывают всё, включая лаунчер, и не зависят от активного приложения.
+            fullScreenLockJob = scope.launch { fullScreenLockController.run() }
+        }
+        if (stickinessJob == null) {
+            // Счётчик непрерывного залипания для перерывов. Порог сброса — длительность самого
+            // перерыва: отдохнул столько же, сколько длится перерыв, — перерыв уже состоялся.
+            // Держим его в @Volatile-поле, а не читаем из Flow внутри тика: тик крутится на
+            // главном цикле трекера, и блокирующее чтение подвесило бы его.
+            stickinessJob = scope.launch {
+                launch {
+                    policyRepository.breakRules.collect { breakResetSeconds = it.durationMinutes * 60 }
+                }
+                stickinessTracker.run { breakResetSeconds }
+            }
         }
         if (vpnJob == null) {
             // Веха 5: blackhole-VPN — блокирует интернет всем, кроме KidGuard и белого списка,

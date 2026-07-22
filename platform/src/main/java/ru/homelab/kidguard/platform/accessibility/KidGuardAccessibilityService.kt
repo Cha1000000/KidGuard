@@ -24,7 +24,7 @@ import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.MAX_TREE_DEPTH
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.UNLOCK_WINDOW_MS
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
-import ru.homelab.kidguard.platform.overlay.SleepLockOverlayManager
+import ru.homelab.kidguard.platform.overlay.FullScreenLockOverlayManager
 import ru.homelab.kidguard.platform.overlay.WarningOverlayManager
 import timber.log.Timber
 import javax.inject.Inject
@@ -69,7 +69,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
     lateinit var warningOverlayManager: WarningOverlayManager
 
     @Inject
-    lateinit var sleepLockOverlayManager: SleepLockOverlayManager
+    lateinit var fullScreenLockOverlayManager: FullScreenLockOverlayManager
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -128,7 +128,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
         getSystemService(WindowManager::class.java)?.let {
             pinOverlayManager.attach(it)
             warningOverlayManager.attach(it)
-            sleepLockOverlayManager.attach(it)
+            fullScreenLockOverlayManager.attach(it)
         }
     }
 
