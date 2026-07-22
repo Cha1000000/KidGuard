@@ -3,10 +3,13 @@ package ru.homelab.kidguard.feature.child.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -16,8 +19,9 @@ import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.core.domain.repository.todayFlow
 import java.time.LocalDate
+import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import javax.inject.Inject
 
 /**
@@ -75,6 +79,7 @@ data class TodayUiState(
  * входе на экран (пакеты в политике меняются редко), а числа/остатки обновляются реактивно.
  */
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val policyRepository: PolicyRepository,
@@ -94,11 +99,16 @@ class TodayViewModel @Inject constructor(
 
     /** `null` — данные ещё собираются (первый кадр). */
     val uiState: StateFlow<TodayUiState?> = flow {
-        val today = currentDateProvider.today()
         // Пакет → человекочитаемое имя. Если PackageManager недоступен — покажем имена пакетов.
         val labels: Map<String, String> = runCatching {
             installedAppsSource.launchableApps().associate { it.packageName to it.label }
         }.getOrDefault(emptyMap())
+        // Дата — потоком: экран может остаться открытым через полночь (телефон на зарядке рядом
+        // с кроватью), и тогда остаток дня показывался бы за вчера.
+        emitAll(currentDateProvider.todayFlow().flatMapLatest { today -> uiStateFor(today, labels) })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun uiStateFor(today: LocalDate, labels: Map<String, String>): Flow<TodayUiState> = run {
 
         val timeFlow = combine(
             policyRepository.dailyLimits,
@@ -133,8 +143,8 @@ class TodayViewModel @Inject constructor(
                 blocked = rules.blocked
             )
         }
-        emitAll(combined)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        combined
+    }
 
     /** Ребёнок выбрал свой аватар (веха 4.1.5) — сохраняется локально, на сервер не уходит. */
     fun chooseAvatar(index: Int) {

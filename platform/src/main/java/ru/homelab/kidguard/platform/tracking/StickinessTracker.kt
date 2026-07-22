@@ -45,7 +45,13 @@ class StickinessTracker @Inject constructor(
             delay(TICK_SECONDS * 1000L)
             if (isUserActive()) {
                 idleSeconds = 0
-                if (!paused) _stickySeconds.value += TICK_SECONDS
+                if (!paused) {
+                    _stickySeconds.value += TICK_SECONDS
+                    // Раз в минуту — чтобы на обкатке было видно, что счётчик реально идёт.
+                    if (_stickySeconds.value % 60 == 0) {
+                        Timber.tag(TAG).d("Залипание: %d мин подряд", _stickySeconds.value / 60)
+                    }
+                }
             } else {
                 // Паузу копим всегда, даже под расписанием: ночью именно она обнуляет счётчик.
                 idleSeconds += TICK_SECONDS

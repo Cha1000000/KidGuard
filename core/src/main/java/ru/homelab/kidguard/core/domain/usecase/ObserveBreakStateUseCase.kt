@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.core.domain.usecase
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -7,6 +8,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -17,6 +19,7 @@ import ru.homelab.kidguard.core.domain.model.breakStateAt
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.StickinessSource
+import ru.homelab.kidguard.core.domain.repository.todayFlow
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -35,6 +38,7 @@ import javax.inject.Inject
  * упал бы мгновенно, без предупреждения. Самую первую загрузку настроек сбросом не считаем — это
  * не смена, а старт.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ObserveBreakStateUseCase @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val observeScheduleStateUseCase: ObserveScheduleStateUseCase,
@@ -43,10 +47,15 @@ class ObserveBreakStateUseCase @Inject constructor(
 ) {
 
     operator fun invoke(): Flow<BreakState> = flow {
-        val today = currentDateProvider.today()
         coroutineScope {
             launch { resetOnRuleChange() }
-            emitAll(observeState(today.dayOfWeek))
+            // Дата — потоком, а не разово: сервис живёт неделями, и после полуночи «сегодняшний»
+            // лимит стал бы вчерашним (см. ObserveLimitStateUseCase).
+            emitAll(
+                currentDateProvider.todayFlow().flatMapLatest { today ->
+                    observeState(today.dayOfWeek)
+                }
+            )
         }
     }
 

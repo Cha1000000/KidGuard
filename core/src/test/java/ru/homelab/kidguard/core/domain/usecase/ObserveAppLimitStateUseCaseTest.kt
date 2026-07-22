@@ -4,6 +4,9 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -73,6 +76,43 @@ class ObserveAppLimitStateUseCaseTest {
         val state = useCase(appLimits = emptyMap(), usedSeconds = 3600, appBonusMinutes = mapOf(pkg to 30))
             .invoke(pkg).first()
         assertEquals(LimitState.NoLimit, state)
+    }
+
+    /** Та же регрессия, что и у общего лимита (обкатка 22.07.2026): дата не должна застывать. */
+    @Test
+    fun `после полуночи пер-app лимит считается по новому дню`() = runTest {
+        val dateProvider = MutableDateProvider(today)
+        val useCase = ObserveAppLimitStateUseCase(
+            policyRepository = FakePolicyRepository(appLimits = mapOf(pkg to 30)),
+            usageRepository = PerDateUsageRepository(mapOf(today to 1800, today.plusDays(1) to 0)),
+            bonusRepository = FakeBonusRepository(emptyMap()),
+            currentDateProvider = dateProvider
+        )
+
+        val seen = mutableListOf<LimitState>()
+        val job = launch { useCase(pkg).collect { seen += it } }
+        runCurrent()
+        assertEquals(LimitState.Expired, seen.last())
+
+        dateProvider.date = today.plusDays(1)
+        advanceTimeBy(61_000)
+        runCurrent()
+        assertEquals(LimitState.Remaining(30), seen.last())
+
+        job.cancel()
+    }
+
+    private class MutableDateProvider(@Volatile var date: LocalDate) : CurrentDateProvider {
+        override suspend fun today(): LocalDate = date
+    }
+
+    private class PerDateUsageRepository(private val byDate: Map<LocalDate, Int>) : UsageRepository {
+        override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(0)
+        override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
+        override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> =
+            flowOf(byDate[date] ?: 0)
+        override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
     }
 
     private fun useCase(
