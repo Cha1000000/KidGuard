@@ -24,6 +24,7 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveBreakStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
+import ru.homelab.kidguard.platform.overlay.BreakWarningOverlay
 import ru.homelab.kidguard.platform.overlay.FullScreenLockOverlayManager
 import ru.homelab.kidguard.platform.overlay.LockAppearance
 import timber.log.Timber
@@ -64,6 +65,7 @@ class FullScreenLockController @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val foregroundAppMonitor: ForegroundAppMonitor,
     private val fullScreenLockOverlayManager: FullScreenLockOverlayManager,
+    private val breakWarningOverlay: BreakWarningOverlay,
     private val stickinessSource: StickinessSource,
     private val pinGuard: PinGuard,
     private val elapsedTimeSource: ElapsedTimeSource
@@ -75,6 +77,13 @@ class FullScreenLockController @Inject constructor(
     /** Родитель снял замок перерыва PIN-ом; сбрасывается по гашению экрана и концу перерыва. */
     @Volatile
     private var breakUnlockedUntilScreenOff = false
+
+    /**
+     * Плашку показываем один раз на перерыв. Тик контроллера идёт каждые 15 секунд, а окно
+     * предупреждения длится 5 минут — без этого флага плашка мигала бы двадцать раз подряд.
+     * Сбрасывается, когда предупреждение сменилось любым другим состоянием.
+     */
+    private var warningShown = false
 
     suspend fun run() {
         Timber.tag(TAG).d("Контроллер полноэкранных замков запущен")
@@ -91,6 +100,7 @@ class FullScreenLockController @Inject constructor(
             }.collect { (scheduleState, breakState, activePackage, contacts) ->
                 val sleep = scheduleState as? ScheduleState.Sleep
                 val activeBreak = breakState as? BreakState.Active
+                showWarningIfNeeded(breakState)
                 // Счётчик залипания замирает на время расписания: там перерывов нет, копить незачем.
                 stickinessSource.pause(scheduleState !is ScheduleState.Inactive)
                 if (activeBreak == null) breakUnlockedUntilScreenOff = false
@@ -124,6 +134,21 @@ class FullScreenLockController @Inject constructor(
             runCatching { context.unregisterReceiver(screenOffReceiver) }
             stickinessSource.pause(false)
         }
+    }
+
+    /** Одна плашка на перерыв: см. [warningShown]. */
+    private fun showWarningIfNeeded(state: BreakState) {
+        if (state !is BreakState.Warning) {
+            warningShown = false
+            return
+        }
+        if (warningShown) return
+        warningShown = true
+        Timber.tag(TAG).d("Показываю плашку: скоро перерыв")
+        breakWarningOverlay.show(
+            title = context.getString(R.string.break_warning_title),
+            subtitle = context.getString(R.string.break_warning_subtitle)
+        )
     }
 
     private fun showSleepLock(sleep: ScheduleState.Sleep, contacts: List<EmergencyContact>) {
