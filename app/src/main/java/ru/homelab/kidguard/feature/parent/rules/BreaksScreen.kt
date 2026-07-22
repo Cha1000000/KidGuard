@@ -493,19 +493,23 @@ private fun BreaksMessageField(message: String, onMessageChange: (String) -> Uni
             value = input,
             onValueChange = { input = it },
             placeholder = { Text(stringResource(R.string.breaks_default_message)) },
-            singleLine = true,
+            // Многострочное: фраза родителя может быть длинной, и в одну строку она обрезалась бы
+            // многоточием — родитель не видел бы, что именно прочитает ребёнок.
+            singleLine = false,
+            minLines = 2,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 6.dp)
         )
-        if (input.isBlank()) {
-            Text(
-                text = stringResource(R.string.breaks_message_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
+        // Пустое поле объясняем подсказкой про шаблон, заполненное — где текст появится.
+        Text(
+            text = stringResource(
+                if (input.isBlank()) R.string.breaks_message_hint else R.string.breaks_message_filled_hint
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
