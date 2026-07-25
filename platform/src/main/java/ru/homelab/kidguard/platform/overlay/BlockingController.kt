@@ -86,8 +86,8 @@ class BlockingController @Inject constructor(
                 Triple(block, reason, untilText)
             }
         }.distinctUntilChanged().collect { (block, reason, untilText) ->
-            // Скрытие оверлея сюда намеренно не добавляем: он закрывается только свайпом
-            // самого ребёнка (см. OverlayManager). Иначе уход на домашний экран ниже сразу же
+            // Скрытие оверлея сюда намеренно не добавляем: он уходит сам по таймеру внутри
+            // OverlayManager. Если бы скрытие шло отсюда, уход на домашний экран ниже сразу же
             // «снял» бы блокировку — лаунчер всегда разрешён.
             if (block) {
                 overlayManager.show(reason, untilText)

@@ -23,10 +23,12 @@ import javax.inject.Singleton
  * приложения. Оверлей перехватывает все касания, поэтому приложение и рабочий стол под ним
  * недоступны. Работает через SYSTEM_ALERT_WINDOW (выдаётся в мастере разрешений).
  *
- * Закрывается **только свайпом самого ребёнка** — намеренно нет автоматического скрытия.
- * [BlockingController] вызывает [show] реактивно, и почти сразу после показа уводит на домашний
- * экран (`sendHome`); если бы скрытие overlay было завязано на ту же реактивную проверку, оно
- * срабатывало бы мгновенно (лаунчер всегда разрешён) — ребёнок не успевал бы прочитать сообщение.
+ * Закрывается свайпом ребёнка **или сам по таймеру** [AUTO_DISMISS_MS]. Автоскрытие не завязано
+ * на реактивную проверку блокировки (иначе `sendHome` на лаунчер снял бы оверлей мгновенно —
+ * лаунчер всегда разрешён, ребёнок не успел бы прочитать), а идёт по независимому таймеру от
+ * момента показа. Без таймера оверлей висел часами поверх лаунчера, пока ребёнок не смахнёт:
+ * поглощал касания (телефон фактически заблокирован) и жёг батарею — полупрозрачное окно поверх
+ * живых обоев HiOS-лаунчера композитится каждый кадр (найдено на телефоне Олега 25.07).
  */
 @Singleton
 class OverlayManager @Inject constructor(
@@ -36,6 +38,7 @@ class OverlayManager @Inject constructor(
     private val windowManager = context.getSystemService<WindowManager>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayView: View? = null
+    private var autoDismissRunnable: Runnable? = null
 
     /**
      * Показать блокирующий экран (idempotent — повторный вызов, пока оверлей уже показан, ничего
@@ -51,11 +54,18 @@ class OverlayManager @Inject constructor(
         val view = createOverlayView(reason, untilText)
         windowManager?.addView(view, buildLayoutParams())
         overlayView = view
+        // Оверлей уходит сам через AUTO_DISMISS_MS — иначе он висел бы поверх лаунчера до свайпа,
+        // блокируя касания и сжигая батарею.
+        val runnable = Runnable { dismiss(view) }
+        autoDismissRunnable = runnable
+        mainHandler.postDelayed(runnable, AUTO_DISMISS_MS)
     }
 
     /** Убирает [view], только если это всё ещё текущий оверлей (не пересоздан новым show()). */
     private fun dismiss(view: View) {
         if (overlayView !== view) return
+        autoDismissRunnable?.let(mainHandler::removeCallbacks)
+        autoDismissRunnable = null
         windowManager?.removeView(view)
         overlayView = null
     }
@@ -141,5 +151,8 @@ class OverlayManager @Inject constructor(
         const val PADDING_HORIZONTAL_PX = 48
         const val PADDING_TOP_PX = 16
         const val SWIPE_DISTANCE_PX = 150
+
+        /** Сколько оверлей висит до автоскрытия — успеть прочитать, но не залипнуть на лаунчере. */
+        const val AUTO_DISMISS_MS = 6_000L
     }
 }
