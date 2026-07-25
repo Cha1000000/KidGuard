@@ -30,6 +30,7 @@ import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
+import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
@@ -76,7 +77,8 @@ class SyncRepositoryImpl @Inject constructor(
     private val usageRepository: UsageRepository,
     private val currentDateProvider: CurrentDateProvider,
     private val authLocalStore: AuthLocalStore,
-    private val policySocket: PolicySocket
+    private val policySocket: PolicySocket,
+    private val healthReportTrigger: HealthReportTrigger
 ) : SyncRepository {
 
     private object Keys {
@@ -195,6 +197,18 @@ class SyncRepositoryImpl @Inject constructor(
                 runCatching {
                     if (event.childId == authLocalStore.pairedChildId()) pullAndApply(event.childId)
                 }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+            }
+        }
+
+        // Немедленный heartbeat по сигналу (веха 6, задержка до 15 мин на реальном телефоне):
+        // accessibility-сервис и мастер разрешений дёргают HealthReportTrigger при восстановлении
+        // разрешения, чтобы родитель не ждал следующего тика while-цикла ниже. Сам 15-минутный
+        // цикл остаётся как есть — страховка на случай пропущенного сигнала.
+        launch {
+            healthReportTrigger.requests.collect {
+                if (authLocalStore.pairedChildId() == null) return@collect
+                runCatching { pushHealth() }
+                    .onFailure { Timber.tag(TAG).w(it, "Немедленный heartbeat не удался") }
             }
         }
 

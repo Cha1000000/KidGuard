@@ -18,6 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
@@ -74,6 +75,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var breakWarningOverlay: BreakWarningOverlay
+
+    @Inject
+    lateinit var healthReportTrigger: HealthReportTrigger
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -135,6 +139,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
             fullScreenLockOverlayManager.attach(it)
             breakWarningOverlay.attach(it)
         }
+        // Система подключила сервис — главный кейс задержки watchdog: родитель только что выдал
+        // (или переустановкой сбросил и восстановил) accessibility-разрешение. Не ждём следующий
+        // 15-минутный тик, шлём heartbeat сразу.
+        healthReportTrigger.requestNow()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
