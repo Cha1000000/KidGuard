@@ -4,6 +4,8 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,7 +68,14 @@ fun DailyLimitScreen(
             title = stringResource(R.string.rules_daily_limit_title),
             onBack = onBack
         )
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // verticalScroll: на невысоких экранах бонус-карточка + 7 дней + две кнопки не влезают,
+        // и без прокрутки нижняя кнопка обрезалась.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+        ) {
             Text(
                 text = stringResource(R.string.daily_limit_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
@@ -115,7 +124,7 @@ fun DailyLimitScreen(
                 enabled = hasAnyLimit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
+                    .padding(top = 8.dp, bottom = 16.dp)
             ) {
                 Text(
                     text = stringResource(R.string.daily_limit_reset_all),

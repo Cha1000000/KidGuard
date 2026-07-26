@@ -3,11 +3,13 @@ package ru.homelab.kidguard.feature.parent.rules
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
@@ -45,54 +47,72 @@ fun RulesScreen(
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_rules))
         ChildSelectorChip()
-        Column(
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = GlassDockBarReservedHeight),
+        // LazyColumn, а не Column: на невысоких экранах 7 карточек не влезают целиком, и без
+        // прокрутки последняя («Всегда доступные») обрезалась. Отступ под док-бар — в
+        // contentPadding, чтобы нижняя карточка прокручивалась выше навигации, а не пряталась за ней.
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RuleCard(
-                icon = Icons.Filled.DateRange,
-                title = R.string.rules_daily_limit_title,
-                subtitle = R.string.rules_daily_limit_subtitle,
-                onClick = onOpenDailyLimit
-            )
-            RuleCard(
-                icon = ImageVector.vectorResource(R.drawable.ic_timer),
-                title = R.string.rules_app_limits_title,
-                subtitle = R.string.rules_app_limits_subtitle,
-                onClick = onOpenAppLimits
-            )
-            RuleCard(
-                icon = ImageVector.vectorResource(R.drawable.ic_schedule),
-                title = R.string.rules_schedule_title,
-                subtitle = R.string.rules_schedule_subtitle,
-                onClick = onOpenSchedule
-            )
-            RuleCard(
-                icon = ImageVector.vectorResource(R.drawable.ic_block),
-                title = R.string.rules_blocked_apps_title,
-                subtitle = R.string.rules_blocked_apps_subtitle,
-                onClick = onOpenBlockedApps,
-                iconTint = MaterialTheme.colorScheme.error
-            )
-            RuleCard(
-                icon = ImageVector.vectorResource(R.drawable.ic_globe_off),
-                title = R.string.rules_blocked_sites_title,
-                subtitle = R.string.rules_blocked_sites_subtitle,
-                onClick = onOpenBlockedSites,
-                iconTint = MaterialTheme.colorScheme.error
-            )
-            RuleCard(
-                icon = Icons.Filled.Lock,
-                title = R.string.rules_pin_title,
-                subtitle = R.string.rules_pin_subtitle,
-                onClick = onOpenPinProtection
-            )
-            RuleCard(
-                icon = Icons.Filled.CheckCircle,
-                title = R.string.rules_whitelist_title,
-                subtitle = R.string.rules_whitelist_subtitle,
-                onClick = onOpenWhitelist
-            )
+            item {
+                RuleCard(
+                    icon = Icons.Filled.DateRange,
+                    title = R.string.rules_daily_limit_title,
+                    subtitle = R.string.rules_daily_limit_subtitle,
+                    onClick = onOpenDailyLimit
+                )
+            }
+            item {
+                RuleCard(
+                    icon = ImageVector.vectorResource(R.drawable.ic_timer),
+                    title = R.string.rules_app_limits_title,
+                    subtitle = R.string.rules_app_limits_subtitle,
+                    onClick = onOpenAppLimits
+                )
+            }
+            item {
+                RuleCard(
+                    icon = ImageVector.vectorResource(R.drawable.ic_schedule),
+                    title = R.string.rules_schedule_title,
+                    subtitle = R.string.rules_schedule_subtitle,
+                    onClick = onOpenSchedule
+                )
+            }
+            item {
+                RuleCard(
+                    icon = ImageVector.vectorResource(R.drawable.ic_block),
+                    title = R.string.rules_blocked_apps_title,
+                    subtitle = R.string.rules_blocked_apps_subtitle,
+                    onClick = onOpenBlockedApps,
+                    iconTint = MaterialTheme.colorScheme.error
+                )
+            }
+            item {
+                RuleCard(
+                    icon = ImageVector.vectorResource(R.drawable.ic_globe_off),
+                    title = R.string.rules_blocked_sites_title,
+                    subtitle = R.string.rules_blocked_sites_subtitle,
+                    onClick = onOpenBlockedSites,
+                    iconTint = MaterialTheme.colorScheme.error
+                )
+            }
+            item {
+                RuleCard(
+                    icon = Icons.Filled.Lock,
+                    title = R.string.rules_pin_title,
+                    subtitle = R.string.rules_pin_subtitle,
+                    onClick = onOpenPinProtection
+                )
+            }
+            item {
+                RuleCard(
+                    icon = Icons.Filled.CheckCircle,
+                    title = R.string.rules_whitelist_title,
+                    subtitle = R.string.rules_whitelist_subtitle,
+                    onClick = onOpenWhitelist
+                )
+            }
         }
     }
 }
