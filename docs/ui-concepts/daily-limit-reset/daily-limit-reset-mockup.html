@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — «Сбросить сегодняшний лимит»</title>
+<style>
+  :root { --page-bg:#eef2f0; --page-fg:#14201b; --page-muted:#5c6b64; --page-card:#fff;
+          --page-border:rgba(20,32,27,.10); --accent:#0f9d74; }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         background:var(--page-bg); color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:900px; margin:0 auto; padding:28px 20px 60px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size:clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0 0 4px; color:var(--page-muted); max-width:70ch; }
+  .themebar { display:flex; align-items:center; gap:10px; margin:20px 0 8px; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme:dark) { .tabs button.on { color:#06120d; } }
+  .row { display:flex; flex-wrap:wrap; gap:34px; justify-content:center; margin-top:18px; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; max-width:360px; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:360px; border-radius:40px; padding:12px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f);
+    box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+  /* Тёмная тема приложения (Deep Teal) — из ui/theme/Color.kt */
+  .screen { --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#ef5350;
+    --gold:#f5c542; --gold-bg:rgba(245,197,66,.14); --gold-border:rgba(245,197,66,.30);
+    position:relative; border-radius:30px; overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:14px 14px 18px; min-height:668px; }
+  body.light .screen { --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#fff; --scr-danger:#c62828;
+    --gold:#9a6b12; --gold-bg:rgba(154,107,18,.10); --gold-border:rgba(154,107,18,.28); }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:2px 6px 8px; }
+  .topbar { display:flex; align-items:center; gap:12px; padding:2px 4px 10px; }
+  .topbar .back { color:var(--scr-muted); font-size:20px; }
+  .topbar h2 { font-size:20px; margin:0; font-weight:700; }
+  .subtitle { font-size:13.5px; color:var(--scr-muted); padding:2px 4px 12px; }
+
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:18px;
+    padding:14px; backdrop-filter:blur(8px); }
+  .card + .card { margin-top:14px; }
+  .card h3 { margin:0 0 2px; font-size:15px; }
+  .card .sub { margin:0 0 12px; font-size:12.5px; color:var(--scr-muted); }
+
+  .bonus-active { display:flex; align-items:center; gap:8px; background:var(--gold-bg);
+    border:1px solid var(--gold-border); color:var(--gold); border-radius:12px; padding:8px 12px; font-size:13px; font-weight:600; margin-bottom:12px; }
+  .chips { display:flex; gap:8px; }
+  .chip { flex:1; text-align:center; border:1px solid var(--scr-glass-border); border-radius:11px;
+    padding:9px 0; font-size:13px; font-weight:600; color:var(--scr-fg); background:rgba(255,255,255,.02); }
+
+  /* НОВОЕ: кнопка сброса — вариант (в), между «Доп. временем» и списком дней */
+  .reset-btn { display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; box-sizing:border-box; margin:14px 0; padding:12px; border-radius:14px;
+    background:transparent; border:1px solid var(--scr-accent); color:var(--scr-accent);
+    font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .reset-btn:disabled { opacity:.4; }
+  .reset-btn .ic { font-size:16px; }
+
+  .day { display:flex; align-items:center; justify-content:space-between; padding:12px 2px; font-size:14.5px; }
+  .day + .day { border-top:1px solid var(--scr-glass-border); }
+  .day .today { font-size:11px; font-weight:700; color:var(--scr-on-accent); background:var(--scr-accent);
+    border-radius:7px; padding:2px 8px; margin-left:8px; }
+  .day .val { font-weight:700; color:var(--scr-accent); }
+  .day .val.none { color:var(--scr-muted); font-weight:600; }
+
+  .reset-all { text-align:center; color:var(--scr-danger); font-size:13.5px; font-weight:600; padding:14px 0 4px; }
+
+  /* Диалог подтверждения */
+  .scrim { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; border-radius:30px; }
+  .dialog { width:82%; background:var(--scr-bg1); border:1px solid var(--scr-glass-border); border-radius:20px; padding:18px 18px 12px;
+    box-shadow:0 20px 50px -18px rgba(0,0,0,.7); }
+  body.light .dialog { background:#fff; }
+  .dialog h4 { margin:0 0 8px; font-size:16px; }
+  .dialog p { margin:0 0 16px; font-size:13.5px; color:var(--scr-muted); }
+  .dialog .acts { display:flex; justify-content:flex-end; gap:10px; }
+  .dialog .acts button { border:none; background:transparent; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; padding:8px 10px; }
+  .dialog .cancel { color:var(--scr-muted); }
+  .dialog .ok { color:var(--scr-accent); }
+
+  .mark { outline:2px dashed var(--scr-accent); outline-offset:3px; border-radius:14px; }
+  .badge { display:inline-block; background:var(--accent); color:#06120d; font-size:11px; font-weight:700;
+    border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
+  @media (prefers-color-scheme:dark){ .badge{ color:#06120d; } }
+</style>
+</head>
+<body class="light">
+<div class="wrap">
+  <p class="eyebrow">KidGuard · Дневной лимит</p>
+  <h1>Кнопка «Сбросить сегодняшний лимит» <span class="badge">новое</span></h1>
+  <div class="intro">
+    <p>Родитель обнуляет израсходованное сегодня время (общее + по приложениям): ребёнок получает
+       полный дневной лимит на сегодня заново. Не бонус — именно сброс того, что потратил родитель.</p>
+    <p><b>Расположение — вариант (в):</b> между блоком «Дополнительное время» и списком дней.</p>
+  </div>
+
+  <div class="themebar">
+    <span class="lbl">Тема экрана:</span>
+    <div class="tabs">
+      <button class="on" onclick="setTheme('light',this)">Светлая</button>
+      <button onclick="setTheme('dark',this)">Тёмная</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Экран с кнопкой -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▲ ▮▮▮ 🔋</span></div>
+        <div class="topbar"><span class="back">‹</span><h2>Дневной лимит</h2></div>
+        <div class="subtitle">Сколько времени в день доступен телефон. Нажмите на день, чтобы изменить.</div>
+
+        <div class="card">
+          <h3>Дополнительное время</h3>
+          <p class="sub">Разовый бонус сверх лимита на сегодня</p>
+          <div class="bonus-active">✔ Добавлено сегодня: +30 мин</div>
+          <div class="chips"><div class="chip">+15 мин</div><div class="chip">+30 мин</div><div class="chip">Другое…</div></div>
+        </div>
+
+        <!-- НОВОЕ -->
+        <button class="reset-btn mark"><span class="ic">↻</span> Сбросить сегодняшний лимит</button>
+
+        <div class="card">
+          <div class="day"><span>Понедельник <span class="today">Сегодня</span></span><span class="val">3 ч</span></div>
+          <div class="day"><span>Вторник</span><span class="val">3 ч</span></div>
+          <div class="day"><span>Среда</span><span class="val">2 ч</span></div>
+          <div class="day"><span>Четверг</span><span class="val none">Без лимита</span></div>
+        </div>
+
+        <div class="reset-all">Сбросить все лимиты</div>
+      </div></div>
+      <p class="caption">Кнопка — отдельная, между «сегодняшними» действиями (бонус) и настройкой
+        повторяющихся лимитов по дням. Активна, <b>только когда на сегодня задан лимит</b>.</p>
+    </div>
+
+    <!-- Экран с диалогом -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▲ ▮▮▮ 🔋</span></div>
+        <div class="topbar"><span class="back">‹</span><h2>Дневной лимит</h2></div>
+        <div class="subtitle">Сколько времени в день доступен телефон. Нажмите на день, чтобы изменить.</div>
+        <div class="card">
+          <h3>Дополнительное время</h3>
+          <p class="sub">Разовый бонус сверх лимита на сегодня</p>
+          <div class="chips"><div class="chip">+15 мин</div><div class="chip">+30 мин</div><div class="chip">Другое…</div></div>
+        </div>
+        <button class="reset-btn"><span class="ic">↻</span> Сбросить сегодняшний лимит</button>
+        <div class="card">
+          <div class="day"><span>Понедельник <span class="today">Сегодня</span></span><span class="val">3 ч</span></div>
+          <div class="day"><span>Вторник</span><span class="val">3 ч</span></div>
+        </div>
+
+        <div class="scrim">
+          <div class="dialog">
+            <h4>Сбросить сегодняшний лимит?</h4>
+            <p>Израсходованное сегодня время обнулится — ребёнок получит на сегодня полный лимит заново. Бонусы сохранятся.</p>
+            <div class="acts"><button class="cancel">Отмена</button><button class="ok">Сбросить</button></div>
+          </div>
+        </div>
+      </div></div>
+      <p class="caption">Подтверждение перед сбросом — защита от случайного нажатия (как у «Сбросить все лимиты»).</p>
+    </div>
+  </div>
+</div>
+<script>
+  function setTheme(t, btn){
+    document.body.classList.toggle('light', t==='light');
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+</script>
+</body>
+</html>
