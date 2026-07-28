@@ -18,10 +18,19 @@
     <string name="overlay_prohibited_title">Приложение недоступно</string>
     <string name="overlay_prohibited_text">Это приложение запретил родитель</string>
 
+    <!-- Экран блокировки (оверлей) — «Время учёбы» по расписанию родителя -->
+    <string name="overlay_study_title">Сейчас время учёбы</string>
+    <string name="overlay_study_text_until">Телефон будет доступен в %1$s</string>
+    <string name="overlay_study_text">Телефон будет доступен после окончания времени учёбы</string>
+
     <!-- Предупреждение перед истечением лимита -->
     <string name="warning_channel_name">Предупреждения о времени</string>
     <string name="warning_title">Скоро конец времени</string>
     <string name="warning_text">Осталось %1$d мин</string>
+
+    <!-- Предупреждение перед началом «Времени сна» -->
+    <string name="warning_sleep_title">Скоро время сна</string>
+    <string name="warning_sleep_text">Через %1$d мин телефон заблокируется на ночь</string>
 
     <!-- Blackhole-VPN (веха 5) -->
     <string name="vpn_channel_name">Блокировка интернета</string>
@@ -35,6 +44,24 @@
     <string name="pin_overlay_blocked">Слишком много попыток. Повторите через %1$d с</string>
     <string name="pin_overlay_back">Назад</string>
     <string name="pin_overlay_backspace_glyph">⌫</string>
+
+    <!-- Warning-оверлей при попытке включить «Блокировать соединения без VPN» -->
+    <string name="lockdown_warning_title">Не включайте эту опцию</string>
+    <string name="lockdown_warning_message">Опция «Блокировать соединения без VPN» вместе с запретом сайтов оставит телефон совсем без интернета. Поэтому KidGuard не даёт её включить. На остальную защиту это не влияет.</string>
+    <string name="lockdown_warning_ok">Понятно</string>
+
+    <!-- Ночной замок «Время сна»: несмахиваемый экран, снимается только родительским PIN -->
+    <string name="sleep_lock_title">Время сна</string>
+    <string name="sleep_lock_until">Телефон откроется в %1$s</string>
+    <string name="sleep_lock_hint">Экран закроется, когда родитель введёт PIN</string>
+    <string name="sleep_lock_call">Позвонить %1$s</string>
+
+    <!-- Замок принудительного перерыва: тот же несмахиваемый экран, но с обратным отсчётом -->
+    <string name="break_lock_title">Перерыв</string>
+    <string name="break_lock_hint">Экран откроется сам. Родитель может снять его PIN-ом.</string>
+    <string name="break_lock_default_message">Сделай перерыв! Дай глазам отдохнуть</string>
+    <string name="break_warning_title">Перерыв через 5 минут</string>
+    <string name="break_warning_subtitle">Успей сохраниться</string>
 
     <!-- Device Admin (веха 6.3) -->
     <string name="device_admin_disable_warning">Отключение защитит телефон от KidGuard-контроля. Для отключения нужен родительский PIN.</string>

@@ -1,14 +1,15 @@
 package ru.homelab.kidguard.core.domain.usecase
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.core.domain.repository.todayFlow
 import javax.inject.Inject
 
 /**
@@ -16,7 +17,11 @@ import javax.inject.Inject
  * накопленное этим приложением время за сегодня с его лимитом из политики (плюс выданное на
  * сегодня «Дополнительное время» для этого приложения — веха 3Б). Если личный лимит приложению
  * не задан — [LimitState.NoLimit]. Дата — из [CurrentDateProvider] (анти-отмотка).
+ *
+ * Дата приходит потоком ([todayFlow]) по той же причине, что и в [ObserveLimitStateUseCase]:
+ * иначе после полуночи лимит считался бы по вчерашнему расходу.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ObserveAppLimitStateUseCase @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
@@ -24,17 +29,16 @@ class ObserveAppLimitStateUseCase @Inject constructor(
     private val currentDateProvider: CurrentDateProvider
 ) {
 
-    operator fun invoke(packageName: String): Flow<LimitState> = flow {
-        val today = currentDateProvider.today()
-        val stateFlow = combine(
-            policyRepository.appLimits,
-            usageRepository.appScreenTimeSeconds(today, packageName),
-            bonusRepository.appBonusMinutes(today)
-        ) { limits, usedSeconds, bonuses ->
-            calculate(limits[packageName], usedSeconds, bonuses[packageName] ?: 0)
+    operator fun invoke(packageName: String): Flow<LimitState> =
+        currentDateProvider.todayFlow().flatMapLatest { today ->
+            combine(
+                policyRepository.appLimits,
+                usageRepository.appScreenTimeSeconds(today, packageName),
+                bonusRepository.appBonusMinutes(today)
+            ) { limits, usedSeconds, bonuses ->
+                calculate(limits[packageName], usedSeconds, bonuses[packageName] ?: 0)
+            }
         }
-        emitAll(stateFlow)
-    }
 
     private fun calculate(limitMinutes: Int?, usedSeconds: Int, bonusMinutes: Int): LimitState {
         if (limitMinutes == null) return LimitState.NoLimit

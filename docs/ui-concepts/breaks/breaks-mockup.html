@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: Перерывы</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1180px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0 0 8px; color:var(--page-muted); max-width:70ch; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+  .tabs button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .screens { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:24px; margin-top:22px; align-items:start; }
+  @media (max-width:1000px){ .screens{ grid-template-columns:1fr; gap:32px; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:390px; margin:0 auto; border-radius:40px; padding:12px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  /* Тёмная тема приложения (Deep Teal) */
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#ef5350;
+    --brk:#4fd6b4; --brk-bg:rgba(79,214,180,.16); --brk-line:rgba(79,214,180,.30);
+    --sheet-bg:#16231e; --field-bg:rgba(255,255,255,.03);
+    border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:14px 14px 18px; min-height:680px;
+  }
+  /* Светлая тема приложения */
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#c62828;
+    --brk:#127a63; --brk-bg:rgba(18,122,99,.12); --brk-line:rgba(18,122,99,.30);
+    --sheet-bg:#ffffff; --field-bg:rgba(22,35,42,.04);
+  }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:4px 6px 10px; }
+  .topbar { display:flex; align-items:center; gap:10px; padding:0 2px 4px; }
+  .topbar .back { color:var(--scr-muted); font-size:20px; }
+  .topbar h2 { font-size:20px; margin:0; font-weight:700; }
+  .subtitle { font-size:12.5px; color:var(--scr-muted); margin:8px 4px 14px; }
+
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:14px; margin-bottom:12px; }
+  .card.dim { opacity:.5; }
+  .chead { display:flex; align-items:flex-start; gap:12px; }
+  .chead .ico { width:30px; height:30px; border-radius:9px; flex:none; display:grid; place-items:center; font-size:15px; background:var(--brk-bg); }
+  .chead .tinfo { flex:1; }
+  .chead .ttitle { font-size:15px; font-weight:600; }
+  .chead .thint { font-size:11.5px; color:var(--scr-muted); margin-top:3px; }
+  .sw { width:44px; height:26px; border-radius:999px; flex:none; position:relative; background:rgba(128,128,128,.30); margin-top:2px; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#9aa7ab; }
+  .sw.on { background:var(--scr-accent); }
+  .sw.on::after { left:21px; background:var(--scr-on-accent); }
+  .sw.off-disabled { opacity:.45; }
+
+  .days { display:flex; flex-direction:column; margin-top:6px; }
+  .day { display:flex; align-items:center; gap:8px; padding:9px 2px; border-top:1px solid var(--scr-glass-border); font-size:14px; }
+  .day:first-child { border-top:none; }
+  .day .nm { flex:1; }
+  .day .today { font-size:10px; font-weight:700; color:var(--scr-on-accent); background:var(--scr-accent); border-radius:6px; padding:1px 6px; }
+  .day .val { font-variant-numeric: tabular-nums; font-weight:700; font-size:13.5px; color:var(--scr-fg); }
+  .day .val.none { color:var(--scr-muted); font-weight:500; }
+
+  .btn { display:block; width:100%; text-align:center; font-size:14px; font-weight:600; padding:11px; border-radius:13px;
+    border:1px solid var(--brk-line); color:var(--brk); background:transparent; margin-top:4px; }
+  .btn.reset { border-color:rgba(239,83,80,.35); color:var(--scr-danger); }
+  .btn.solid { background:var(--scr-accent); color:var(--scr-on-accent); border-color:transparent; }
+
+  /* Выбор режима галочками — как в «Запрете сайтов» */
+  .modes { display:flex; flex-direction:column; gap:2px; margin:2px 0 10px; }
+  .mode { display:flex; align-items:center; gap:10px; padding:9px 2px; font-size:14px; }
+  .box { width:19px; height:19px; border-radius:6px; border:1.5px solid var(--scr-glass-border); flex:none; display:grid; place-items:center;
+    font-size:12px; color:transparent; }
+  .box.on { background:var(--brk); border-color:var(--brk); color:#04312b; }
+  .light .box.on { color:#fff; }
+
+  .field-label { font-size:12px; color:var(--scr-muted); margin:10px 2px 6px; display:flex; justify-content:space-between; }
+  .field-label .v { color:var(--brk); font-weight:700; font-variant-numeric:tabular-nums; }
+  .field-label .v.unset { color:var(--scr-muted); font-weight:500; font-style:italic; }
+  .slider { height:26px; display:flex; align-items:center; }
+  .track { height:4px; border-radius:4px; background:var(--scr-glass-border); flex:1; position:relative; }
+  .track .fill { position:absolute; left:0; top:0; bottom:0; border-radius:4px; background:var(--brk); }
+  .track .knob { position:absolute; top:50%; width:18px; height:18px; border-radius:50%; background:var(--brk); transform:translate(-50%,-50%); }
+  .track.unset .knob { background:var(--scr-muted); left:0; }
+
+  .input { background:var(--field-bg); border:1px solid var(--scr-glass-border); border-radius:12px; padding:11px 12px; font-size:13.5px;
+    color:var(--scr-muted); }
+  .input.filled { color:var(--scr-fg); }
+  .hours { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 4px; }
+  .hour { display:flex; align-items:center; gap:7px; background:var(--brk-bg); border:1px solid var(--brk-line); color:var(--brk);
+    border-radius:11px; padding:7px 10px; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .hour .x { opacity:.7; font-weight:400; }
+  .addhour { border:1px dashed var(--scr-glass-border); color:var(--scr-muted); border-radius:11px; padding:7px 11px; font-size:13.5px; }
+  .note { font-size:11.5px; color:var(--scr-muted); margin:10px 2px 0; }
+  .note b { color:var(--scr-fg); font-weight:600; }
+
+  /* --- Замок перерыва: тот же индиго-градиент, но без луны и звёзд --- */
+  .lock { border-radius:30px; overflow:hidden; min-height:680px; padding:26px 20px;
+    background:radial-gradient(120% 90% at 50% 0%, #20295a, #070a16); color:#fff; display:flex; flex-direction:column; align-items:center; }
+  .lock .ttl { font-size:23px; font-weight:700; margin-top:26px; }
+  .lock .msg { font-size:14px; color:#c9d2f0; text-align:center; margin-top:10px; max-width:270px; line-height:1.45; }
+  .lock .count { font-size:44px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:.02em; margin:18px 0 4px; }
+  .lock .countlbl { font-size:11.5px; color:#8f9bcc; text-transform:uppercase; letter-spacing:.14em; }
+  .pad { display:grid; grid-template-columns:repeat(3,58px); gap:16px; margin-top:22px; }
+  .key { width:58px; height:58px; border-radius:50%; background:rgba(255,255,255,.10); display:grid; place-items:center; font-size:20px; }
+  .key.empty { background:transparent; }
+  .dots { display:flex; gap:14px; margin-top:20px; }
+  .dot { width:13px; height:13px; border-radius:50%; background:rgba(255,255,255,.22); }
+  .call { border:1px solid rgba(255,255,255,.20); border-radius:13px; padding:11px 18px; font-size:14px; margin-top:20px; width:230px; text-align:center; }
+  .lock .hint { font-size:11.5px; color:#8f9bcc; text-align:center; margin-top:14px; max-width:250px; }
+
+  /* --- Плашка-предупреждение поверх игры --- */
+  .game { border-radius:30px; overflow:hidden; min-height:680px; position:relative;
+    background:linear-gradient(200deg,#2b1a3d,#0d1330 60%,#101a12); display:grid; place-items:center; }
+  .game .fake { color:rgba(255,255,255,.35); font-size:13px; text-align:center; padding:0 30px; }
+  .toast { position:absolute; left:12px; right:12px; top:14px; background:rgba(12,18,32,.88); border:1px solid rgba(255,255,255,.14);
+    border-radius:14px; padding:11px 14px; display:flex; align-items:center; gap:10px; color:#fff; font-size:13.5px;
+    box-shadow:0 12px 30px -12px rgba(0,0,0,.8); }
+  .toast .ic { font-size:16px; }
+  .toast .sub { display:block; font-size:11.5px; color:#a8b3d8; margin-top:1px; }
+  .through { position:absolute; bottom:70px; left:0; right:0; text-align:center; font-size:11.5px; color:rgba(255,255,255,.5); padding:0 24px; }
+
+  .qs { margin-top:36px; border-top:1px solid var(--page-border); padding-top:22px; }
+  .qs h3 { font-size:16px; margin:0 0 10px; }
+  .qs ul { margin:0; padding-left:20px; color:var(--page-muted); }
+  .qs li { margin-bottom:8px; }
+  .qs b { color:var(--page-fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">KidGuard · макет на согласование</p>
+  <h1>Перерывы («режим перерыва»)</h1>
+  <div class="intro">
+    <p>Раз в N минут непрерывного залипания (или в назначенные часы) экран блокируется на несколько
+       минут с сообщением родителя. Перерывы действуют <b>только в свободные часы</b> — вне «Времени
+       учёбы» и «Времени сна» — и <b>только в дни, где лимит не задан или больше 3 часов</b>.</p>
+    <p>Спека: <code>docs/superpowers/specs/2026-07-21-forced-breaks-design.md</code></p>
+  </div>
+
+  <div class="themebar">
+    <span class="lbl">Тема экрана приложения:</span>
+    <div class="tabs">
+      <button id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+    <!-- 1. Дневной лимит с кнопкой -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>16:24</span><span>▮▮▮ 84%</span></div>
+        <div class="topbar"><span class="back">←</span><h2>Дневной лимит</h2></div>
+        <p class="subtitle">Сколько времени в день доступен телефон</p>
+        <div class="card">
+          <div class="days">
+            <div class="day"><span class="nm">Понедельник</span><span class="val">3 ч</span></div>
+            <div class="day"><span class="nm">Вторник</span><span class="today">Сегодня</span><span class="val none">Не задан</span></div>
+            <div class="day"><span class="nm">Среда</span><span class="val none">Не задан</span></div>
+            <div class="day"><span class="nm">Четверг</span><span class="val">4 ч</span></div>
+            <div class="day"><span class="nm">Пятница</span><span class="val none">Не задан</span></div>
+            <div class="day"><span class="nm">Суббота</span><span class="val">5 ч</span></div>
+            <div class="day"><span class="nm">Воскресенье</span><span class="val">5 ч</span></div>
+          </div>
+        </div>
+        <div class="btn">☕ Перерывы</div>
+        <p class="note">Кнопка видна всегда. Сами перерывы сработают в Вт, Ср, Чт, Пт, Сб, Вс —
+          в понедельник лимит ровно 3 часа, там перерывов не будет.</p>
+      </div></div>
+      <p class="caption"><b>1.</b> Кнопка «Перерывы» под списком дней</p>
+    </div>
+
+    <!-- 2. Экран Перерывы — режим интервала, ничего не задано -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>16:25</span><span>▮▮▮ 84%</span></div>
+        <div class="topbar"><span class="back">←</span><h2>Перерывы</h2></div>
+        <p class="subtitle">Чтобы ребёнок не залипал в телефон часами подряд</p>
+
+        <div class="card">
+          <div class="chead">
+            <div class="ico">☕</div>
+            <div class="tinfo">
+              <div class="ttitle">Включить перерывы</div>
+              <div class="thint">Сначала задайте, как часто и насколько</div>
+            </div>
+            <div class="sw off-disabled"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="modes">
+            <div class="mode"><span class="box on">✓</span><span>Через интервал залипания</span></div>
+            <div class="mode"><span class="box"></span><span>В определённые часы</span></div>
+          </div>
+
+          <div class="field-label"><span>Интервал</span><span class="v unset">не задан</span></div>
+          <div class="slider"><div class="track unset"><div class="knob"></div></div></div>
+
+          <div class="field-label"><span>Длительность перерыва</span><span class="v unset">не задана</span></div>
+          <div class="slider"><div class="track unset"><div class="knob"></div></div></div>
+        </div>
+
+        <div class="card">
+          <div class="field-label"><span>Сообщение для ребёнка</span></div>
+          <div class="input">Сделай перерыв! Дай глазам отдохнуть</div>
+          <p class="note">Поле пустое — это подсказка. Если ничего не ввести, ребёнок увидит на
+            экране именно эту фразу.</p>
+        </div>
+
+        <div class="btn reset">Сбросить перерывы</div>
+      </div></div>
+      <p class="caption"><b>2.</b> Пустой экран: ничего не задано, тумблер недоступен</p>
+    </div>
+
+    <!-- 3. Экран Перерывы — режим часов, заполнено -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>16:31</span><span>▮▮▮ 83%</span></div>
+        <div class="topbar"><span class="back">←</span><h2>Перерывы</h2></div>
+        <p class="subtitle">Чтобы ребёнок не залипал в телефон часами подряд</p>
+
+        <div class="card">
+          <div class="chead">
+            <div class="ico">☕</div>
+            <div class="tinfo">
+              <div class="ttitle">Включить перерывы</div>
+              <div class="thint">Действуют: Вт, Ср, Пт — в остальные дни лимит 3 ч или меньше</div>
+            </div>
+            <div class="sw on"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="modes">
+            <div class="mode"><span class="box"></span><span>Через интервал залипания</span></div>
+            <div class="mode"><span class="box on">✓</span><span>В определённые часы</span></div>
+          </div>
+
+          <div class="field-label"><span>Часы перерывов</span></div>
+          <div class="hours">
+            <span class="hour">12:00 <span class="x">✕</span></span>
+            <span class="hour">15:00 <span class="x">✕</span></span>
+            <span class="hour">18:30 <span class="x">✕</span></span>
+            <span class="addhour">+ Добавить час</span>
+          </div>
+
+          <div class="field-label"><span>Длительность перерыва</span><span class="v">10 мин</span></div>
+          <div class="slider"><div class="track"><div class="fill" style="width:22%"></div><div class="knob" style="left:22%"></div></div></div>
+        </div>
+
+        <div class="card">
+          <div class="field-label"><span>Сообщение для ребёнка</span></div>
+          <div class="input filled">Отложи телефон, разомнись и попей воды :)</div>
+          <p class="note">Это сообщение отобразится на экране блокировки ребёнка.</p>
+        </div>
+
+        <div class="btn reset">Сбросить перерывы</div>
+      </div></div>
+      <p class="caption"><b>3.</b> Режим «часы», всё заполнено, перерывы включены</p>
+    </div>
+  </div>
+
+  <div class="screens" style="margin-top:34px">
+    <!-- 4. Замок перерыва -->
+    <div class="col">
+      <div class="phone"><div class="lock">
+        <div class="statusbar" style="width:100%;color:rgba(255,255,255,.55)"><span>15:07</span><span>▮▮▮ 81%</span></div>
+        <div class="ttl">Перерыв</div>
+        <div class="msg">Отложи телефон, разомнись и попей воды :)</div>
+        <div class="count">4:37</div>
+        <div class="countlbl">до конца перерыва</div>
+        <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <div class="pad">
+          <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+          <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+          <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+          <div class="key empty"></div><div class="key">0</div><div class="key">⌫</div>
+        </div>
+        <div class="call">Позвонить маме</div>
+        <p class="hint">Экран откроется сам. Родитель может снять его PIN-ом.</p>
+      </div></div>
+      <p class="caption"><b>4.</b> Замок перерыва — тот же индиго-градиент, но <b>без луны и звёзд</b></p>
+    </div>
+
+    <!-- 5. Плашка поверх игры -->
+    <div class="col">
+      <div class="phone"><div class="game">
+        <div class="toast">
+          <span class="ic">☕</span>
+          <span>Перерыв через 5 минут
+            <span class="sub">Успей сохраниться</span></span>
+        </div>
+        <p class="fake">— здесь идёт игра на весь экран —</p>
+        <p class="through">Тапы проходят сквозь плашку в игру: она не перехватывает нажатия,
+          не отбирает фокус и не сворачивает приложение. Исчезает сама через 4 секунды.</p>
+      </div></div>
+      <p class="caption"><b>5.</b> Предупреждение за 5 минут — одна плашка, поверх игры</p>
+    </div>
+
+    <div class="col">
+      <div class="qs" style="margin-top:0;border-top:none;padding-top:0">
+        <h3>Что тут стоит обсудить</h3>
+        <ul>
+          <li><b>Цвет фичи.</b> Учёба янтарная 🎒, сон индиго 🌙, перерывам взял мятно-зелёный ☕
+            (отдых, «глаза отдыхают»). При этом сам замок по твоему требованию индиго, без луны и
+            звёзд — то есть акцент экрана и фон замка разной масти. Если режет глаз, могу увести
+            акцент экрана в тот же индиго.</li>
+          <li><b>Иконка.</b> Взял чашку ☕. Альтернативы: 👀 (про глаза), ⏸️ (пауза), 🧘.</li>
+          <li><b>«Часы перерывов»</b> добавляются той же шторкой с барабанами, что и время в
+            «Расписании» — отдельный компонент писать не буду, переиспользую.</li>
+          <li><b>Подпись про дни</b> («Действуют: Вт, Ср, Пт…») вынесена в подзаголовок тумблера,
+            чтобы родитель сразу видел, где перерывы реально сработают, а не думал, что фича
+            сломалась при лимите 2 часа.</li>
+          <li><b>Текст на замке</b> — фраза родителя. Если поле пустое, показываем шаблон
+            «Сделай перерыв! Дай глазам отдохнуть».</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setTheme(mode) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', mode === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', mode === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', mode === 'light');
+  }
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.platform.permissions.PermissionsManager
 import javax.inject.Inject
 
@@ -16,7 +17,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PermissionsViewModel @Inject constructor(
-    private val permissionsManager: PermissionsManager
+    private val permissionsManager: PermissionsManager,
+    private val healthReportTrigger: HealthReportTrigger
 ) : ViewModel() {
 
     private val _statuses = MutableStateFlow(emptyStatuses())
@@ -26,9 +28,14 @@ class PermissionsViewModel @Inject constructor(
         refresh()
     }
 
-    /** Перепроверить статусы всех разрешений (вызывать при возврате на экран). */
+    /**
+     * Перепроверить статусы всех разрешений (вызывать при возврате на экран, в т.ч. из системных
+     * настроек). Помимо accessibility (её ловит `onServiceConnected`), тут выдаются overlay/battery/
+     * notification/vpn — сигналим watchdog'у не ждать 15-минутный тик и для них тоже.
+     */
     fun refresh() {
         _statuses.value = DevicePermission.entries.associateWith(permissionsManager::isGranted)
+        healthReportTrigger.requestNow()
     }
 
     /** Интент для выдачи конкретного разрешения (или null, если не требуется). */

@@ -77,15 +77,27 @@ fun BlockedAppsScreen(
             when {
                 apps == null -> AppsLoadingState()
                 apps.orEmpty().isEmpty() -> AppsEmptyState()
-                else -> LazyColumn(
-                    modifier = Modifier.padding(top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        AppRow(
-                            app = app,
-                            onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
-                        )
+                else -> {
+                    val (normalApps, systemApps) = filtered.partition { !it.isSystem }
+                    LazyColumn(
+                        modifier = Modifier.padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(normalApps, key = { it.packageName }) { app ->
+                            AppRow(
+                                app = app,
+                                onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
+                            )
+                        }
+                        if (systemApps.isNotEmpty()) {
+                            item(key = "system-apps-header") { SystemAppsSectionHeader() }
+                            items(systemApps, key = { it.packageName }) { app ->
+                                AppRow(
+                                    app = app,
+                                    onToggle = { checked -> viewModel.setBlocked(app.packageName, checked) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -104,11 +116,14 @@ private fun AppRow(app: BlockedAppUi, onToggle: (Boolean) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
-            Text(
-                text = app.label,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
+                if (app.isRisky) RiskyAppWarning()
+            }
             if (app.blocked) {
                 Text(
                     text = stringResource(R.string.blocked_apps_badge),

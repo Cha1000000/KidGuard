@@ -1,11 +1,9 @@
 package ru.homelab.kidguard.feature.parent.rules
 
-import android.content.Context
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,12 +20,13 @@ data class BlockedAppUi(
     val packageName: String,
     val label: String,
     val icon: ImageBitmap?,
-    val blocked: Boolean
+    val blocked: Boolean,
+    val isSystem: Boolean,
+    val isRisky: Boolean
 )
 
 @HiltViewModel
 class BlockedAppsViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
     private val childAppsProvider: ChildAppsProvider,
     private val policyRepository: PolicyRepository
 ) : ViewModel() {
@@ -40,10 +39,15 @@ class BlockedAppsViewModel @Inject constructor(
     val apps: StateFlow<List<BlockedAppUi>?> =
         combine(childApps, policyRepository.blockedApps) { apps, blockedApps ->
             apps
-                // KidGuard нельзя запретить — сам себя он и так не блокирует (alwaysAllowed).
-                .filter { it.packageName != context.packageName }
                 .map { app ->
-                    BlockedAppUi(app.packageName, app.label, app.icon, app.packageName in blockedApps)
+                    BlockedAppUi(
+                        packageName = app.packageName,
+                        label = app.label,
+                        icon = app.icon,
+                        blocked = app.packageName in blockedApps,
+                        isSystem = app.isSystem,
+                        isRisky = app.isRisky
+                    )
                 }
                 // Запрещённые приложения — вверх; внутри групп сохраняем алфавит (как в лимитах).
                 .sortedWith(compareBy({ !it.blocked }, { it.label.lowercase() }))

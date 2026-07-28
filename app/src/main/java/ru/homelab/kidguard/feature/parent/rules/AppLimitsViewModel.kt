@@ -30,7 +30,9 @@ data class AppLimitUi(
     /** Израсходовано этим приложением сегодня (минут). */
     val spentMinutes: Int,
     /** Активное «Дополнительное время» приложения на сегодня (минут). */
-    val bonusMinutes: Int
+    val bonusMinutes: Int,
+    val isSystem: Boolean,
+    val isRisky: Boolean
 )
 
 @HiltViewModel
@@ -63,7 +65,9 @@ class AppLimitsViewModel @Inject constructor(
                         icon = app.icon,
                         limitMinutes = limits[app.packageName],
                         spentMinutes = (usedByPackage[app.packageName] ?: 0) / 60,
-                        bonusMinutes = bonusByPackage[app.packageName] ?: 0
+                        bonusMinutes = bonusByPackage[app.packageName] ?: 0,
+                        isSystem = app.isSystem,
+                        isRisky = app.isRisky
                     )
                 }
                 // Приложения с заданным лимитом — вверх; внутри групп сохраняем алфавит.

@@ -86,6 +86,10 @@
     <string name="rules_app_limits_subtitle">Свой лимит на отдельные приложения</string>
     <string name="rules_blocked_apps_title">Запрет приложений</string>
     <string name="rules_blocked_apps_subtitle">Полностью недоступные ребёнку приложения</string>
+    <string name="rules_blocked_sites_title">Запрет сайтов</string>
+    <string name="rules_blocked_sites_subtitle">Сайты, недоступные ребёнку в любой сети</string>
+    <string name="rules_schedule_title">Расписание</string>
+    <string name="rules_schedule_subtitle">Часы учёбы и сна, когда телефон закрыт</string>
     <string name="rules_pin_title">PIN-защита</string>
     <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
     <string name="common_back">Назад</string>
@@ -98,6 +102,10 @@
     <string name="daily_limit_sheet_hint">Лимит на этот день</string>
     <string name="daily_limit_apply_all">Установить на все дни недели</string>
     <string name="daily_limit_save">Сохранить</string>
+    <string name="daily_limit_reset_all">Сбросить все лимиты</string>
+    <string name="daily_limit_reset_all_title">Сбросить все лимиты?</string>
+    <string name="daily_limit_reset_all_message">Для всех дней недели будет установлено «Без лимита».</string>
+    <string name="daily_limit_reset_all_action">Сбросить</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>
@@ -110,6 +118,14 @@
     <string name="day_friday">Пятница</string>
     <string name="day_saturday">Суббота</string>
     <string name="day_sunday">Воскресенье</string>
+    <!-- Сокращённые названия — для подписи «Действуют: Вт, Ср, Пт» на экране «Перерывы» -->
+    <string name="day_monday_short">Пн</string>
+    <string name="day_tuesday_short">Вт</string>
+    <string name="day_wednesday_short">Ср</string>
+    <string name="day_thursday_short">Чт</string>
+    <string name="day_friday_short">Пт</string>
+    <string name="day_saturday_short">Сб</string>
+    <string name="day_sunday_short">Вс</string>
 
     <!-- Всегда доступные (белый список) -->
     <string name="whitelist_subtitle">Эти приложения работают даже после того, как время закончилось</string>
@@ -121,6 +137,92 @@
     <string name="blocked_apps_search">Поиск приложений</string>
     <string name="blocked_apps_badge">запрещено</string>
 
+    <!-- Запрещённые сайты (веха 4.1.2) -->
+    <string name="blocked_sites_subtitle">Сайты, к которым закрыт доступ на телефоне ребёнка — в любой сети</string>
+    <string name="blocked_sites_lockdown_warning">На телефоне ребёнка не включайте системную опцию «Блокировать соединения без VPN» (Настройки → VPN → ⚙ у KidGuard). Вместе с запретом сайтов она оставит ребёнка совсем без интернета. На остальную защиту это не влияет.</string>
+    <string name="blocked_sites_google_title">Блокировать поиск Google</string>
+    <string name="blocked_sites_google_hint">Закрывает google.com — ломает вход в браузер через поиск в лаунчере. Play Маркет, Gmail и аккаунт Google не затрагиваются.</string>
+    <string name="blocked_sites_list_title">Чёрный список</string>
+    <string name="blocked_sites_input_placeholder">vk.com / rutube.ru</string>
+    <string name="blocked_sites_add">Добавить</string>
+    <string name="blocked_sites_remove">Удалить</string>
+    <string name="blocked_sites_empty">Список пуст. Добавьте домены, к которым закрыть доступ.</string>
+    <string name="blocked_sites_invalid">Неверный домен</string>
+    <string name="blocked_sites_hint">Домен или URL (напр. vk.com). Галка = заблокирован; снимите, чтобы временно разрешить, не удаляя. Приложения с собственным DNS (DoH) или системный Private DNS могут обойти фильтр — блок бывает неполным.</string>
+
+    <!-- Расписание блокировки: «Время учёбы» (мягкая) и «Время сна» (полная, снимается PIN) -->
+    <string name="schedule_subtitle">Часы, когда телефон закрыт независимо от остатка дневного лимита</string>
+    <string name="schedule_study_title">Время учёбы</string>
+    <string name="schedule_study_hint">Мягкая блокировка: «Всегда доступные» работают</string>
+    <string name="schedule_sleep_title">Время сна</string>
+    <string name="schedule_sleep_hint">Полная блокировка, снимается только PIN</string>
+    <string name="schedule_kind_study_label">время учёбы</string>
+    <string name="schedule_kind_sleep_label">время сна</string>
+    <string name="schedule_not_set">Не задано</string>
+    <string name="schedule_time_hm">%1$02d:%2$02d</string>
+    <string name="schedule_window_range">%1$s – %2$s</string>
+    <string name="schedule_wheel_separator">:</string>
+    <string name="schedule_wheel_value">%1$02d</string>
+    <string name="schedule_reset_study">Сбросить время учёбы</string>
+    <string name="schedule_reset_sleep">Сбросить время сна</string>
+    <string name="schedule_reset_study_title">Сбросить время учёбы?</string>
+    <string name="schedule_reset_sleep_title">Сбросить время сна?</string>
+    <string name="schedule_reset_message">Часы будут стёрты для всех дней недели. Тумблер расписания останется как есть.</string>
+    <string name="schedule_reset_action">Сбросить</string>
+    <string name="schedule_pin_warning">Ночную блокировку снимает только родительский PIN. Задайте его, иначе телефон будет нечем разблокировать до утра.</string>
+    <string name="schedule_pin_warning_action">Задать PIN</string>
+    <string name="schedule_sheet_title">%1$s · %2$s</string>
+    <string name="schedule_sheet_hint_study">Блокировка действует в указанные часы в этот день</string>
+    <string name="schedule_sheet_hint_sleep">Блокировка включится вечером и снимется утром следующего дня</string>
+    <string name="schedule_sheet_start">Начало</string>
+    <string name="schedule_sheet_end">Конец</string>
+    <string name="schedule_apply_all">Применить ко всем дням недели</string>
+    <string name="schedule_remove">Убрать</string>
+    <string name="schedule_save">Сохранить</string>
+    <string name="schedule_contacts_title">Кому можно позвонить ночью</string>
+    <string name="schedule_contact_name_placeholder">Имя</string>
+    <string name="schedule_contact_phone_placeholder">+7 900 …</string>
+    <string name="schedule_contact_add">Добавить</string>
+    <string name="schedule_contact_remove">Удалить</string>
+    <string name="schedule_contact_save">Сохранить изменения</string>
+    <string name="schedule_contact_editing">Правим контакт «%1$s»</string>
+    <string name="schedule_contact_editing_cancel">Отмена</string>
+    <string name="schedule_contact_preview_prefix">На замке ребёнок увидит:</string>
+    <string name="schedule_contact_preview_call">Позвонить %1$s</string>
+    <string name="schedule_contacts_empty">Список пуст. Добавьте, кому можно позвонить ночью.</string>
+    <string name="schedule_contacts_hint">Ночью с замка можно позвонить только по этим номерам. Список общий: его видят и правят оба родителя.</string>
+
+    <!-- Перерывы (принудительный «режим перерыва»): кнопка на дневном лимите + отдельный экран -->
+    <string name="daily_limit_breaks_button">Перерывы</string>
+    <string name="breaks_title">Перерывы</string>
+    <string name="breaks_subtitle">Чтобы ребёнок не залипал в телефон часами подряд</string>
+    <string name="breaks_enable_title">Включить перерывы</string>
+    <string name="breaks_enable_hint_disabled">Сначала задайте, как часто и насколько</string>
+    <string name="breaks_enable_hint_none">Не действуют ни в один день — везде лимит 3 ч или меньше</string>
+    <string name="breaks_enable_hint_active_all">Действуют каждый день</string>
+    <string name="breaks_enable_hint_active">Действуют: %1$s — в остальные дни лимит 3 ч или меньше</string>
+    <string name="breaks_mode_interval">Через интервал залипания</string>
+    <string name="breaks_mode_hours">В определённые часы</string>
+    <string name="breaks_interval_label">Интервал</string>
+    <string name="breaks_interval_unset">не задан</string>
+    <string name="breaks_duration_label">Длительность перерыва</string>
+    <string name="breaks_duration_unset">не задана</string>
+    <string name="breaks_hours_label">Часы перерывов</string>
+    <string name="breaks_hours_add">+ Добавить час</string>
+    <string name="breaks_hour_remove">Убрать час</string>
+    <string name="breaks_hour_sheet_title">Час перерыва</string>
+    <string name="breaks_hour_sheet_hint">Перерыв начнётся в это время</string>
+    <string name="breaks_hour_sheet_time_label">Время</string>
+    <string name="breaks_hour_already_added">Этот час уже добавлен</string>
+    <string name="breaks_message_label">Сообщение для ребёнка</string>
+    <string name="breaks_message_hint">Поле пустое — это подсказка. Если ничего не ввести, ребёнок увидит на экране именно эту фразу.</string>
+    <string name="breaks_message_filled_hint">Это сообщение отобразится на экране блокировки ребёнка.</string>
+    <string name="breaks_default_message">Сделай перерыв! Дай глазам отдохнуть</string>
+    <string name="breaks_reset">Сбросить перерывы</string>
+    <string name="breaks_reset_title">Сбросить перерывы?</string>
+    <string name="breaks_reset_message">Интервал, часы, длительность и текст будут стёрты. Перерывы выключатся.</string>
+    <string name="breaks_reset_action">Сбросить</string>
+
     <!-- Лимиты приложений (пер-app) -->
     <string name="app_limits_subtitle">Задайте отдельным приложениям свой дневной лимит. Он действует независимо от общего.</string>
     <string name="app_limits_search">Поиск приложения</string>
@@ -129,6 +231,11 @@
     <string name="app_limits_sheet_hint">Личный дневной лимит этого приложения</string>
     <string name="app_limits_remove">Убрать лимит</string>
     <string name="app_limits_save">Сохранить</string>
+
+    <!-- Системные приложения в пикерах (запрет/белый список/лимиты) -->
+    <string name="system_apps_group_header">Системные и служебные</string>
+    <string name="system_apps_risky_tooltip">Критично для работы телефона — запрет или лимит может нарушить работу устройства.</string>
+    <string name="system_apps_risky_cd">Критичное системное приложение</string>
 
     <!-- Дополнительное время (бонусы) -->
     <string name="bonus_title">Дополнительное время</string>
@@ -193,6 +300,8 @@
     <string name="permission_notifications_desc">Чтобы было видно, что контроль активен.</string>
     <string name="permission_vpn_title">Блокировка интернета (VPN)</string>
     <string name="permission_vpn_desc">Нужен, чтобы блокировать интернет всем приложениям, кроме KidGuard и белого списка, после исчерпания лимита.</string>
+    <string name="permission_emergency_call_title">Экстренный звонок</string>
+    <string name="permission_emergency_call_desc">Чтобы с ночного экрана блокировки ребёнок звонил вам одним нажатием. Без разрешения откроется телефон с уже набранным номером — на одно нажатие больше.</string>
     <!-- Watchdog (веха 6): что видит родитель, когда контроль на телефоне ребёнка сломан.
          Ребёнку не показывается ничего — это подсказка «защиты нет, можно гулять». -->
     <string name="child_health_broken">⚠ Не работает: %1$s</string>

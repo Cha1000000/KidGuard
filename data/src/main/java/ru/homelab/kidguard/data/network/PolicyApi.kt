@@ -21,7 +21,44 @@ data class PolicyDocumentDto(
     // PIN-защита (веха 6.1): хеш + соль, сырой PIN сюда никогда не попадает. Оба null — PIN не задан.
     // Nullable с дефолтом null — обратная совместимость со старыми документами без PIN.
     val pinHash: String? = null,
-    val pinSalt: String? = null
+    val pinSalt: String? = null,
+    // Запрет сайтов (веха 4.1.2, по образцу blockedApps). Дефолты обязательны — обратная
+    // совместимость со старыми документами без этих полей.
+    val blockedSites: List<BlockedSiteDto> = emptyList(),
+    val blockGoogleSearch: Boolean = false,
+    // Расписания «Время учёбы» и «Время сна». Ключи карт — имена java.time.DayOfWeek, как в
+    // dailyLimits. Дефолты обязательны: у Олега сейчас стоит версия без этих полей.
+    val studySchedule: Map<String, TimeWindowDto> = emptyMap(),
+    val sleepSchedule: Map<String, TimeWindowDto> = emptyMap(),
+    val studyScheduleEnabled: Boolean = false,
+    val sleepScheduleEnabled: Boolean = false,
+    /** Контакты для экстренного звонка с ночного замка. */
+    val emergencyContacts: List<EmergencyContactDto> = emptyList(),
+    // Настройки принудительных перерывов (план forced-breaks, задача 3). Дефолт — BreakRulesDto()
+    // с enabled=false: старые документы без поля breaks должны применяться как раньше, без
+    // перерывов, а не падать при парсинге на уже работающих устройствах.
+    val breaks: BreakRulesDto = BreakRulesDto()
+)
+
+/** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
+@Serializable
+data class TimeWindowDto(
+    val startMinute: Int,
+    val endMinute: Int
+)
+
+/** Контакт для экстренного звонка с ночного замка. */
+@Serializable
+data class EmergencyContactDto(
+    val name: String,
+    val phone: String
+)
+
+/** Запрещённый сайт (домен) в policy-документе; `enabled = true` по умолчанию. */
+@Serializable
+data class BlockedSiteDto(
+    val domain: String,
+    val enabled: Boolean = true
 )
 
 /** Бонус «Дополнительное время» за день; `packageName = ""` — бонус на весь телефон. */
@@ -30,6 +67,21 @@ data class BonusEntryDto(
     val date: String,
     val packageName: String,
     val minutes: Int
+)
+
+/**
+ * Настройки принудительных перерывов в policy-документе. Все поля с дефолтами «не задано» —
+ * ровно так же, как у BreakRules.EMPTY в домене: старый документ без блока breaks должен
+ * читаться как «перерывы выключены», а не валить парсинг.
+ */
+@Serializable
+data class BreakRulesDto(
+    val enabled: Boolean = false,
+    val mode: String = "INTERVAL",
+    val intervalMinutes: Int = 0,
+    val hours: List<Int> = emptyList(),
+    val durationMinutes: Int = 0,
+    val message: String = ""
 )
 
 @Serializable

@@ -1,21 +1,23 @@
 package ru.homelab.kidguard.core.domain.usecase
 
+import java.time.DayOfWeek
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Test
+import ru.homelab.kidguard.core.domain.FakePolicyRepository
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
-import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
-import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
-import org.junit.Test
-import java.time.DayOfWeek
-import java.time.LocalDate
 
 class ObserveLimitStateUseCaseTest {
 
@@ -82,6 +84,42 @@ class ObserveLimitStateUseCaseTest {
         assertEquals(LimitState.Expired, state)
     }
 
+    /**
+     * Регрессия с обкатки 22.07.2026: у ребёнка весь день не было интернета при нетронутом лимите.
+     * Причина — дата бралась один раз при подписке, и живущий сутками сервис после полуночи
+     * продолжал читать ВЧЕРАШНИЙ расход: вчерашнее «время вышло» держало блокировки весь новый
+     * день, пока приложение не перезапустят.
+     */
+    @Test
+    fun `после полуночи лимит считается по новому дню, а не по вчерашнему`() = runTest {
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 30, DayOfWeek.TUESDAY to 60))
+        val dateProvider = MutableDateProvider(monday)
+        // Понедельник: 30 мин лимита израсходованы полностью.
+        val usage = PerDateUsageRepository(
+            mapOf(monday to 1800, monday.plusDays(1) to 0)
+        )
+        val useCase = ObserveLimitStateUseCase(
+            policyRepository = FakePolicyRepository(limits),
+            usageRepository = usage,
+            bonusRepository = FakeBonusRepository(0),
+            currentDateProvider = dateProvider
+        )
+
+        val seen = mutableListOf<LimitState>()
+        val job = launch { useCase().collect { seen += it } }
+        runCurrent()
+        assertEquals(LimitState.Expired, seen.last())
+
+        // Наступил вторник: расход обнулился, лимит дня — 60 минут.
+        dateProvider.date = monday.plusDays(1)
+        // Дата опрашивается тикером раз в минуту; в runTest время виртуальное, ждать не нужно.
+        advanceTimeBy(61_000)
+        runCurrent()
+        assertEquals(LimitState.Remaining(60), seen.last())
+
+        job.cancel()
+    }
+
     private fun useCase(limits: DailyLimits, usedSeconds: Int, bonusMinutes: Int = 0) =
         ObserveLimitStateUseCase(
             policyRepository = FakePolicyRepository(limits),
@@ -90,26 +128,18 @@ class ObserveLimitStateUseCaseTest {
             currentDateProvider = FakeDateProvider(monday)
         )
 
-    private class FakePolicyRepository(private val limits: DailyLimits) : PolicyRepository {
-        override val dailyLimits: Flow<DailyLimits> = flowOf(limits)
-        override val whitelist: Flow<Set<String>> = flowOf(emptySet())
-        override val appLimits: Flow<Map<String, Int>> = flowOf(emptyMap())
-        override val blockedApps: Flow<Set<String>> = flowOf(emptySet())
-        override val pinProtection: Flow<PinProtection?> = flowOf(null)
-        override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
-        override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
-        override suspend fun setWhitelisted(packageName: String, whitelisted: Boolean) = Unit
-        override suspend fun setBlocked(packageName: String, blocked: Boolean) = Unit
-        override suspend fun setPin(hash: String, salt: String) = Unit
-        override suspend fun clearPin() = Unit
-        override suspend fun replaceAll(
-            dailyLimits: Map<DayOfWeek, Int>,
-            appLimits: Map<String, Int>,
-            whitelist: Set<String>,
-            blockedApps: Set<String>,
-            pinHash: String?,
-            pinSalt: String?
-        ) = Unit
+    /** Дата, которую тест двигает вручную, — имитация перехода через полночь. */
+    private class MutableDateProvider(@Volatile var date: LocalDate) : CurrentDateProvider {
+        override suspend fun today(): LocalDate = date
+    }
+
+    /** Расход хранится по дням: показывает, что после смены даты читается уже другой счётчик. */
+    private class PerDateUsageRepository(private val byDate: Map<LocalDate, Int>) : UsageRepository {
+        override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(byDate[date] ?: 0)
+        override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
+        override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(0)
+        override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
     }
 
     private class FakeUsageRepository(private val seconds: Int) : UsageRepository {

@@ -7,12 +7,20 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.notification.NotificationIds
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Показывает уведомление-предупреждение «осталось N минут» перед истечением дневного лимита,
- * чтобы блокировка не была для ребёнка внезапной. Требует POST_NOTIFICATIONS (из мастера разрешений).
+ * Показывает уведомления-предупреждения, чтобы блокировка не была для ребёнка внезапной:
+ * «осталось N минут» перед истечением дневного лимита и отдельно — «через N минут начнётся
+ * Время сна». Требует POST_NOTIFICATIONS (из мастера разрешений).
+ *
+ * У двух предупреждений разные id — иначе показ одного затирал бы другое в системной шторке
+ * (notify() с одним id перезаписывает уведомление). Берём их из общего реестра
+ * [NotificationIds]: раньше id выбирались по месту, и «Время сна» столкнулось с уведомлением
+ * VPN-сервиса. Канал общий: оба предупреждения по смыслу и важности одинаковы, отдельный канал
+ * не даёт пользователю ничего нового, а только плодит пункты в системных настройках.
  */
 @Singleton
 class WarningNotifier @Inject constructor(
@@ -21,7 +29,8 @@ class WarningNotifier @Inject constructor(
 
     private val notificationManager = context.getSystemService<NotificationManager>()
 
-    fun show(minutesLeft: Int) {
+    /** Предупреждение об истечении дневного лимита. */
+    fun showLimitWarning(minutesLeft: Int) {
         val manager = notificationManager ?: return
         ensureChannel(manager)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -30,11 +39,28 @@ class WarningNotifier @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification)
             .setOnlyAlertOnce(true)
             .build()
-        manager.notify(NOTIFICATION_ID, notification)
+        manager.notify(NotificationIds.LIMIT_WARNING, notification)
     }
 
-    fun clear() {
-        notificationManager?.cancel(NOTIFICATION_ID)
+    fun clearLimitWarning() {
+        notificationManager?.cancel(NotificationIds.LIMIT_WARNING)
+    }
+
+    /** Предупреждение о скором начале «Времени сна». */
+    fun showSleepWarning(minutesLeft: Int) {
+        val manager = notificationManager ?: return
+        ensureChannel(manager)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.warning_sleep_title))
+            .setContentText(context.getString(R.string.warning_sleep_text, minutesLeft))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOnlyAlertOnce(true)
+            .build()
+        manager.notify(NotificationIds.SLEEP_WARNING, notification)
+    }
+
+    fun clearSleepWarning() {
+        notificationManager?.cancel(NotificationIds.SLEEP_WARNING)
     }
 
     private fun ensureChannel(manager: NotificationManager) {
@@ -51,6 +77,5 @@ class WarningNotifier @Inject constructor(
 
     private companion object {
         const val CHANNEL_ID = "kidguard_warning"
-        const val NOTIFICATION_ID = 2
     }
 }

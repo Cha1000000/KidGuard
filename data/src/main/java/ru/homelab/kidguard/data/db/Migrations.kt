@@ -69,3 +69,78 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+/** v6 → v7 (веха 4.1.2, запрет сайтов): список запрещённых доменов + флаг блокировки google-поиска. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `blocked_site` (" +
+                "`domain` TEXT NOT NULL, " +
+                "`enabled` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`domain`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `policy_flags` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`blockGoogleSearch` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`id`))"
+        )
+    }
+}
+
+/**
+ * v7 → v8 (расписания): окна «Время учёбы» и «Время сна» по дням недели, их тумблеры и список
+ * контактов для экстренного звонка с ночного замка.
+ *
+ * Тумблеры добавляются в существующую `policy_flags` через ALTER TABLE с DEFAULT 0 — у уже
+ * установленного приложения строка флагов есть, и без DEFAULT миграция упала бы на NOT NULL.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `schedule_window` (" +
+                "`kind` TEXT NOT NULL, " +
+                "`dayOfWeek` INTEGER NOT NULL, " +
+                "`startMinute` INTEGER NOT NULL, " +
+                "`endMinute` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`kind`, `dayOfWeek`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `emergency_contact` (" +
+                "`phone` TEXT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "PRIMARY KEY(`phone`))"
+        )
+        db.execSQL(
+            "ALTER TABLE `policy_flags` ADD COLUMN `studyScheduleEnabled` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `policy_flags` ADD COLUMN `sleepScheduleEnabled` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+/**
+ * v8 → v9 (вехa «принудительные перерывы»): настройки перерывов и их часы (режим HOURS) —
+ * по образцу `policy_flags`/`schedule_window`: скалярная single-row строка плюс отдельная таблица
+ * для переменного числа значений.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `break_rules` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`enabled` INTEGER NOT NULL DEFAULT 0, " +
+                "`mode` TEXT NOT NULL DEFAULT 'INTERVAL', " +
+                "`intervalMinutes` INTEGER NOT NULL DEFAULT 0, " +
+                "`durationMinutes` INTEGER NOT NULL DEFAULT 0, " +
+                "`message` TEXT NOT NULL DEFAULT '', " +
+                "PRIMARY KEY(`id`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `break_hour` (" +
+                "`minuteOfDay` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`minuteOfDay`))"
+        )
+    }
+}

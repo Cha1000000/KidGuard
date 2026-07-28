@@ -18,6 +18,7 @@ fun DevicePermission.titleRes(): Int = when (this) {
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_title
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_title
     DevicePermission.VPN -> R.string.permission_vpn_title
+    DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_title
 }
 
 /** Зачем разрешение нужно — формулировка для мастера, ДО выдачи. */
@@ -29,6 +30,7 @@ fun DevicePermission.descRes(): Int = when (this) {
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_desc
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
     DevicePermission.VPN -> R.string.permission_vpn_desc
+    DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_desc
 }
 
 /**
@@ -42,7 +44,9 @@ fun DevicePermission.healthImpactRes(): Int = when (this) {
     DevicePermission.OVERLAY -> R.string.health_impact_overlay
     DevicePermission.DEVICE_ADMIN -> R.string.health_impact_device_admin
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.health_impact_battery
-    // Уведомления в DeviceHealth не входят (контроль без них работает) — сюда попасть не должны.
+    // Уведомления и экстренный звонок в DeviceHealth не входят (контроль без них работает) —
+    // сюда попасть не должны.
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
+    DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_desc
     DevicePermission.VPN -> R.string.health_impact_vpn
 }

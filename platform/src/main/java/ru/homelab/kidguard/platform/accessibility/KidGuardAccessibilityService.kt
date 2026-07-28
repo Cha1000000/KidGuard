@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.net.toUri
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -18,12 +19,16 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.MAX_TREE_DEPTH
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.UNLOCK_WINDOW_MS
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
+import ru.homelab.kidguard.platform.overlay.BreakWarningOverlay
+import ru.homelab.kidguard.platform.overlay.FullScreenLockOverlayManager
+import ru.homelab.kidguard.platform.overlay.WarningOverlayManager
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -62,6 +67,18 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var pinGuard: PinGuard
+
+    @Inject
+    lateinit var warningOverlayManager: WarningOverlayManager
+
+    @Inject
+    lateinit var fullScreenLockOverlayManager: FullScreenLockOverlayManager
+
+    @Inject
+    lateinit var breakWarningOverlay: BreakWarningOverlay
+
+    @Inject
+    lateinit var healthReportTrigger: HealthReportTrigger
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -117,10 +134,32 @@ class KidGuardAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         // Отдаём оверлею WindowManager сервиса — только окно accessibility-типа показывается
         // поверх защищённых системных экранов (см. PinOverlayManager).
-        getSystemService(WindowManager::class.java)?.let { pinOverlayManager.attach(it) }
+        getSystemService(WindowManager::class.java)?.let {
+            pinOverlayManager.attach(it)
+            warningOverlayManager.attach(it)
+            fullScreenLockOverlayManager.attach(it)
+            breakWarningOverlay.attach(it)
+        }
+        // Система подключила сервис — главный кейс задержки watchdog: родитель только что выдал
+        // (или переустановкой сбросил и восстановил) accessibility-разрешение. Не ждём следующий
+        // 15-минутный тик, шлём heartbeat сразу.
+        healthReportTrigger.requestNow()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // TYPE_WINDOWS_CHANGED — событийный фикс обхода блокировки (план 2026-07-28, проблема 1):
+        // ловит возвраты/тёплые резюмы приложений (напр. Standoff 2 после смахивания оверлея),
+        // которые не всегда шлют свежий TYPE_WINDOW_STATE_CHANGED, из-за чего currentPackage
+        // застревал на прошлом значении и повторный запуск того же приложения не переблокировался.
+        // Отдельная ветка: только обновляет foregroundAppMonitor и выходит — логика критичных
+        // экранов/lockdown/PIN-оверлея ниже завязана на event.packageName/title и остаётся
+        // исключительно на TYPE_WINDOW_STATE_CHANGED.
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            if (isRelevantWindowChange(event)) {
+                topApplicationPackage()?.let { foregroundAppMonitor.update(it) }
+            }
+            return
+        }
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val packageName = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
@@ -134,6 +173,21 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // отличаться.
         Timber.tag(TAG).d("Заголовок окна [%s]: %s", packageName, title)
 
+        // «Защита от дурака»: попытка включить системную опцию «Блокировать соединения без VPN»
+        // (lockdown) показывает диалог-подтверждение «Использовать сеть VPN?». Эта опция вместе с
+        // запретом сайтов оставила бы телефон совсем без интернета, поэтому отменяем диалог
+        // (GLOBAL_ACTION_BACK = «Отмена», lockdown не применяется) и показываем предупреждение.
+        // Проверяем ДО detectCriticalScreen: заголовок диалога содержит «vpn» и иначе был бы
+        // принят за экран VPN-настроек. isShowing-гард — чтобы не жать «Назад» повторно.
+        if (isLockdownDialog(title)) {
+            if (!warningOverlayManager.isShowing()) {
+                Timber.tag(TAG).d("Диалог lockdown — отменяю и показываю предупреждение")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                warningOverlayManager.show()
+            }
+            return
+        }
+
         val criticalScreen = detectCriticalScreen(packageName, title)
         if (criticalScreen != null) {
             maybeInterceptWithPin(criticalScreen)
@@ -143,11 +197,11 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // (лаунчер и т.п.). НЕ реагируем на: события самого оверлея (наш пакет — иначе оверлей
         // скрыл бы себя своим же window-событием) и под-окна того же хоста настроек/инсталлера
         // (например, всплывающие «значок приложения»), где родитель ещё должен ввести PIN.
-        if (pinOverlayManager.isShowing() &&
-            packageName != applicationContext.packageName &&
-            packageName !in overlayHostPackages
-        ) {
-            pinOverlayManager.hide()
+        if (packageName != applicationContext.packageName && packageName !in overlayHostPackages) {
+            if (pinOverlayManager.isShowing()) pinOverlayManager.hide()
+            // Warning-оверлей тоже убираем при реальном уходе с настроек (напр. ребёнок нажал «Домой»,
+            // не закрыв предупреждение), чтобы он не завис поверх следующего экрана.
+            if (warningOverlayManager.isShowing()) warningOverlayManager.hide()
         }
     }
 
@@ -181,6 +235,41 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     /** Сырой PIN никуда не хранится. Проверка и счётчик попыток — в общем [PinGuard]. */
     private suspend fun verifyPin(entered: String): PinVerifyResult = pinGuard.verify(entered)
+
+    /**
+     * Верхнее прикладное окно — источник переднего плана для ветки `TYPE_WINDOWS_CHANGED`.
+     * Фильтр по [AccessibilityWindowInfo.TYPE_APPLICATION] исключает наши собственные оверлеи
+     * (они `TYPE_ACCESSIBILITY_OVERLAY`/`TYPE_APPLICATION_OVERLAY`), `maxByOrNull { layer }`
+     * берёт самое верхнее из прикладных окон. `root` может быть `null` (окно без извлекаемого
+     * содержимого) — тогда просто не обновляем, держим последнее известное значение.
+     */
+    private fun topApplicationPackage(): String? = try {
+        windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .maxByOrNull { it.layer }
+            ?.root?.packageName?.toString()
+            ?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "Не удалось определить верхнее прикладное окно")
+        null
+    }
+
+    /**
+     * Фильтр против «дребезга» `TYPE_WINDOWS_CHANGED` (он шумный — летит и на изменения
+     * содержимого окна, не только стека окон). Реагируем только на изменения СТЕКА окон:
+     * добавление/удаление/смену активного или сфокусированного окна, вход-выход в PIP.
+     * Флаги нулевые — считаем релевантным (безопасный фолбэк: пересчёт лёгкий, дедуп всё равно
+     * происходит на уровне `currentPackage: StateFlow`).
+     */
+    private fun isRelevantWindowChange(event: AccessibilityEvent): Boolean {
+        val relevantFlags = AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+            AccessibilityEvent.WINDOWS_CHANGE_REMOVED or
+            AccessibilityEvent.WINDOWS_CHANGE_ACTIVE or
+            AccessibilityEvent.WINDOWS_CHANGE_FOCUSED or
+            AccessibilityEvent.WINDOWS_CHANGE_PIP
+        val changes = event.windowChanges
+        return changes == 0 || (changes and relevantFlags) != 0
+    }
 
     /**
      * Заголовок текущего экрана из НАДЁЖНОГО источника — `title` окна, к которому относится
@@ -273,6 +362,17 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
             else -> null
         }
+    }
+
+    /**
+     * Диалог-подтверждение включения системного lockdown («Блокировать соединения без VPN»):
+     * Android показывает «Использовать сеть VPN? …доступ в Интернет … отсутствует». Ловим по
+     * «vpn» в заголовке + характерным фразам (RU/EN). Обычный always-on такого диалога не даёт —
+     * значит ложных срабатываний на нём нет.
+     */
+    private fun isLockdownDialog(title: String): Boolean {
+        if (title.isBlank() || !title.contains("vpn")) return false
+        return LOCKDOWN_DIALOG_KEYWORDS.any { title.contains(it) }
     }
 
     /**
@@ -402,5 +502,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // наступление «нового дня» и обнулить дневной счётчик раньше срока. Заголовок снят
         // живьём с эмулятора: «Дата и время» (com.android.settings/.Settings$DateTimeSettingsActivity).
         val DATE_TIME_KEYWORDS = listOf("дата и время", "date & time", "date and time")
+        // Диалог включения lockdown («Использовать сеть VPN?»): заголовок + тело
+        // «…доступ в Интернет … отсутствует». Снято живьём с эмулятора (2026-07-19).
+        val LOCKDOWN_DIALOG_KEYWORDS = listOf(
+            "использовать сеть vpn", "доступ в интернет", "won't have internet", "no internet"
+        )
     }
 }

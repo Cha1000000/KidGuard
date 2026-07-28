@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
  * @param glassAlpha прозрачность фона (0.0–1.0, по умолчанию 0.15 для тёмной, 0.7 для светлой)
  * @param borderAlpha прозрачность границы (по умолчанию 0.2)
  * @param showShadow показывать ли тень (для светлой темы)
+ * @param contentPadding внутренние отступы содержимого (по умолчанию 16dp со всех сторон)
  * @param onClick обработчик клика (null = не кликабельна)
  * @param content содержимое карточки
  */
@@ -37,6 +39,7 @@ fun GlassCard(
     glassAlpha: Float = if (isSystemInDarkTheme()) 0.15f else 0.7f,
     borderAlpha: Float = 0.2f,
     showShadow: Boolean = !isSystemInDarkTheme(),
+    contentPadding: PaddingValues = PaddingValues(16.dp),
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -94,7 +97,7 @@ fun GlassCard(
                 shape = shape
             )
             .then(clickableModifier)
-            .padding(16.dp),
+            .padding(contentPadding),
         content = content
     )
 }

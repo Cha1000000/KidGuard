@@ -20,7 +20,9 @@ data class WhitelistAppUi(
     val packageName: String,
     val label: String,
     val icon: ImageBitmap?,
-    val whitelisted: Boolean
+    val whitelisted: Boolean,
+    val isSystem: Boolean,
+    val isRisky: Boolean
 )
 
 @HiltViewModel
@@ -37,7 +39,14 @@ class WhitelistViewModel @Inject constructor(
     val apps: StateFlow<List<WhitelistAppUi>?> =
         combine(childApps, policyRepository.whitelist) { apps, whitelist ->
             apps.map { app ->
-                WhitelistAppUi(app.packageName, app.label, app.icon, app.packageName in whitelist)
+                WhitelistAppUi(
+                    packageName = app.packageName,
+                    label = app.label,
+                    icon = app.icon,
+                    whitelisted = app.packageName in whitelist,
+                    isSystem = app.isSystem,
+                    isRisky = app.isRisky
+                )
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

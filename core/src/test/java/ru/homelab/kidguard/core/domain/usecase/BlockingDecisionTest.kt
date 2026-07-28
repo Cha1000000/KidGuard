@@ -18,8 +18,9 @@ class BlockingDecisionTest {
         limit: LimitState = LimitState.NoLimit,
         appLimit: LimitState = LimitState.NoLimit,
         whitelist: Set<String> = emptySet(),
-        blockedApps: Set<String> = emptySet()
-    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed, blockedApps)
+        blockedApps: Set<String> = emptySet(),
+        studyTime: Boolean = false
+    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed, blockedApps, studyTime)
 
     // --- Приоритет 1: alwaysAllowed ---
 
@@ -111,6 +112,32 @@ class BlockingDecisionTest {
     fun `общий лимит исчерпан, но у приложения свой лимит ещё не исчерпан - всё равно блокируем`() {
         // Личный Remaining не даёт послабления от общего Expired: Remaining — не белый список.
         assertTrue(block(limit = LimitState.Expired, appLimit = LimitState.Remaining(15)))
+    }
+
+    // --- Приоритет 5б: «Время учёбы» (равноправно исчерпанному общему лимиту) ---
+
+    @Test
+    fun `идёт время учёбы - блокируем, даже если лимит не исчерпан`() {
+        assertTrue(block(studyTime = true, limit = LimitState.Remaining(120)))
+        assertTrue(block(studyTime = true, limit = LimitState.NoLimit))
+    }
+
+    @Test
+    fun `время учёбы не трогает белый список - ребёнок остаётся на связи`() {
+        assertFalse(
+            block(pkg = "com.android.dialer", studyTime = true, whitelist = setOf("com.android.dialer"))
+        )
+    }
+
+    @Test
+    fun `время учёбы не трогает лаунчер и сам KidGuard`() {
+        assertFalse(block(pkg = "com.android.launcher", studyTime = true))
+        assertFalse(block(pkg = "ru.homelab.kidguard", studyTime = true))
+    }
+
+    @Test
+    fun `запрещённое приложение остаётся запрещённым и вне времени учёбы`() {
+        assertTrue(block(blockedApps = setOf("com.game.app"), studyTime = false))
     }
 
     // --- Приоритет 6: всё в норме ---

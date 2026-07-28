@@ -23,10 +23,12 @@ import javax.inject.Singleton
  * приложения. Оверлей перехватывает все касания, поэтому приложение и рабочий стол под ним
  * недоступны. Работает через SYSTEM_ALERT_WINDOW (выдаётся в мастере разрешений).
  *
- * Закрывается **только свайпом самого ребёнка** — намеренно нет автоматического скрытия.
- * [BlockingController] вызывает [show] реактивно, и почти сразу после показа уводит на домашний
- * экран (`sendHome`); если бы скрытие overlay было завязано на ту же реактивную проверку, оно
- * срабатывало бы мгновенно (лаунчер всегда разрешён) — ребёнок не успевал бы прочитать сообщение.
+ * Закрывается свайпом ребёнка **или сам по таймеру** [AUTO_DISMISS_MS]. Автоскрытие не завязано
+ * на реактивную проверку блокировки (иначе `sendHome` на лаунчер снял бы оверлей мгновенно —
+ * лаунчер всегда разрешён, ребёнок не успел бы прочитать), а идёт по независимому таймеру от
+ * момента показа. Без таймера оверлей висел часами поверх лаунчера, пока ребёнок не смахнёт:
+ * поглощал касания (телефон фактически заблокирован) и жёг батарею — полупрозрачное окно поверх
+ * живых обоев HiOS-лаунчера композитится каждый кадр (найдено на телефоне Олега 25.07).
  */
 @Singleton
 class OverlayManager @Inject constructor(
@@ -36,31 +38,58 @@ class OverlayManager @Inject constructor(
     private val windowManager = context.getSystemService<WindowManager>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayView: View? = null
+    private var autoDismissRunnable: Runnable? = null
+
+    /** Показан ли сейчас блокирующий оверлей (для учёта экранного времени — см. `BlockingUiState`). */
+    fun isShowing(): Boolean = overlayView != null
 
     /**
      * Показать блокирующий экран (idempotent — повторный вызов, пока оверлей уже показан, ничего
      * не меняет, даже если [reason] другой: оверлей закрывается только свайпом). Вызовы с любого
      * потока.
+     *
+     * @param untilText готовое (уже отформатированное) время окончания блокировки — используется
+     * только для [BlockReason.STUDY_TIME] («Телефон будет доступен в 14:00»). Null — подзаголовок
+     * без конкретного времени (расписание есть, но конец окна вызывающей стороне не важен/неизвестен).
      */
-    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED) = mainHandler.post {
+    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED, untilText: String? = null) = mainHandler.post {
         if (overlayView != null) return@post
-        val view = createOverlayView(reason)
+        val view = createOverlayView(reason, untilText)
         windowManager?.addView(view, buildLayoutParams())
         overlayView = view
+        // Оверлей уходит сам через AUTO_DISMISS_MS — иначе он висел бы поверх лаунчера до свайпа,
+        // блокируя касания и сжигая батарею.
+        val runnable = Runnable { dismiss(view) }
+        autoDismissRunnable = runnable
+        mainHandler.postDelayed(runnable, AUTO_DISMISS_MS)
     }
 
     /** Убирает [view], только если это всё ещё текущий оверлей (не пересоздан новым show()). */
     private fun dismiss(view: View) {
         if (overlayView !== view) return
+        autoDismissRunnable?.let(mainHandler::removeCallbacks)
+        autoDismissRunnable = null
         windowManager?.removeView(view)
         overlayView = null
     }
 
-    private fun createOverlayView(reason: BlockReason): View {
-        val (titleRes, textRes) = when (reason) {
-            BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title to R.string.overlay_blocked_text
-            BlockReason.BLOCKED_BY_PARENT ->
-                R.string.overlay_prohibited_title to R.string.overlay_prohibited_text
+    private fun createOverlayView(reason: BlockReason, untilText: String?): View {
+        val titleRes = when (reason) {
+            BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title
+            BlockReason.BLOCKED_BY_PARENT -> R.string.overlay_prohibited_title
+            BlockReason.STUDY_TIME -> R.string.overlay_study_title
+        }
+        // У STUDY_TIME подзаголовок ветвится: с конкретным временем окончания (обычный случай) и
+        // без него (на случай, если вызывающая сторона его не передала) — у остальных причин
+        // подзаголовок всегда фиксированный.
+        val subtitleText = when (reason) {
+            BlockReason.LIMIT_EXPIRED -> context.getString(R.string.overlay_blocked_text)
+            BlockReason.BLOCKED_BY_PARENT -> context.getString(R.string.overlay_prohibited_text)
+            BlockReason.STUDY_TIME -> if (untilText != null) {
+                context.getString(R.string.overlay_study_text_until, untilText)
+            } else {
+                context.getString(R.string.overlay_study_text)
+            }
         }
         val title = TextView(context).apply {
             text = context.getString(titleRes)
@@ -69,7 +98,7 @@ class OverlayManager @Inject constructor(
             gravity = Gravity.CENTER
         }
         val subtitle = TextView(context).apply {
-            text = context.getString(textRes)
+            text = subtitleText
             setTextColor(Color.LTGRAY)
             textSize = 16f
             gravity = Gravity.CENTER
@@ -125,5 +154,8 @@ class OverlayManager @Inject constructor(
         const val PADDING_HORIZONTAL_PX = 48
         const val PADDING_TOP_PX = 16
         const val SWIPE_DISTANCE_PX = 150
+
+        /** Сколько оверлей висит до автоскрытия — успеть прочитать, но не залипнуть на лаунчере. */
+        const val AUTO_DISMISS_MS = 6_000L
     }
 }

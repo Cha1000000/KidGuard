@@ -1,19 +1,26 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +42,8 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.ui.theme.BreaksAccentDark
+import ru.homelab.kidguard.ui.theme.BreaksAccentLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -43,6 +51,7 @@ import java.time.LocalDate
 @Composable
 fun DailyLimitScreen(
     onBack: () -> Unit,
+    onOpenBreaks: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DailyLimitViewModel = hiltViewModel()
 ) {
@@ -50,13 +59,23 @@ fun DailyLimitScreen(
     val phoneBonus by viewModel.phoneBonusMinutes.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    // Сбрасывать нечего, если ни на один день лимит не задан — тогда кнопка неактивна.
+    val hasAnyLimit = DayOfWeek.entries.any { limits.limitFor(it) != null }
 
     Column(modifier = modifier.fillMaxSize()) {
         CompactTopBar(
             title = stringResource(R.string.rules_daily_limit_title),
             onBack = onBack
         )
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // verticalScroll: на невысоких экранах бонус-карточка + 7 дней + две кнопки не влезают,
+        // и без прокрутки нижняя кнопка обрезалась.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+        ) {
             Text(
                 text = stringResource(R.string.daily_limit_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
@@ -86,7 +105,58 @@ fun DailyLimitScreen(
                     }
                 }
             }
+            // Кнопка видна всегда, вне зависимости от текущих лимитов — родитель может настроить
+            // перерывы заранее, а перерывы сработают позже, если лимит на день не задан или
+            // окажется больше 3 часов (см. подпись на самом экране «Перерывы»).
+            val breaksAccent = if (isSystemInDarkTheme()) BreaksAccentDark else BreaksAccentLight
+            OutlinedButton(
+                onClick = onOpenBreaks,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = breaksAccent),
+                border = BorderStroke(1.dp, breaksAccent.copy(alpha = 0.4f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Text("☕ " + stringResource(R.string.daily_limit_breaks_button))
+            }
+            TextButton(
+                onClick = { showResetConfirm = true },
+                enabled = hasAnyLimit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.daily_limit_reset_all),
+                    color = if (hasAnyLimit) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text(stringResource(R.string.daily_limit_reset_all_title)) },
+            text = { Text(stringResource(R.string.daily_limit_reset_all_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setLimitForAllDays(null)
+                    showResetConfirm = false
+                }) {
+                    Text(
+                        text = stringResource(R.string.daily_limit_reset_all_action),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     editingDay?.let { day ->
