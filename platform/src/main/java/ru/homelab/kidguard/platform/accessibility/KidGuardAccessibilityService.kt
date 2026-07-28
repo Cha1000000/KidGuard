@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.net.toUri
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -146,6 +147,19 @@ class KidGuardAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // TYPE_WINDOWS_CHANGED — событийный фикс обхода блокировки (план 2026-07-28, проблема 1):
+        // ловит возвраты/тёплые резюмы приложений (напр. Standoff 2 после смахивания оверлея),
+        // которые не всегда шлют свежий TYPE_WINDOW_STATE_CHANGED, из-за чего currentPackage
+        // застревал на прошлом значении и повторный запуск того же приложения не переблокировался.
+        // Отдельная ветка: только обновляет foregroundAppMonitor и выходит — логика критичных
+        // экранов/lockdown/PIN-оверлея ниже завязана на event.packageName/title и остаётся
+        // исключительно на TYPE_WINDOW_STATE_CHANGED.
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            if (isRelevantWindowChange(event)) {
+                topApplicationPackage()?.let { foregroundAppMonitor.update(it) }
+            }
+            return
+        }
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val packageName = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
@@ -221,6 +235,41 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     /** Сырой PIN никуда не хранится. Проверка и счётчик попыток — в общем [PinGuard]. */
     private suspend fun verifyPin(entered: String): PinVerifyResult = pinGuard.verify(entered)
+
+    /**
+     * Верхнее прикладное окно — источник переднего плана для ветки `TYPE_WINDOWS_CHANGED`.
+     * Фильтр по [AccessibilityWindowInfo.TYPE_APPLICATION] исключает наши собственные оверлеи
+     * (они `TYPE_ACCESSIBILITY_OVERLAY`/`TYPE_APPLICATION_OVERLAY`), `maxByOrNull { layer }`
+     * берёт самое верхнее из прикладных окон. `root` может быть `null` (окно без извлекаемого
+     * содержимого) — тогда просто не обновляем, держим последнее известное значение.
+     */
+    private fun topApplicationPackage(): String? = try {
+        windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .maxByOrNull { it.layer }
+            ?.root?.packageName?.toString()
+            ?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "Не удалось определить верхнее прикладное окно")
+        null
+    }
+
+    /**
+     * Фильтр против «дребезга» `TYPE_WINDOWS_CHANGED` (он шумный — летит и на изменения
+     * содержимого окна, не только стека окон). Реагируем только на изменения СТЕКА окон:
+     * добавление/удаление/смену активного или сфокусированного окна, вход-выход в PIP.
+     * Флаги нулевые — считаем релевантным (безопасный фолбэк: пересчёт лёгкий, дедуп всё равно
+     * происходит на уровне `currentPackage: StateFlow`).
+     */
+    private fun isRelevantWindowChange(event: AccessibilityEvent): Boolean {
+        val relevantFlags = AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+            AccessibilityEvent.WINDOWS_CHANGE_REMOVED or
+            AccessibilityEvent.WINDOWS_CHANGE_ACTIVE or
+            AccessibilityEvent.WINDOWS_CHANGE_FOCUSED or
+            AccessibilityEvent.WINDOWS_CHANGE_PIP
+        val changes = event.windowChanges
+        return changes == 0 || (changes and relevantFlags) != 0
+    }
 
     /**
      * Заголовок текущего экрана из НАДЁЖНОГО источника — `title` окна, к которому относится

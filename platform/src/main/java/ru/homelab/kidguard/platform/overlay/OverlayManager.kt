@@ -40,6 +40,9 @@ class OverlayManager @Inject constructor(
     private var overlayView: View? = null
     private var autoDismissRunnable: Runnable? = null
 
+    /** Показан ли сейчас блокирующий оверлей (для учёта экранного времени — см. `BlockingUiState`). */
+    fun isShowing(): Boolean = overlayView != null
+
     /**
      * Показать блокирующий экран (idempotent — повторный вызов, пока оверлей уже показан, ничего
      * не меняет, даже если [reason] другой: оверлей закрывается только свайпом). Вызовы с любого

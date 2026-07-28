@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.platform.accessibility.BlockingUiState
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,7 +26,8 @@ class ScreenTimeTracker @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val foregroundAppMonitor: ForegroundAppMonitor,
     private val usageRepository: UsageRepository,
-    private val currentDateProvider: CurrentDateProvider
+    private val currentDateProvider: CurrentDateProvider,
+    private val blockingUiState: BlockingUiState
 ) {
 
     private val powerManager = context.getSystemService(PowerManager::class.java)
@@ -47,11 +49,15 @@ class ScreenTimeTracker @Inject constructor(
         }
     }
 
-    /** Экраном реально пользуются: включён и разблокирован (активный пакет проверяется в цикле). */
+    /**
+     * Экраном реально пользуются: включён, разблокирован И не закрыт нашим блокирующим UI
+     * (замок сна/перерыва, мягкий блок-оверлей, PIN-перехват настроек, предупреждение lockdown —
+     * см. [BlockingUiState]). Активный пакет проверяется в цикле.
+     */
     private fun isUserActive(): Boolean {
         val interactive = powerManager?.isInteractive == true
         val unlocked = keyguardManager?.isKeyguardLocked == false
-        return interactive && unlocked
+        return interactive && unlocked && !blockingUiState.blockingVisible()
     }
 
     private companion object {
