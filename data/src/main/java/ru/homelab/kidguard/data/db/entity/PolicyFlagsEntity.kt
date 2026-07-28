@@ -16,5 +16,9 @@ data class PolicyFlagsEntity(
     @PrimaryKey val id: Int = 0,
     val blockGoogleSearch: Boolean,
     val studyScheduleEnabled: Boolean = false,
-    val sleepScheduleEnabled: Boolean = false
+    val sleepScheduleEnabled: Boolean = false,
+    /** Дата маркера сброса дневного лимита («ГГГГ-ММ-ДД»); null — сброса нет. */
+    val dailyUsageResetDate: String? = null,
+    /** Метка времени (epoch-ms) нажатия кнопки сброса; null — сброса нет. */
+    val dailyUsageResetAt: Long? = null
 )

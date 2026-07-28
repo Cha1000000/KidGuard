@@ -7,6 +7,7 @@ import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -28,6 +29,7 @@ import ru.homelab.kidguard.data.db.entity.PolicyFlagsEntity
 import ru.homelab.kidguard.data.db.entity.ScheduleWindowEntity
 import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
 import java.time.DayOfWeek
+import java.time.LocalDate
 import javax.inject.Inject
 
 class PolicyRepositoryImpl @Inject constructor(
@@ -91,6 +93,12 @@ class PolicyRepositoryImpl @Inject constructor(
                 )
             }
         }
+
+    override val dailyUsageReset: Flow<DailyUsageReset?> = policyDao.policyFlags().map { flags ->
+        val date = flags?.dailyUsageResetDate
+        val at = flags?.dailyUsageResetAt
+        if (date != null && at != null) DailyUsageReset(LocalDate.parse(date), at) else null
+    }
 
     override val pinProtection: Flow<PinProtection?> = policyDao.pin().map { entity ->
         val hash = entity?.pinHash
@@ -193,6 +201,10 @@ class PolicyRepositoryImpl @Inject constructor(
 
     override suspend fun resetBreaks() = setBreakRules(BreakRules.EMPTY)
 
+    override suspend fun setDailyUsageReset(date: LocalDate, issuedAt: Long) {
+        policyDao.setDailyUsageReset(date.toString(), issuedAt)
+    }
+
     override suspend fun replaceAll(snapshot: PolicySnapshot) {
         val hash = snapshot.pinHash
         val salt = snapshot.pinSalt
@@ -209,7 +221,9 @@ class PolicyRepositoryImpl @Inject constructor(
                 flags = PolicyFlagsEntity(
                     blockGoogleSearch = snapshot.blockGoogleSearch,
                     studyScheduleEnabled = snapshot.studySchedule.enabled,
-                    sleepScheduleEnabled = snapshot.sleepSchedule.enabled
+                    sleepScheduleEnabled = snapshot.sleepSchedule.enabled,
+                    dailyUsageResetDate = snapshot.dailyUsageReset?.date?.toString(),
+                    dailyUsageResetAt = snapshot.dailyUsageReset?.issuedAt
                 ),
                 pin = if (hash != null && salt != null) PinEntity(pinHash = hash, pinSalt = salt) else null,
                 breakRules = snapshot.breakRules.toEntity(),

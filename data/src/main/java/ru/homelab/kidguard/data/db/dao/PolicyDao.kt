@@ -106,6 +106,13 @@ interface PolicyDao {
         updateSleepScheduleEnabled(enabled)
     }
 
+    /** Родитель: выставить маркер сброса дневного лимита (дата + метка времени нажатия). */
+    @Transaction
+    suspend fun setDailyUsageReset(date: String, issuedAt: Long) {
+        ensurePolicyFlagsRow()
+        updateDailyUsageReset(date, issuedAt)
+    }
+
     @Query("UPDATE policy_flags SET blockGoogleSearch = :enabled WHERE id = 0")
     suspend fun updateBlockGoogleSearch(enabled: Boolean)
 
@@ -114,6 +121,9 @@ interface PolicyDao {
 
     @Query("UPDATE policy_flags SET sleepScheduleEnabled = :enabled WHERE id = 0")
     suspend fun updateSleepScheduleEnabled(enabled: Boolean)
+
+    @Query("UPDATE policy_flags SET dailyUsageResetDate = :date, dailyUsageResetAt = :issuedAt WHERE id = 0")
+    suspend fun updateDailyUsageReset(date: String, issuedAt: Long)
 
     /** Окна расписаний обоих типов; фильтрацию по `kind` делает репозиторий. */
     @Query("SELECT * FROM schedule_window")
