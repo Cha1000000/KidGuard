@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
@@ -94,14 +95,22 @@ fun DailyLimitScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+            // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
+            // окантовку приглушаем, чтобы читалась как неактивная.
+            val resetGold = MaterialTheme.colorScheme.tertiary
             OutlinedButton(
                 onClick = { showResetTodayConfirm = true },
                 enabled = todayHasLimit,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = resetGold),
+                border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                Text("↻ " + stringResource(R.string.daily_limit_reset_today))
+                Text(
+                    text = "↻ " + stringResource(R.string.daily_limit_reset_today),
+                    fontSize = 16.sp
+                )
             }
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
