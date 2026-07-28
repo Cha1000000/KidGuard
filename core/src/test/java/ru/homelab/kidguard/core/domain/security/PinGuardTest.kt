@@ -1,6 +1,7 @@
 package ru.homelab.kidguard.core.domain.security
 
 import java.time.DayOfWeek
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -9,6 +10,7 @@ import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -140,6 +142,7 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override val sleepSchedule: Flow<ScheduleRules> get() = unused()
     override val emergencyContacts: Flow<List<EmergencyContact>> get() = unused()
     override val breakRules: Flow<BreakRules> get() = unused()
+    override val dailyUsageReset: Flow<DailyUsageReset?> get() = unused()
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = unused()
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = unused()
@@ -158,5 +161,6 @@ private class FakePolicy(private val protection: PinProtection?) : PolicyReposit
     override suspend fun clearPin() = unused()
     override suspend fun setBreakRules(rules: BreakRules) = unused()
     override suspend fun resetBreaks() = unused()
+    override suspend fun setDailyUsageReset(date: LocalDate, issuedAt: Long) = unused()
     override suspend fun replaceAll(snapshot: PolicySnapshot) = unused()
 }

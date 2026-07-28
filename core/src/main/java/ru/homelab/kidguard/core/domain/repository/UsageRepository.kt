@@ -23,4 +23,10 @@ interface UsageRepository {
 
     /** Прибавить приложению секунды реального экранного времени за указанный день. */
     suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int)
+
+    /** Обнулить общий экранный расход за день (сброс сегодняшнего лимита). */
+    suspend fun resetScreenTime(date: LocalDate)
+
+    /** Обнулить пер-app расход всех приложений за день (сброс сегодняшнего лимита). */
+    suspend fun resetAppScreenTime(date: LocalDate)
 }
