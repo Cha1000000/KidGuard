@@ -60,8 +60,11 @@ fun DailyLimitScreen(
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var showResetTodayConfirm by remember { mutableStateOf(false) }
     // Сбрасывать нечего, если ни на один день лимит не задан — тогда кнопка неактивна.
     val hasAnyLimit = DayOfWeek.entries.any { limits.limitFor(it) != null }
+    // Сбрасывать сегодняшний расход нечего, если на сегодня лимит вообще не задан.
+    val todayHasLimit = limits.limitFor(today) != null
 
     Column(modifier = modifier.fillMaxSize()) {
         CompactTopBar(
@@ -90,6 +93,15 @@ fun DailyLimitScreen(
                     onClear = { viewModel.clearPhoneBonus() },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+            OutlinedButton(
+                onClick = { showResetTodayConfirm = true },
+                enabled = todayHasLimit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Text("↻ " + stringResource(R.string.daily_limit_reset_today))
             }
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -153,6 +165,27 @@ fun DailyLimitScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showResetConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (showResetTodayConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetTodayConfirm = false },
+            title = { Text(stringResource(R.string.daily_limit_reset_today_title)) },
+            text = { Text(stringResource(R.string.daily_limit_reset_today_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.resetTodayUsage()
+                    showResetTodayConfirm = false
+                }) {
+                    Text(stringResource(R.string.daily_limit_reset_today_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetTodayConfirm = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }

@@ -52,4 +52,11 @@ class DailyLimitViewModel @Inject constructor(
     fun clearPhoneBonus() {
         viewModelScope.launch { bonusRepository.clearBonus(currentDateProvider.today(), null) }
     }
+
+    /** Сбросить израсходованное сегодня время: ставим маркер сброса с меткой времени нажатия. */
+    fun resetTodayUsage() {
+        viewModelScope.launch {
+            policyRepository.setDailyUsageReset(currentDateProvider.today(), System.currentTimeMillis())
+        }
+    }
 }
