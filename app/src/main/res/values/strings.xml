@@ -205,7 +205,7 @@
     <string name="breaks_enable_hint_none">Не действуют ни в один день — везде лимит 3 ч или меньше</string>
     <string name="breaks_enable_hint_active_all">Действуют каждый день</string>
     <string name="breaks_enable_hint_active">Действуют: %1$s — в остальные дни лимит 3 ч или меньше</string>
-    <string name="breaks_mode_interval">Через интервал залипания</string>
+    <string name="breaks_mode_interval">Через интервал использования</string>
     <string name="breaks_mode_hours">В определённые часы</string>
     <string name="breaks_interval_label">Интервал</string>
     <string name="breaks_interval_unset">не задан</string>
