@@ -320,7 +320,7 @@ class SyncRepositoryImpl @Inject constructor(
         if (response.updatedAt != null && response.updatedAt == lastSyncedAt()) return // уже применяли
 
         applyDocument(data)
-        applyDailyUsageReset(data)
+        applyDailyUsageReset(childId, data)
         saveSyncedState(canonicalJson(data), response.updatedAt)
         Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
     }
@@ -331,7 +331,7 @@ class SyncRepositoryImpl @Inject constructor(
      * родительское устройство при переключении между детьми. Идемпотентно — тот же маркер
      * (issuedAt не новее последнего применённого) повторно usage не трогает.
      */
-    private suspend fun applyDailyUsageReset(data: PolicyDocumentDto) {
+    private suspend fun applyDailyUsageReset(childId: Int, data: PolicyDocumentDto) {
         val marker = data.dailyUsageReset
             ?.let { runCatching { DailyUsageReset(LocalDate.parse(it.date), it.issuedAt) }.getOrNull() }
         val today = currentDateProvider.today()
@@ -339,6 +339,10 @@ class SyncRepositoryImpl @Inject constructor(
         if (shouldApplyReset(marker, today, lastApplied)) {
             usageRepository.resetScreenTime(today)
             usageRepository.resetAppScreenTime(today)
+            // Сервер хранит usage через UPSERT и сам старые строки не удаляет — говорим ему явно
+            // очистить сегодня, иначе экран «Статистика» у родителя покажет доисбросные цифры.
+            runCatching { usageApi.clearUsage(childId, today.toString()) }
+                .onFailure { Timber.tag(TAG).w(it, "Не удалось очистить серверную статистику за день") }
             context.syncDataStore.edit { it[Keys.LAST_USAGE_RESET_AT] = marker!!.issuedAt }
             Timber.tag(TAG).d("Дневной лимит сброшен родителем (issuedAt=%d)", marker!!.issuedAt)
         }
