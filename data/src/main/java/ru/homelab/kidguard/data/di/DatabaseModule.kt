@@ -16,6 +16,7 @@ import ru.homelab.kidguard.data.db.MIGRATION_5_6
 import ru.homelab.kidguard.data.db.MIGRATION_6_7
 import ru.homelab.kidguard.data.db.MIGRATION_7_8
 import ru.homelab.kidguard.data.db.MIGRATION_8_9
+import ru.homelab.kidguard.data.db.MIGRATION_9_10
 import ru.homelab.kidguard.data.db.dao.BonusDao
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
@@ -31,7 +32,7 @@ object DatabaseModule {
         Room.databaseBuilder(context, KidGuardDatabase::class.java, "kidguard.db")
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9
+                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
             )
             .build()
 

@@ -31,4 +31,12 @@ interface UsageDao {
             "ON CONFLICT(date, packageName) DO UPDATE SET seconds = seconds + :seconds"
     )
     suspend fun addAppSeconds(date: String, packageName: String, seconds: Int)
+
+    /** Обнулить общий экранный расход за день (сброс сегодняшнего лимита). */
+    @Query("DELETE FROM screen_time WHERE date = :date")
+    suspend fun deleteForDate(date: String)
+
+    /** Обнулить пер-app расход всех приложений за день (сброс сегодняшнего лимита). */
+    @Query("DELETE FROM app_screen_time WHERE date = :date")
+    suspend fun deleteAppSecondsForDate(date: String)
 }

@@ -144,3 +144,15 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         )
     }
 }
+
+/**
+ * v9 → v10 (кнопка «Сбросить сегодняшний лимит»): маркер сброса дневного лимита — в
+ * существующую `policy_flags`, по образцу тумблеров из v7→v8. Оба столбца nullable без DEFAULT:
+ * отсутствие значения и есть «сброса нет», как того требует обратная совместимость.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE policy_flags ADD COLUMN dailyUsageResetDate TEXT")
+        db.execSQL("ALTER TABLE policy_flags ADD COLUMN dailyUsageResetAt INTEGER")
+    }
+}

@@ -37,8 +37,15 @@ data class PolicyDocumentDto(
     // Настройки принудительных перерывов (план forced-breaks, задача 3). Дефолт — BreakRulesDto()
     // с enabled=false: старые документы без поля breaks должны применяться как раньше, без
     // перерывов, а не падать при парсинге на уже работающих устройствах.
-    val breaks: BreakRulesDto = BreakRulesDto()
+    val breaks: BreakRulesDto = BreakRulesDto(),
+    // Маркер сброса дневного лимита (кнопка «Сбросить сегодняшний лимит»). Nullable с дефолтом
+    // null — обратная совместимость: старый документ без поля читается как «сброса нет».
+    val dailyUsageReset: DailyUsageResetDto? = null
 )
+
+/** Маркер сброса дневного лимита: родитель обнуляет израсходованное сегодня время ребёнку. */
+@Serializable
+data class DailyUsageResetDto(val date: String, val issuedAt: Long)
 
 /** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
 @Serializable

@@ -106,6 +106,10 @@
     <string name="daily_limit_reset_all_title">Сбросить все лимиты?</string>
     <string name="daily_limit_reset_all_message">Для всех дней недели будет установлено «Без лимита».</string>
     <string name="daily_limit_reset_all_action">Сбросить</string>
+    <string name="daily_limit_reset_today">Сбросить сегодняшний лимит</string>
+    <string name="daily_limit_reset_today_title">Сбросить сегодняшний лимит?</string>
+    <string name="daily_limit_reset_today_message">Израсходованное сегодня время обнулится — ребёнок получит на сегодня полный лимит заново. Бонусы сохранятся.</string>
+    <string name="daily_limit_reset_today_action">Сбросить</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>
@@ -201,7 +205,7 @@
     <string name="breaks_enable_hint_none">Не действуют ни в один день — везде лимит 3 ч или меньше</string>
     <string name="breaks_enable_hint_active_all">Действуют каждый день</string>
     <string name="breaks_enable_hint_active">Действуют: %1$s — в остальные дни лимит 3 ч или меньше</string>
-    <string name="breaks_mode_interval">Через интервал залипания</string>
+    <string name="breaks_mode_interval">Через интервал использования</string>
     <string name="breaks_mode_hours">В определённые часы</string>
     <string name="breaks_interval_label">Интервал</string>
     <string name="breaks_interval_unset">не задан</string>

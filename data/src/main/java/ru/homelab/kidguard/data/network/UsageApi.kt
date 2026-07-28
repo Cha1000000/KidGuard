@@ -2,6 +2,7 @@ package ru.homelab.kidguard.data.network
 
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -23,7 +24,10 @@ data class UsageBatchResponse(val saved: Int)
 @Serializable
 data class UsageResponseDto(val entries: List<UsageEntryDto> = emptyList())
 
-/** Контракт `POST/GET /usage/:childId` (веха 4.4). POST — только детское устройство, GET — родитель/устройство. */
+@Serializable
+data class ClearUsageResponse(val cleared: Boolean = false)
+
+/** Контракт `POST/GET/DELETE /usage/:childId` (веха 4.4). POST/DELETE — только детское устройство, GET — родитель/устройство. */
 interface UsageApi {
 
     @POST("usage/{childId}")
@@ -31,4 +35,8 @@ interface UsageApi {
 
     @GET("usage/{childId}")
     suspend fun getUsage(@Path("childId") childId: Int, @Query("days") days: Int): UsageResponseDto
+
+    /** Удалить всю статистику ребёнка за день (сброс дневного лимита родителем). */
+    @DELETE("usage/{childId}")
+    suspend fun clearUsage(@Path("childId") childId: Int, @Query("date") date: String): ClearUsageResponse
 }

@@ -29,4 +29,12 @@ class UsageRepositoryImpl @Inject constructor(
     override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) {
         usageDao.addAppSeconds(date.toString(), packageName, seconds)
     }
+
+    override suspend fun resetScreenTime(date: LocalDate) {
+        usageDao.deleteForDate(date.toString())
+    }
+
+    override suspend fun resetAppScreenTime(date: LocalDate) {
+        usageDao.deleteAppSecondsForDate(date.toString())
+    }
 }

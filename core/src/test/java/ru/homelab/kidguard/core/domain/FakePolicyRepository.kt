@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flowOf
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -14,6 +15,7 @@ import ru.homelab.kidguard.core.domain.model.SiteBlockRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import java.time.DayOfWeek
+import java.time.LocalDate
 
 /**
  * Политика-заглушка для use-case тестов: отдаёт заданные значения и молча глотает записи.
@@ -44,6 +46,7 @@ class FakePolicyRepository(
     override val emergencyContacts: Flow<List<EmergencyContact>> = flowOf(emptyList())
     override val pinProtection: Flow<PinProtection?> = flowOf(pinProtection)
     override val breakRules: Flow<BreakRules> = flowOf(BreakRules.EMPTY)
+    override val dailyUsageReset: Flow<DailyUsageReset?> = flowOf(null)
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
@@ -62,5 +65,6 @@ class FakePolicyRepository(
     override suspend fun clearPin() = Unit
     override suspend fun setBreakRules(rules: BreakRules) = Unit
     override suspend fun resetBreaks() = Unit
+    override suspend fun setDailyUsageReset(date: LocalDate, issuedAt: Long) = Unit
     override suspend fun replaceAll(snapshot: PolicySnapshot) = Unit
 }
