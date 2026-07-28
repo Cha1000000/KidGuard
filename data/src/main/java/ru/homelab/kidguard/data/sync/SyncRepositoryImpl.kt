@@ -3,6 +3,7 @@ package ru.homelab.kidguard.data.sync
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,10 +24,12 @@ import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
+import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
+import ru.homelab.kidguard.core.domain.model.shouldApplyReset
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
@@ -45,6 +48,7 @@ import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.DeviceHealthApi
 import ru.homelab.kidguard.data.network.EmergencyContactDto
 import ru.homelab.kidguard.data.network.TimeWindowDto
+import ru.homelab.kidguard.data.network.DailyUsageResetDto
 import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.DeviceHealthRequest
 import ru.homelab.kidguard.data.network.PolicyApi
@@ -96,6 +100,12 @@ class SyncRepositoryImpl @Inject constructor(
 
         /** Снапшот последнего отправленного списка приложений устройства (веха 4.1). */
         val LAST_SENT_APPS = stringPreferencesKey("last_sent_apps")
+
+        /**
+         * `issuedAt` последнего применённого на ребёнке маркера сброса дневного лимита —
+         * идемпотентный ключ, чтобы тот же маркер не обнулял usage повторно на каждом pull.
+         */
+        val LAST_USAGE_RESET_AT = longPreferencesKey("last_usage_reset_at")
     }
 
     private val json = Json
@@ -140,6 +150,7 @@ class SyncRepositoryImpl @Inject constructor(
             .combine(policyRepository.sleepSchedule) { _, _ -> Unit }
             .combine(policyRepository.emergencyContacts) { _, _ -> Unit }
             .combine(policyRepository.breakRules) { _, _ -> Unit }
+            .combine(policyRepository.dailyUsageReset) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -309,8 +320,28 @@ class SyncRepositoryImpl @Inject constructor(
         if (response.updatedAt != null && response.updatedAt == lastSyncedAt()) return // уже применяли
 
         applyDocument(data)
+        applyDailyUsageReset(data)
         saveSyncedState(canonicalJson(data), response.updatedAt)
         Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
+    }
+
+    /**
+     * Применяет маркер сброса дневного лимита — ТОЛЬКО в детском пути [pullAndApply], не в
+     * [switchActiveChild]: обнулять usage должен ребёнок, применивший команду родителя, а не
+     * родительское устройство при переключении между детьми. Идемпотентно — тот же маркер
+     * (issuedAt не новее последнего применённого) повторно usage не трогает.
+     */
+    private suspend fun applyDailyUsageReset(data: PolicyDocumentDto) {
+        val marker = data.dailyUsageReset
+            ?.let { runCatching { DailyUsageReset(LocalDate.parse(it.date), it.issuedAt) }.getOrNull() }
+        val today = currentDateProvider.today()
+        val lastApplied = context.syncDataStore.data.first()[Keys.LAST_USAGE_RESET_AT] ?: 0L
+        if (shouldApplyReset(marker, today, lastApplied)) {
+            usageRepository.resetScreenTime(today)
+            usageRepository.resetAppScreenTime(today)
+            context.syncDataStore.edit { it[Keys.LAST_USAGE_RESET_AT] = marker!!.issuedAt }
+            Timber.tag(TAG).d("Дневной лимит сброшен родителем (issuedAt=%d)", marker!!.issuedAt)
+        }
     }
 
     /** Целиком заменяет локальную политику (включая бонусы) содержимым серверного документа. */
@@ -330,7 +361,10 @@ class SyncRepositoryImpl @Inject constructor(
                 emergencyContacts = data.emergencyContacts.map { EmergencyContact(it.name, it.phone) },
                 pinHash = data.pinHash,
                 pinSalt = data.pinSalt,
-                breakRules = data.breaks.toDomain()
+                breakRules = data.breaks.toDomain(),
+                dailyUsageReset = data.dailyUsageReset?.let {
+                    runCatching { DailyUsageReset(LocalDate.parse(it.date), it.issuedAt) }.getOrNull()
+                }
             )
         )
         bonusRepository.replaceAll(
@@ -394,7 +428,9 @@ class SyncRepositoryImpl @Inject constructor(
             sleepScheduleEnabled = sleep.enabled,
             emergencyContacts = policyRepository.emergencyContacts.first()
                 .map { EmergencyContactDto(it.name, it.phone) },
-            breaks = policyRepository.breakRules.first().toDto()
+            breaks = policyRepository.breakRules.first().toDto(),
+            dailyUsageReset = policyRepository.dailyUsageReset.first()
+                ?.let { DailyUsageResetDto(it.date.toString(), it.issuedAt) }
         )
     }
 
@@ -459,7 +495,9 @@ class SyncRepositoryImpl @Inject constructor(
             emergencyContacts = document.emergencyContacts.sortedBy { it.phone },
             // hours сортируем по той же причине, что и остальные списки выше: порядок элементов в
             // множестве часов не несёт смысла, а без сортировки перестановка выглядела бы правкой.
-            breaks = document.breaks.copy(hours = document.breaks.hours.sorted())
+            breaks = document.breaks.copy(hours = document.breaks.hours.sorted()),
+            // Скаляр (как pinHash/blockGoogleSearch выше) — сортировать нечего, включаем как есть.
+            dailyUsageReset = document.dailyUsageReset
         )
     )
 
