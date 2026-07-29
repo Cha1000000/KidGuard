@@ -24,6 +24,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -51,6 +53,8 @@ import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.ui.theme.BreaksAccentDark
 import ru.homelab.kidguard.ui.theme.BreaksAccentLight
+import ru.homelab.kidguard.ui.theme.DangerAccentDark
+import ru.homelab.kidguard.ui.theme.DangerAccentLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -68,6 +72,7 @@ fun DailyLimitScreen(
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetTodayConfirm by remember { mutableStateOf(false) }
+    var showBlockTodayConfirm by remember { mutableStateOf(false) }
     // Сбрасывать нечего, если ни на один день лимит не задан — тогда кнопка неактивна.
     val hasAnyLimit = DayOfWeek.entries.any { limits.limitFor(it) != null }
     // Сбрасывать сегодняшний расход нечего, если на сегодня лимит вообще не задан.
@@ -111,7 +116,7 @@ fun DailyLimitScreen(
                 border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = 8.dp)
             ) {
                 Icon(
                     imageVector = ImageVector.vectorResource(R.drawable.ic_refresh),
@@ -121,6 +126,28 @@ fun DailyLimitScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.daily_limit_reset_today),
+                    fontSize = 16.sp
+                )
+            }
+            // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
+            val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
+            OutlinedButton(
+                onClick = { showBlockTodayConfirm = true },
+                enabled = todayHasLimit,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed),
+                border = BorderStroke(1.dp, dangerRed.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.daily_limit_block_today),
                     fontSize = 16.sp
                 )
             }
@@ -207,6 +234,30 @@ fun DailyLimitScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showResetTodayConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (showBlockTodayConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBlockTodayConfirm = false },
+            title = { Text(stringResource(R.string.daily_limit_block_today_title)) },
+            text = { Text(stringResource(R.string.daily_limit_block_today_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.blockToday()
+                    showBlockTodayConfirm = false
+                }) {
+                    Text(
+                        text = stringResource(R.string.daily_limit_block_today_action),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBlockTodayConfirm = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }

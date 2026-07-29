@@ -59,4 +59,11 @@ class DailyLimitViewModel @Inject constructor(
             policyRepository.setDailyUsageReset(currentDateProvider.today(), System.currentTimeMillis())
         }
     }
+
+    /** Заблокировать доступное на сегодня время: ставим маркер блокировки с меткой времени нажатия. */
+    fun blockToday() {
+        viewModelScope.launch {
+            policyRepository.setDailyUsageBlock(currentDateProvider.today(), System.currentTimeMillis())
+        }
+    }
 }

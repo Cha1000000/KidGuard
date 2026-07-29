@@ -109,6 +109,7 @@ class ObserveAppLimitStateUseCaseTest {
     private class PerDateUsageRepository(private val byDate: Map<LocalDate, Int>) : UsageRepository {
         override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(0)
         override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
+        override suspend fun setScreenTime(date: LocalDate, seconds: Int) = Unit
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> =
             flowOf(byDate[date] ?: 0)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
@@ -131,6 +132,7 @@ class ObserveAppLimitStateUseCaseTest {
     private class FakeUsageRepository(private val appSeconds: Int) : UsageRepository {
         override fun screenTimeSeconds(date: LocalDate): Flow<Int> = flowOf(0)
         override suspend fun addScreenTime(date: LocalDate, seconds: Int) = Unit
+        override suspend fun setScreenTime(date: LocalDate, seconds: Int) = Unit
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(appSeconds)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit

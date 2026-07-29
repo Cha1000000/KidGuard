@@ -23,5 +23,6 @@ data class PolicySnapshot(
     val pinHash: String? = null,
     val pinSalt: String? = null,
     val breakRules: BreakRules = BreakRules.EMPTY,
-    val dailyUsageReset: DailyUsageReset? = null
+    val dailyUsageReset: DailyUsageReset? = null,
+    val dailyUsageBlock: DailyUsageBlock? = null
 )
