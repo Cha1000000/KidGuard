@@ -76,7 +76,9 @@ class DnsProxyLoop(
                 }
                 break
             }
-            if (length <= 0) continue
+            // В блокирующем режиме read() отдаёт >0 (пакет) или -1 на EOF (tun закрыт/пересоздан).
+            // Здесь ВЫХОДИМ, а не continue: иначе на закрытом fd цикл снова ушёл бы в busy-spin.
+            if (length <= 0) break
             handlePacket(buffer.copyOf(length))
         }
     }

@@ -143,6 +143,11 @@ class KidGuardVpnService : VpnService() {
         closeTun()
         val builder = Builder()
             .setSession("KidGuard")
+            // Блокирующий tun ОБЯЗАТЕЛЕН: по умолчанию Builder делает fd неблокирующим, и тогда
+            // read() на пустом tun мгновенно возвращает EAGAIN — libcore на каждый такой вызов
+            // плодит ErrnoException с backtrace (~340 Б), а readLoop крутит их без паузы (~31к/с,
+            // ~10 МБ/с мусора, 100% ядра круглосуточно). С setBlocking(true) read() ждёт пакет.
+            .setBlocking(true)
             .addAddress(TUN_ADDRESS, 32)
             .addDnsServer(DNS_VIRTUAL_IP)
             .addRoute(DNS_VIRTUAL_IP, 32)
