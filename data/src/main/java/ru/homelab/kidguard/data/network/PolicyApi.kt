@@ -40,12 +40,18 @@ data class PolicyDocumentDto(
     val breaks: BreakRulesDto = BreakRulesDto(),
     // Маркер сброса дневного лимита (кнопка «Сбросить сегодняшний лимит»). Nullable с дефолтом
     // null — обратная совместимость: старый документ без поля читается как «сброса нет».
-    val dailyUsageReset: DailyUsageResetDto? = null
+    val dailyUsageReset: DailyUsageResetDto? = null,
+    // null — обратная совместимость: старый документ без поля читается как «блокировки нет».
+    val dailyUsageBlock: DailyUsageBlockDto? = null
 )
 
 /** Маркер сброса дневного лимита: родитель обнуляет израсходованное сегодня время ребёнку. */
 @Serializable
 data class DailyUsageResetDto(val date: String, val issuedAt: Long)
+
+/** Маркер блокировки на сегодня: родитель обнуляет доступное ребёнку время. */
+@Serializable
+data class DailyUsageBlockDto(val date: String, val issuedAt: Long)
 
 /** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
 @Serializable

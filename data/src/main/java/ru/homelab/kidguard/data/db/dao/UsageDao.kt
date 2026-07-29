@@ -18,6 +18,13 @@ interface UsageDao {
     )
     suspend fun addSeconds(date: String, seconds: Int)
 
+    /** Выставить общий расход за день в АБСОЛЮТ («Заблокировать на сегодня»). */
+    @Query(
+        "INSERT INTO screen_time(date, seconds) VALUES(:date, :seconds) " +
+            "ON CONFLICT(date) DO UPDATE SET seconds = :seconds"
+    )
+    suspend fun setSeconds(date: String, seconds: Int)
+
     @Query("SELECT seconds FROM app_screen_time WHERE date = :date AND packageName = :packageName")
     fun appSecondsForDate(date: String, packageName: String): Flow<Int?>
 

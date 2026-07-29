@@ -20,5 +20,9 @@ data class PolicyFlagsEntity(
     /** Дата маркера сброса дневного лимита («ГГГГ-ММ-ДД»); null — сброса нет. */
     val dailyUsageResetDate: String? = null,
     /** Метка времени (epoch-ms) нажатия кнопки сброса; null — сброса нет. */
-    val dailyUsageResetAt: Long? = null
+    val dailyUsageResetAt: Long? = null,
+    /** Дата маркера блокировки на сегодня («ГГГГ-ММ-ДД»); null — блокировки нет. */
+    val dailyUsageBlockDate: String? = null,
+    /** Метка времени (epoch-ms) нажатия кнопки блокировки; null — блокировки нет. */
+    val dailyUsageBlockAt: Long? = null
 )

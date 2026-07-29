@@ -24,11 +24,13 @@ import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
+import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
+import ru.homelab.kidguard.core.domain.model.shouldApplyBlock
 import ru.homelab.kidguard.core.domain.model.shouldApplyReset
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
@@ -48,6 +50,7 @@ import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.DeviceHealthApi
 import ru.homelab.kidguard.data.network.EmergencyContactDto
 import ru.homelab.kidguard.data.network.TimeWindowDto
+import ru.homelab.kidguard.data.network.DailyUsageBlockDto
 import ru.homelab.kidguard.data.network.DailyUsageResetDto
 import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.DeviceHealthRequest
@@ -106,6 +109,9 @@ class SyncRepositoryImpl @Inject constructor(
          * идемпотентный ключ, чтобы тот же маркер не обнулял usage повторно на каждом pull.
          */
         val LAST_USAGE_RESET_AT = longPreferencesKey("last_usage_reset_at")
+
+        /** `issuedAt` последнего применённого маркера блокировки на сегодня — идемпотентный ключ. */
+        val LAST_USAGE_BLOCK_AT = longPreferencesKey("last_usage_block_at")
     }
 
     private val json = Json
@@ -151,6 +157,7 @@ class SyncRepositoryImpl @Inject constructor(
             .combine(policyRepository.emergencyContacts) { _, _ -> Unit }
             .combine(policyRepository.breakRules) { _, _ -> Unit }
             .combine(policyRepository.dailyUsageReset) { _, _ -> Unit }
+            .combine(policyRepository.dailyUsageBlock) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -321,6 +328,7 @@ class SyncRepositoryImpl @Inject constructor(
 
         applyDocument(data)
         applyDailyUsageReset(childId, data)
+        applyDailyBlock(data)
         saveSyncedState(canonicalJson(data), response.updatedAt)
         Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
     }
@@ -348,6 +356,29 @@ class SyncRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Применяет маркер блокировки на сегодня — ТОЛЬКО в детском пути (как [applyDailyUsageReset]).
+     * Обнуляет доступное время: выставляет расход = дневному лимиту + бонусу за сегодня (остаток
+     * становится 0). Идемпотентно по `issuedAt`. Отменяется обычным сбросом (обнулит расход) или
+     * бонусом (добавит время сверху). Серверный DELETE не нужен: `pushUsage` сам дошлёт новое
+     * (большее) значение обычным UPSERT.
+     */
+    private suspend fun applyDailyBlock(data: PolicyDocumentDto) {
+        val marker = data.dailyUsageBlock
+            ?.let { runCatching { DailyUsageBlock(LocalDate.parse(it.date), it.issuedAt) }.getOrNull() }
+        val today = currentDateProvider.today()
+        val lastApplied = context.syncDataStore.data.first()[Keys.LAST_USAGE_BLOCK_AT] ?: 0L
+        if (shouldApplyBlock(marker, today, lastApplied)) {
+            val limitMinutes = policyRepository.dailyLimits.first().limitFor(today.dayOfWeek)
+            if (limitMinutes != null) {
+                val bonusMinutes = bonusRepository.phoneBonusMinutes(today).first()
+                usageRepository.setScreenTime(today, (limitMinutes + bonusMinutes) * 60)
+            }
+            context.syncDataStore.edit { it[Keys.LAST_USAGE_BLOCK_AT] = marker!!.issuedAt }
+            Timber.tag(TAG).d("Заблокировано на сегодня родителем (issuedAt=%d)", marker!!.issuedAt)
+        }
+    }
+
     /** Целиком заменяет локальную политику (включая бонусы) содержимым серверного документа. */
     private suspend fun applyDocument(data: PolicyDocumentDto) {
         policyRepository.replaceAll(
@@ -368,6 +399,9 @@ class SyncRepositoryImpl @Inject constructor(
                 breakRules = data.breaks.toDomain(),
                 dailyUsageReset = data.dailyUsageReset?.let {
                     runCatching { DailyUsageReset(LocalDate.parse(it.date), it.issuedAt) }.getOrNull()
+                },
+                dailyUsageBlock = data.dailyUsageBlock?.let {
+                    runCatching { DailyUsageBlock(LocalDate.parse(it.date), it.issuedAt) }.getOrNull()
                 }
             )
         )
@@ -434,7 +468,9 @@ class SyncRepositoryImpl @Inject constructor(
                 .map { EmergencyContactDto(it.name, it.phone) },
             breaks = policyRepository.breakRules.first().toDto(),
             dailyUsageReset = policyRepository.dailyUsageReset.first()
-                ?.let { DailyUsageResetDto(it.date.toString(), it.issuedAt) }
+                ?.let { DailyUsageResetDto(it.date.toString(), it.issuedAt) },
+            dailyUsageBlock = policyRepository.dailyUsageBlock.first()
+                ?.let { DailyUsageBlockDto(it.date.toString(), it.issuedAt) }
         )
     }
 
@@ -501,7 +537,8 @@ class SyncRepositoryImpl @Inject constructor(
             // множестве часов не несёт смысла, а без сортировки перестановка выглядела бы правкой.
             breaks = document.breaks.copy(hours = document.breaks.hours.sorted()),
             // Скаляр (как pinHash/blockGoogleSearch выше) — сортировать нечего, включаем как есть.
-            dailyUsageReset = document.dailyUsageReset
+            dailyUsageReset = document.dailyUsageReset,
+            dailyUsageBlock = document.dailyUsageBlock
         )
     )
 

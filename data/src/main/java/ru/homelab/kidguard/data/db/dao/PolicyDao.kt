@@ -113,6 +113,12 @@ interface PolicyDao {
         updateDailyUsageReset(date, issuedAt)
     }
 
+    @Transaction
+    suspend fun setDailyUsageBlock(date: String, issuedAt: Long) {
+        ensurePolicyFlagsRow()
+        updateDailyUsageBlock(date, issuedAt)
+    }
+
     @Query("UPDATE policy_flags SET blockGoogleSearch = :enabled WHERE id = 0")
     suspend fun updateBlockGoogleSearch(enabled: Boolean)
 
@@ -124,6 +130,9 @@ interface PolicyDao {
 
     @Query("UPDATE policy_flags SET dailyUsageResetDate = :date, dailyUsageResetAt = :issuedAt WHERE id = 0")
     suspend fun updateDailyUsageReset(date: String, issuedAt: Long)
+
+    @Query("UPDATE policy_flags SET dailyUsageBlockDate = :date, dailyUsageBlockAt = :issuedAt WHERE id = 0")
+    suspend fun updateDailyUsageBlock(date: String, issuedAt: Long)
 
     /** Окна расписаний обоих типов; фильтрацию по `kind` делает репозиторий. */
     @Query("SELECT * FROM schedule_window")

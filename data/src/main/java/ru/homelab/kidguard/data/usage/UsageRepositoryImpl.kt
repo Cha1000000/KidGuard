@@ -18,6 +18,10 @@ class UsageRepositoryImpl @Inject constructor(
         usageDao.addSeconds(date.toString(), seconds)
     }
 
+    override suspend fun setScreenTime(date: LocalDate, seconds: Int) {
+        usageDao.setSeconds(date.toString(), seconds)
+    }
+
     override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> =
         usageDao.appSecondsForDate(date.toString(), packageName).map { it ?: 0 }
 

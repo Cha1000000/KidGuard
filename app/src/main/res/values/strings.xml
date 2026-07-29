@@ -110,6 +110,10 @@
     <string name="daily_limit_reset_today_title">Сбросить сегодняшний лимит?</string>
     <string name="daily_limit_reset_today_message">Израсходованное сегодня время обнулится — ребёнок получит на сегодня полный лимит заново. Бонусы сохранятся.</string>
     <string name="daily_limit_reset_today_action">Сбросить</string>
+    <string name="daily_limit_block_today">Заблокировать на сегодня</string>
+    <string name="daily_limit_block_today_title">Заблокировать на сегодня?</string>
+    <string name="daily_limit_block_today_message">Доступное на сегодня время обнулится — телефон ребёнка будет заблокирован до конца дня. Вернуть время можно кнопкой «Сбросить сегодняшний лимит» или бонусом.</string>
+    <string name="daily_limit_block_today_action">Заблокировать</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>

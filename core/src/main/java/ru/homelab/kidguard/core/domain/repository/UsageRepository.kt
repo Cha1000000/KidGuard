@@ -15,6 +15,9 @@ interface UsageRepository {
     /** Прибавить секунды реального экранного времени к указанному дню. */
     suspend fun addScreenTime(date: LocalDate, seconds: Int)
 
+    /** Выставить общий экранный расход за день в АБСОЛЮТ (для «Заблокировать на сегодня»). */
+    suspend fun setScreenTime(date: LocalDate, seconds: Int)
+
     /** Накопленное экранное время приложения (в секундах) за указанный день (веха 3). */
     fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int>
 

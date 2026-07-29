@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
@@ -59,6 +60,9 @@ interface PolicyRepository {
 
     /** Маркер сброса дневного лимита из текущей политики (null — сброса нет). */
     val dailyUsageReset: Flow<DailyUsageReset?>
+
+    /** Маркер блокировки на сегодня из текущей политики (null — блокировки нет). */
+    val dailyUsageBlock: Flow<DailyUsageBlock?>
 
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
@@ -116,6 +120,9 @@ interface PolicyRepository {
 
     /** Родитель: выставить маркер сброса на день с меткой времени нажатия. */
     suspend fun setDailyUsageReset(date: LocalDate, issuedAt: Long)
+
+    /** Родитель: выставить маркер блокировки на сегодня с меткой времени нажатия. */
+    suspend fun setDailyUsageBlock(date: LocalDate, issuedAt: Long)
 
     /**
      * Транзакционно заменить всю политику разом — применение серверного документа при
