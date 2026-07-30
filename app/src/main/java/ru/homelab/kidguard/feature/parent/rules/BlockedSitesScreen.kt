@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -249,7 +250,7 @@ private fun BlockedSiteRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            GlassToggle(checked = site.enabled, onCheckedChange = onToggle)
+            Checkbox(checked = site.enabled, onCheckedChange = onToggle)
             Text(
                 text = site.domain,
                 style = MaterialTheme.typography.bodyLarge,
