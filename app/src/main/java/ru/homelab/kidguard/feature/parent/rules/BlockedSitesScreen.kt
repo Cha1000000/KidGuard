@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -46,9 +44,7 @@ import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassToggle
-
-/** Цвет предупреждения (жёлтый треугольник), единый с пометками «критично» в пикерах. */
-private val WarningColor = Color(0xFFF5B301)
+import ru.homelab.kidguard.ui.theme.WarningAccent
 
 /** Высота, к которой выравниваем поле ввода и кнопку «Добавить» (стандарт OutlinedTextField). */
 private val InputRowHeight = 56.dp
@@ -216,8 +212,8 @@ private fun LockdownWarning() {
             .fillMaxWidth()
             .padding(bottom = 12.dp)
             .clip(shape)
-            .background(WarningColor.copy(alpha = 0.12f))
-            .border(1.dp, WarningColor.copy(alpha = 0.4f), shape)
+            .background(WarningAccent.copy(alpha = 0.12f))
+            .border(1.dp, WarningAccent.copy(alpha = 0.4f), shape)
             .padding(12.dp),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -225,7 +221,7 @@ private fun LockdownWarning() {
         Icon(
             imageVector = Icons.Filled.Warning,
             contentDescription = null,
-            tint = WarningColor,
+            tint = WarningAccent,
             modifier = Modifier.size(20.dp)
         )
         Text(
@@ -253,7 +249,7 @@ private fun BlockedSiteRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Checkbox(checked = site.enabled, onCheckedChange = onToggle)
+            GlassToggle(checked = site.enabled, onCheckedChange = onToggle)
             Text(
                 text = site.domain,
                 style = MaterialTheme.typography.bodyLarge,
