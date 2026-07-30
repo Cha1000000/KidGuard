@@ -8,13 +8,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -50,7 +54,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
-import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.ui.theme.BreaksAccentDark
 import ru.homelab.kidguard.ui.theme.BreaksAccentLight
 import ru.homelab.kidguard.ui.theme.DangerAccentDark
@@ -106,51 +109,6 @@ fun DailyLimitScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
-            // окантовку приглушаем, чтобы читалась как неактивная.
-            val resetGold = MaterialTheme.colorScheme.tertiary
-            OutlinedButton(
-                onClick = { showResetTodayConfirm = true },
-                enabled = todayHasLimit,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = resetGold),
-                border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_refresh),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.daily_limit_reset_today),
-                    fontSize = 16.sp
-                )
-            }
-            // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
-            val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
-            OutlinedButton(
-                onClick = { showBlockTodayConfirm = true },
-                enabled = todayHasLimit,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed),
-                border = BorderStroke(1.dp, dangerRed.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.daily_limit_block_today),
-                    fontSize = 16.sp
-                )
-            }
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val days = DayOfWeek.entries
@@ -162,6 +120,66 @@ fun DailyLimitScreen(
                             onClick = { editingDay = day }
                         )
                         if (index < days.lastIndex) HorizontalDivider()
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
+                // окантовку приглушаем, чтобы читалась как неактивная.
+                val resetGold = MaterialTheme.colorScheme.tertiary
+                OutlinedButton(
+                    onClick = { showResetTodayConfirm = true },
+                    enabled = todayHasLimit,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = resetGold),
+                    border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.daily_limit_reset_today),
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+                // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
+                val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
+                OutlinedButton(
+                    onClick = { showBlockTodayConfirm = true },
+                    enabled = todayHasLimit,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed),
+                    border = BorderStroke(1.dp, dangerRed.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.daily_limit_block_today),
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
