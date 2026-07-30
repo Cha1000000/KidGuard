@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -250,7 +252,12 @@ private fun BreaksEnableRow(
                 .background(accentColor.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "☕", style = MaterialTheme.typography.bodyMedium)
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.ic_coffee),
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(18.dp)
+            )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(

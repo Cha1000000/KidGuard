@@ -177,7 +177,13 @@ fun DailyLimitScreen(
                     .fillMaxWidth()
                     .padding(top = 12.dp)
             ) {
-                Text("☕ " + stringResource(R.string.daily_limit_breaks_button))
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_coffee),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(text = stringResource(R.string.daily_limit_breaks_button), fontSize = 16.sp)
             }
             TextButton(
                 onClick = { showResetConfirm = true },

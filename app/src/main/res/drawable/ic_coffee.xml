@@ -1,0 +1,10 @@
+<!-- Material Symbols «coffee» (чашка кофе) — карточка/кнопка «Перерывы». Цвет задаётся tint в Icon(). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M11,18q-2.925,0 -4.962,-2.037T4,11L4,5q0,-0.825 0.588,-1.412T6,3h12.5q1.45,0 2.475,1.025T22,6.5t-1.025,2.475T18.5,10L18,10v1q0,2.925 -2.037,4.963T11,18M6,8h10L16,5L6,5zM11,16q2.075,0 3.538,-1.463T16,11v-1L6,10v1q0,2.075 1.463,3.538T11,16M18,8h0.5q0.625,0 1.063,-0.437T20,6.5t-0.437,-1.062T18.5,5L18,5zM5,21q-0.425,0 -0.712,-0.288T4,20t0.288,-0.712T5,19h14q0.425,0 0.713,0.288T20,20t-0.288,0.713T19,21z" />
+</vector>

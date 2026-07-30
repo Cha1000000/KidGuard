@@ -261,8 +261,8 @@
     <string name="child_greeting_name_fallback">друг</string>
     <!-- Кольцо остатка времени -->
     <string name="child_time_remaining_of">осталось из %1$s</string>
-    <string name="child_bonus_chip">🎁 +%1$s от родителей</string>
-    <string name="child_guard_status">🛡 Телефон под присмотром KidGuard</string>
+    <string name="child_bonus_chip">+%1$s от родителей</string>
+    <string name="child_guard_status">Телефон под присмотром KidGuard</string>
     <!-- Состояние «время вышло» -->
     <string name="child_time_expired_title">Время вышло</string>
     <string name="child_time_expired_sub">Израсходовано %1$s из %1$s.\nДоступны только «всегда доступные» приложения.</string>
@@ -312,11 +312,11 @@
     <string name="permission_emergency_call_desc">Чтобы с ночного экрана блокировки ребёнок звонил вам одним нажатием. Без разрешения откроется телефон с уже набранным номером — на одно нажатие больше.</string>
     <!-- Watchdog (веха 6): что видит родитель, когда контроль на телефоне ребёнка сломан.
          Ребёнку не показывается ничего — это подсказка «защиты нет, можно гулять». -->
-    <string name="child_health_broken">⚠ Не работает: %1$s</string>
+    <string name="child_health_broken">Не работает: %1$s</string>
     <!-- Сломано несколько: показываем первое и честно говорим, что есть ещё. Иначе родитель
          починит одно и решит, что всё. Полный список — в листе по тапу. -->
-    <string name="child_health_broken_more">⚠ Не работает: %1$s и ещё %2$d</string>
-    <string name="child_health_silent">⚠ Не выходил на связь %1$s</string>
+    <string name="child_health_broken_more">Не работает: %1$s и ещё %2$d</string>
+    <string name="child_health_silent">Не выходил на связь %1$s</string>
     <string name="child_health_broken_title">Контроль не работает</string>
     <string name="child_health_silent_title">Устройство не выходит на связь</string>
     <string name="child_health_last_seen">Последняя связь: %1$s</string>
