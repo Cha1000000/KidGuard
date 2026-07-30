@@ -1,6 +1,7 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +34,8 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassToggle
+import ru.homelab.kidguard.ui.theme.DangerAccentDark
+import ru.homelab.kidguard.ui.theme.DangerAccentLight
 
 /** Экран «Запрещённые» (веха 4.1.2): полный запрет приложений ребёнка, вне зависимости от лимитов. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,6 +109,7 @@ fun BlockedAppsScreen(
 
 @Composable
 private fun AppRow(app: BlockedAppUi, onToggle: (Boolean) -> Unit) {
+    val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
     GlassCard(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -141,7 +144,7 @@ private fun AppRow(app: BlockedAppUi, onToggle: (Boolean) -> Unit) {
             GlassToggle(
                 checked = app.blocked,
                 onCheckedChange = onToggle,
-                accentColor = Color(0xFFE53935) // насыщенный красный для обеих тем
+                accentColor = dangerRed
             )
         }
     }
