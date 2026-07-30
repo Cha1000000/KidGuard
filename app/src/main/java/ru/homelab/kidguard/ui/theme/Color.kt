@@ -64,6 +64,9 @@ val ScheduleSleepLight = Color(0xFF3B4DA6)
 val BreaksAccentDark = Color(0xFF4FD6B4)
 val BreaksAccentLight = Color(0xFF127A63)
 
+// Жёлтый акцент предупреждений (сайты вне расписания, элементы расписания блокировки).
+val WarningAccent = Color(0xFFF5B301)
+
 // Тёмно-красный для кнопки «Заблокировать на сегодня» (обе темы).
 val DangerAccentDark = Color(0xFFD1544E)
 val DangerAccentLight = Color(0xFFB3261E)
