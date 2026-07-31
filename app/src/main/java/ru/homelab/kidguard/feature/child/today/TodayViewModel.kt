@@ -7,10 +7,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.DailyLimits
@@ -64,10 +66,22 @@ data class TodayUiState(
     val childAvatar: Int,
     val time: TodayTimeState,
     val bonusMinutes: Int,
+    val usedMinutes: Int,
     val alwaysAllowed: RuleGroup,
     val limited: LimitedGroup,
     val blocked: RuleGroup
 )
+
+/**
+ * Состояние экрана «Сегодня» (Фаза 4 UI-аудита). Раньше экран умел только «грузится» (null
+ * uiState) и «готово» — при сбое любого исходного потока (сеть, БД) пользователь видел вечный
+ * спиннер без объяснений. Теперь есть явное [Error].
+ */
+sealed interface TodayScreenState {
+    data object Loading : TodayScreenState
+    data object Error : TodayScreenState
+    data class Content(val ui: TodayUiState) : TodayScreenState
+}
 
 /**
  * ViewModel детского экрана «Сегодня» (веха 4.1.3). Собирает в единый [TodayUiState]:
@@ -89,7 +103,7 @@ class TodayViewModel @Inject constructor(
     private val installedAppsSource: InstalledAppsSource
 ) : ViewModel() {
 
-    private data class TimeAndBonus(val state: TodayTimeState, val bonusMinutes: Int)
+    private data class TimeAndBonus(val state: TodayTimeState, val bonusMinutes: Int, val usedMinutes: Int)
 
     private data class RulesData(
         val alwaysAllowed: RuleGroup,
@@ -97,16 +111,20 @@ class TodayViewModel @Inject constructor(
         val blocked: RuleGroup
     )
 
-    /** `null` — данные ещё собираются (первый кадр). */
-    val uiState: StateFlow<TodayUiState?> = flow {
+    val uiState: StateFlow<TodayScreenState> = flow<TodayScreenState> {
         // Пакет → человекочитаемое имя. Если PackageManager недоступен — покажем имена пакетов.
         val labels: Map<String, String> = runCatching {
             installedAppsSource.launchableApps().associate { it.packageName to it.label }
         }.getOrDefault(emptyMap())
         // Дата — потоком: экран может остаться открытым через полночь (телефон на зарядке рядом
         // с кроватью), и тогда остаток дня показывался бы за вчера.
-        emitAll(currentDateProvider.todayFlow().flatMapLatest { today -> uiStateFor(today, labels) })
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        emitAll(
+            currentDateProvider.todayFlow()
+                .flatMapLatest { today -> uiStateFor(today, labels) }
+                .map { TodayScreenState.Content(it) }
+        )
+    }.catch { emit(TodayScreenState.Error) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayScreenState.Loading)
 
     private fun uiStateFor(today: LocalDate, labels: Map<String, String>): Flow<TodayUiState> = run {
 
@@ -138,6 +156,7 @@ class TodayViewModel @Inject constructor(
                 childAvatar = profile?.avatar ?: 0,
                 time = time.state,
                 bonusMinutes = time.bonusMinutes,
+                usedMinutes = time.usedMinutes,
                 alwaysAllowed = rules.alwaysAllowed,
                 limited = rules.limited,
                 blocked = rules.blocked
@@ -162,17 +181,18 @@ class TodayViewModel @Inject constructor(
         usedSeconds: Int,
         bonusMinutes: Int
     ): TimeAndBonus {
+        val usedMinutes = usedSeconds / 60
         val limitMinutes = limits.limitFor(today.dayOfWeek)
-            ?: return TimeAndBonus(TodayTimeState.NoLimit, bonusMinutes = 0)
+            ?: return TimeAndBonus(TodayTimeState.NoLimit, bonusMinutes = 0, usedMinutes = usedMinutes)
         // Бонус на сегодня прибавляется к бюджету дня — как в ObserveLimitStateUseCase.
         val totalMinutes = limitMinutes + bonusMinutes
-        val minutesLeft = totalMinutes - usedSeconds / 60
+        val minutesLeft = totalMinutes - usedMinutes
         val state = if (minutesLeft <= 0) {
             TodayTimeState.Expired(totalMinutes)
         } else {
             TodayTimeState.Remaining(minutesLeft, totalMinutes)
         }
-        return TimeAndBonus(state, bonusMinutes)
+        return TimeAndBonus(state, bonusMinutes, usedMinutes)
     }
 
     private fun computeRules(
