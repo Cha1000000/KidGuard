@@ -1,5 +1,7 @@
-package ru.homelab.kidguard.feature.parent.rules
+package ru.homelab.kidguard.core.ui.components
 
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.absoluteValue
@@ -60,3 +63,13 @@ private val FallbackColors = listOf(
     Color(0xFF5C7CFA), // синий
     Color(0xFFFFB300)  // янтарный
 )
+
+/**
+ * Декодирует иконку приложения из base64 (WebP), которую отдаёт [ru.homelab.kidguard.core.domain.repository.InstalledAppsSource].
+ * null — иконки нет или байты битые; вызывающий UI покажет буквенный кружок.
+ */
+fun decodeAppIconBase64(base64: String?): ImageBitmap? = runCatching {
+    if (base64.isNullOrBlank()) return null
+    val bytes = Base64.decode(base64, Base64.DEFAULT)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+}.getOrNull()

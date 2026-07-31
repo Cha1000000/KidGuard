@@ -6,14 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,89 +42,109 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
-import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.EmptyState
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.NeonProgress
+import ru.homelab.kidguard.core.ui.components.formatDurationMinutes
 
 /**
- * Детский главный экран «Сегодня» (веха 4.1.3): приветствие, крупный остаток времени на сегодня
- * (кольцо / карточка «время вышло» / «без лимита»), статус контроля и прозрачная для ребёнка
- * сводка правил. Один экран без навигации — списки правил пока read-only (раскрытие — позже).
+ * Детский главный экран «Сегодня» (веха 4.1.3, доработан в Фазе 4 UI-аудита): приветствие,
+ * крупный остаток времени на сегодня (кольцо / карточка «время вышло» / «без лимита»), статус
+ * контроля стеклянной плашкой и сетка 2×2 сводки правил + наигранное сегодня время. Карточки
+ * сетки кликабельны — открывают детальные read-only экраны списков правил (Фаза UI-аудита).
  */
 @Composable
 fun TodayScreen(
     onOpenPermissions: () -> Unit,
+    onOpenLimits: () -> Unit,
+    onOpenBlocked: () -> Unit,
+    onOpenAllowed: () -> Unit,
+    onOpenStats: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val ui = state
-    if (ui == null) {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+
+    when (val current = state) {
+        TodayScreenState.Loading -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
-        return
-    }
 
-    // Нижний лист выбора локального аватара (веха 4.1.5) — открывается по тапу на аватарку.
-    var showAvatarPicker by remember { mutableStateOf(false) }
+        TodayScreenState.Error -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyState(
+                    icon = Icons.Filled.Warning,
+                    title = stringResource(R.string.child_today_error_title),
+                    description = stringResource(R.string.child_today_error_desc)
+                )
+            }
+        }
 
-    GlassBackground(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp)
-        ) {
-            GreetingRow(
-                name = ui.childName,
-                avatar = ui.childAvatar,
-                onAvatarClick = { showAvatarPicker = true },
-                onOpenPermissions = onOpenPermissions
-            )
+        is TodayScreenState.Content -> {
+            val ui = current.ui
+            // Нижний лист выбора локального аватара (веха 4.1.5) — открывается по тапу на аватарку.
+            var showAvatarPicker by remember { mutableStateOf(false) }
 
-            when (val time = ui.time) {
-                is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
-                is TodayTimeState.Expired -> ExpiredCard(time)
-                TodayTimeState.NoLimit -> NoLimitCard()
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp)
+            ) {
+                GreetingRow(
+                    name = ui.childName,
+                    avatar = ui.childAvatar,
+                    onAvatarClick = { showAvatarPicker = true },
+                    onOpenPermissions = onOpenPermissions
+                )
+
+                when (val time = ui.time) {
+                    is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
+                    is TodayTimeState.Expired -> ExpiredCard(time)
+                    TodayTimeState.NoLimit -> NoLimitCard()
+                }
+
+                GuardStatus()
+
+                Text(
+                    text = stringResource(R.string.child_rules_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+                )
+                RulesGrid(ui, onOpenLimits, onOpenBlocked, onOpenAllowed, onOpenStats)
             }
 
-            GuardStatus()
-
-            Text(
-                text = stringResource(R.string.child_rules_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
-            )
-            RulesSection(ui)
+            if (showAvatarPicker) {
+                AvatarPickerSheet(
+                    selected = ui.childAvatar,
+                    onSelect = { viewModel.chooseAvatar(it) },
+                    onReset = { viewModel.resetAvatar() },
+                    onDismiss = { showAvatarPicker = false }
+                )
+            }
         }
-    }
-
-    if (showAvatarPicker) {
-        AvatarPickerSheet(
-            selected = ui.childAvatar,
-            onSelect = { viewModel.chooseAvatar(it) },
-            onReset = { viewModel.resetAvatar() },
-            onDismiss = { showAvatarPicker = false }
-        )
     }
 }
 
@@ -207,7 +229,7 @@ private fun RemainingSection(time: TodayTimeState.Remaining, bonusMinutes: Int) 
                 modifier = Modifier.padding(top = 14.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.child_bonus_chip, formatDuration(bonusMinutes)),
+                    text = stringResource(R.string.child_bonus_chip, formatDurationMinutes(bonusMinutes)),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -229,8 +251,8 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
         size = 220.dp,
         strokeWidth = 12.dp,
         glowRadius = 4.dp,
-        valueText = formatDuration(minutesLeft),
-        subtitleText = stringResource(R.string.child_time_remaining_of, formatDuration(totalMinutes))
+        valueText = formatDurationMinutes(minutesLeft),
+        subtitleText = stringResource(R.string.child_time_remaining_of, formatDurationMinutes(totalMinutes))
     )
 }
 
@@ -240,7 +262,7 @@ private fun ExpiredCard(time: TodayTimeState.Expired) {
         iconTint = MaterialTheme.colorScheme.error,
         title = stringResource(R.string.child_time_expired_title),
         titleColor = MaterialTheme.colorScheme.error,
-        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes)),
+        subtitle = stringResource(R.string.child_time_expired_sub, formatDurationMinutes(time.totalMinutes)),
         icon = ImageVector.vectorResource(R.drawable.ic_timer)
     )
 }
@@ -297,83 +319,149 @@ private fun StateCard(
     }
 }
 
+/**
+ * Статус контроля — стеклянная плашка-пилюля (Фаза 4, была голой строкой текста). Переиспользует
+ * GlassCard с cornerRadius=999.dp вместо ручного повторения формул цвета — одна точка правды на
+ * формулу «стекла» во всём приложении.
+ */
 @Composable
 private fun GuardStatus() {
-    Text(
-        text = stringResource(R.string.child_guard_status),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp)
-    )
+            .padding(top = 14.dp, bottom = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        GlassCard(
+            cornerRadius = 999.dp,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_shield_logo),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    text = stringResource(R.string.child_guard_status),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
 
+/**
+ * Сетка 2×2 (Фаза 4, была вертикальным списком из 3 строк) — по макету
+ * docs/ui-concepts/today-screen/. Добавлена четвёртая карточка «Сегодня» (наигранное время) —
+ * данные уже читались в TodayViewModel для расчёта кольца, просто не показывались в UI.
+ */
 @Composable
-private fun RulesSection(ui: TodayUiState) {
-    val noneText = stringResource(R.string.child_rules_none)
-
-    RuleRow(
-        icon = Icons.Filled.CheckCircle,
-        iconTint = Color(0xFF2E7D32),
-        iconBackground = MaterialTheme.colorScheme.secondaryContainer,
-        name = stringResource(R.string.child_rules_allowed_name),
-        subtitle = ui.alwaysAllowed.previewLabels.joinToString(", ").ifEmpty { noneText },
-        count = ui.alwaysAllowed.count
-    )
-    RuleRow(
-        icon = ImageVector.vectorResource(R.drawable.ic_timer),
-        iconTint = MaterialTheme.colorScheme.primary,
-        iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
-        name = stringResource(R.string.child_rules_limited_name),
-        subtitle = limitedSubtitle(ui.limited, noneText),
-        count = ui.limited.count
-    )
-    RuleRow(
-        icon = ImageVector.vectorResource(R.drawable.ic_block),
-        iconTint = MaterialTheme.colorScheme.error,
-        iconBackground = MaterialTheme.colorScheme.errorContainer,
-        name = stringResource(R.string.child_rules_blocked_name),
-        subtitle = ui.blocked.previewLabels.joinToString(", ").ifEmpty { noneText },
-        count = ui.blocked.count
-    )
+private fun RulesGrid(
+    ui: TodayUiState,
+    onOpenLimits: () -> Unit,
+    onOpenBlocked: () -> Unit,
+    onOpenAllowed: () -> Unit,
+    onOpenStats: () -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RuleGridCard(
+                modifier = Modifier.weight(1f),
+                icon = ImageVector.vectorResource(R.drawable.ic_timer),
+                iconTint = MaterialTheme.colorScheme.primary,
+                iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
+                label = stringResource(R.string.child_rules_limits_label),
+                value = pluralStringResource(R.plurals.child_rules_apps_count, ui.limited.count, ui.limited.count),
+                subtitle = limitedGridSubtitle(ui.limited),
+                onClick = onOpenLimits
+            )
+            RuleGridCard(
+                modifier = Modifier.weight(1f),
+                icon = ImageVector.vectorResource(R.drawable.ic_block),
+                iconTint = MaterialTheme.colorScheme.error,
+                iconBackground = MaterialTheme.colorScheme.errorContainer,
+                label = stringResource(R.string.child_rules_blocked_label),
+                value = pluralStringResource(R.plurals.child_rules_apps_count, ui.blocked.count, ui.blocked.count),
+                onClick = onOpenBlocked
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RuleGridCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.CheckCircle,
+                iconTint = MaterialTheme.colorScheme.primary,
+                iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+                label = stringResource(R.string.child_rules_allowed_label),
+                value = pluralStringResource(
+                    R.plurals.child_rules_apps_count,
+                    ui.alwaysAllowed.count,
+                    ui.alwaysAllowed.count
+                ),
+                onClick = onOpenAllowed
+            )
+            RuleGridCard(
+                modifier = Modifier.weight(1f),
+                icon = ImageVector.vectorResource(R.drawable.ic_clock),
+                iconTint = MaterialTheme.colorScheme.tertiary,
+                iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+                label = stringResource(R.string.child_rules_stats_label),
+                value = formatDurationMinutes(ui.usedMinutes),
+                onClick = onOpenStats
+            )
+        }
+    }
 }
 
+/** Подсказка для карточки «Лимиты»: первое лимитированное приложение и его остаток. `null`, если
+ * лимитированных приложений нет — карточка тогда просто без третьей строки, без «—»-заглушки. */
 @Composable
-private fun limitedSubtitle(limited: LimitedGroup, noneText: String): String {
-    val label = limited.firstLabel ?: return noneText
-    val minutesLeft = limited.firstMinutesLeft ?: return noneText
+private fun limitedGridSubtitle(limited: LimitedGroup): String? {
+    val label = limited.firstLabel ?: return null
+    val minutesLeft = limited.firstMinutesLeft ?: return null
     return if (minutesLeft <= 0) {
         stringResource(R.string.child_rules_limited_expired, label)
     } else {
-        stringResource(R.string.child_rules_limited_preview, label, formatDuration(minutesLeft))
+        stringResource(R.string.child_rules_limited_preview, label, formatDurationMinutes(minutesLeft))
     }
 }
 
 @Composable
-private fun RuleRow(
+private fun RuleGridCard(
     icon: ImageVector,
-    iconTint: Color = MaterialTheme.colorScheme.onSurface,
-    iconBackground: Color = MaterialTheme.colorScheme.surfaceContainer,
-    name: String,
-    subtitle: String,
-    count: Int
+    iconTint: Color,
+    iconBackground: Color,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
 ) {
+    // Фиксированная высота на все 4 карточки: у «Лимиты» есть третья строка-подсказка (первое
+    // лимитированное приложение), у остальных — нет, из-за чего карточки без подсказки были
+    // короче и сетка 2×2 «съезжала» (не выравнивалась по высоте между соседними карточками).
     GlassCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .height(140.dp),
+        contentPadding = PaddingValues(16.dp),
+        onClick = onClick
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(9.dp))
                     .background(iconBackground),
                 contentAlignment = Alignment.Center
             ) {
@@ -381,40 +469,34 @@ private fun RuleRow(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconTint,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Spacer(Modifier.height(9.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 1.dp)
+            )
+            if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
-    }
-    Spacer(modifier = Modifier.height(4.dp))
-}
-
-@Composable
-private fun formatDuration(minutes: Int): String {
-    val safe = minutes.coerceAtLeast(0)
-    return when {
-        // Целые часы показываем без «00 мин» — «2 ч» вместо «2 ч 00 мин» (как на макете).
-        safe >= 60 && safe % 60 == 0 -> stringResource(R.string.limit_value_h, safe / 60)
-        safe >= 60 -> stringResource(R.string.limit_value_hm, safe / 60, safe % 60)
-        else -> stringResource(R.string.limit_value_m, safe)
     }
 }

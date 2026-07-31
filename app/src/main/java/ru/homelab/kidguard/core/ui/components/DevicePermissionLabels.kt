@@ -50,3 +50,11 @@ fun DevicePermission.healthImpactRes(): Int = when (this) {
     DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_desc
     DevicePermission.VPN -> R.string.health_impact_vpn
 }
+
+/**
+ * Разрешения, без которых контроль не работает — совпадает с полями [ru.homelab.kidguard.core.domain.model.DeviceHealth]
+ * (accessibility/overlay/deviceAdmin/batteryOptimization/vpn). `NOTIFICATIONS` и `EMERGENCY_CALL` в
+ * DeviceHealth не входят (см. комментарий в DevicePermission.kt) — они необязательные.
+ */
+val DevicePermission.isRequired: Boolean
+    get() = this != DevicePermission.NOTIFICATIONS && this != DevicePermission.EMERGENCY_CALL

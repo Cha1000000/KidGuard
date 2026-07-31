@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +35,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
@@ -57,6 +55,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -75,19 +75,19 @@ import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.text.RussianDative
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 import ru.homelab.kidguard.ui.theme.ScheduleSleepDark
 import ru.homelab.kidguard.ui.theme.ScheduleSleepLight
 import ru.homelab.kidguard.ui.theme.ScheduleStudyDark
 import ru.homelab.kidguard.ui.theme.ScheduleStudyLight
+import ru.homelab.kidguard.ui.theme.WarningAccent
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.math.abs
-
-/** Тот же жёлтый предупреждающий акцент, что и в BlockedSitesScreen — единый цвет warning-плашек. */
-private val WarningColor = Color(0xFFF5B301)
 
 /** Высота, к которой выравниваются поле ввода и кнопка «Добавить» контакта. */
 private val InputRowHeight = 56.dp
@@ -151,7 +151,7 @@ fun ScheduleScreen(
                         titleRes = R.string.schedule_study_title,
                         hintRes = R.string.schedule_study_hint,
                         resetLabelRes = R.string.schedule_reset_study,
-                        icon = "🎒",
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_backpack),
                         accentColor = studyColor,
                         schedule = studySchedule,
                         today = today,
@@ -169,7 +169,7 @@ fun ScheduleScreen(
                             titleRes = R.string.schedule_sleep_title,
                             hintRes = R.string.schedule_sleep_hint,
                             resetLabelRes = R.string.schedule_reset_sleep,
-                            icon = "🌙",
+                            icon = ImageVector.vectorResource(id = R.drawable.ic_moon),
                             accentColor = sleepColor,
                             schedule = sleepSchedule,
                             today = today,
@@ -296,7 +296,7 @@ fun ScheduleScreen(
         } else {
             R.string.schedule_reset_sleep_title
         }
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { resetConfirmKind = null },
             title = { Text(stringResource(titleRes)) },
             text = { Text(stringResource(R.string.schedule_reset_message)) },
@@ -346,7 +346,7 @@ private fun ScheduleCard(
     @StringRes titleRes: Int,
     @StringRes hintRes: Int,
     @StringRes resetLabelRes: Int,
-    icon: String,
+    icon: ImageVector,
     accentColor: Color,
     schedule: ScheduleRules,
     today: DayOfWeek,
@@ -373,7 +373,12 @@ private fun ScheduleCard(
                     .background(accentColor.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = icon, style = MaterialTheme.typography.bodyMedium)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
+                )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = stringResource(titleRes), style = MaterialTheme.typography.titleMedium)
@@ -483,15 +488,15 @@ private fun PinWarningCard(onOpenPinSetup: () -> Unit, modifier: Modifier = Modi
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(WarningColor.copy(alpha = 0.12f))
-            .border(1.dp, WarningColor.copy(alpha = 0.4f), shape)
+            .background(WarningAccent.copy(alpha = 0.12f))
+            .border(1.dp, WarningAccent.copy(alpha = 0.4f), shape)
             .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(
             imageVector = Icons.Filled.Warning,
             contentDescription = null,
-            tint = WarningColor,
+            tint = WarningAccent,
             modifier = Modifier.size(20.dp)
         )
         Column {
@@ -506,7 +511,7 @@ private fun PinWarningCard(onOpenPinSetup: () -> Unit, modifier: Modifier = Modi
             ) {
                 Text(
                     text = stringResource(R.string.schedule_pin_warning_action),
-                    color = WarningColor,
+                    color = WarningAccent,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -689,7 +694,7 @@ private fun ScheduleTimeSheet(
     // размаху, шторка перехватывала на себя и закрывалась, теряя выставленное время. Закрыть
     // по-прежнему можно кнопками и тапом по затемнению — их onDismissRequest не проходит через
     // это состояние.
-    ModalBottomSheet(
+    GlassBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = true,

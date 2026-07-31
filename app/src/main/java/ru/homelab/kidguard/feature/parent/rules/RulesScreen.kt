@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
@@ -47,14 +48,17 @@ fun RulesScreen(
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.parent_tab_rules))
         ChildSelectorChip()
-        // LazyColumn, а не Column: на невысоких экранах 7 карточек не влезают целиком, и без
-        // прокрутки последняя («Всегда доступные») обрезалась. Отступ под док-бар — в
+        // LazyColumn, а не Column: на невысоких экранах 7 карточек (+ заголовки секций) не
+        // влезают целиком, и без прокрутки нижние карточки обрезались. Отступ под док-бар — в
         // contentPadding, чтобы нижняя карточка прокручивалась выше навигации, а не пряталась за ней.
         LazyColumn(
             modifier = Modifier.padding(horizontal = 16.dp),
             contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                RuleSectionHeader(R.string.rules_section_screen_time)
+            }
             item {
                 RuleCard(
                     icon = Icons.Filled.DateRange,
@@ -80,6 +84,17 @@ fun RulesScreen(
                 )
             }
             item {
+                RuleSectionHeader(R.string.rules_section_content_access)
+            }
+            item {
+                RuleCard(
+                    icon = Icons.Filled.CheckCircle,
+                    title = R.string.rules_whitelist_title,
+                    subtitle = R.string.rules_whitelist_subtitle,
+                    onClick = onOpenWhitelist
+                )
+            }
+            item {
                 RuleCard(
                     icon = ImageVector.vectorResource(R.drawable.ic_block),
                     title = R.string.rules_blocked_apps_title,
@@ -98,6 +113,9 @@ fun RulesScreen(
                 )
             }
             item {
+                RuleSectionHeader(R.string.rules_section_security)
+            }
+            item {
                 RuleCard(
                     icon = Icons.Filled.Lock,
                     title = R.string.rules_pin_title,
@@ -105,16 +123,19 @@ fun RulesScreen(
                     onClick = onOpenPinProtection
                 )
             }
-            item {
-                RuleCard(
-                    icon = Icons.Filled.CheckCircle,
-                    title = R.string.rules_whitelist_title,
-                    subtitle = R.string.rules_whitelist_subtitle,
-                    onClick = onOpenWhitelist
-                )
-            }
         }
     }
+}
+
+@Composable
+private fun RuleSectionHeader(@StringRes text: Int, modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(text),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 1.sp,
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp, start = 4.dp)
+    )
 }
 
 @Composable

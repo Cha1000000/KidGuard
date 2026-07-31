@@ -1,0 +1,345 @@
+<title>KidGuard — подбор иконок</title>
+<style>
+  :root {
+    --bg: #0e1c21;
+    --bg-glow: #04312b;
+    --surface: #17282e;
+    --surface-2: #1e353c;
+    --border: rgba(255,255,255,0.08);
+    --text: #e6eef0;
+    --text-muted: #9db2b8;
+    --teal: #4fd6b4;
+    --gold: #f5b301;
+    --lavender: #8aa4f7;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef4f6;
+    --bg-glow: #ffffff;
+    --surface: #f6fafb;
+    --surface-2: #dde7ea;
+    --border: rgba(22,35,42,0.10);
+    --text: #16232a;
+    --text-muted: #5b6b72;
+    --teal: #127a63;
+    --gold: #96670e;
+    --lavender: #3b4da6;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eef4f6;
+      --bg-glow: #ffffff;
+      --surface: #f6fafb;
+      --surface-2: #dde7ea;
+      --border: rgba(22,35,42,0.10);
+      --text: #16232a;
+      --text-muted: #5b6b72;
+      --teal: #127a63;
+      --gold: #96670e;
+      --lavender: #3b4da6;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse 900px 500px at 20% -10%, var(--bg-glow) 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 40px 24px 80px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .lede {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    max-width: 62ch;
+    line-height: 1.5;
+    margin: 0 0 40px;
+  }
+
+  section { margin-bottom: 48px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .section-head h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  .section-head .meaning {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .section-sub {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0 0 18px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .render-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  /* Точная копия паттерна из приложения: 30dp квадрат, 9dp скругление, alpha=0.16 фон, иконка 18dp */
+  .app-box {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .app-box svg { width: 18px; height: 18px; display: block; }
+
+  .big-box svg { width: 44px; height: 44px; display: block; }
+
+  .lib-label {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .accent-teal .app-box { background: color-mix(in srgb, var(--teal) 16%, transparent); }
+  .accent-teal svg { color: var(--teal); }
+  .accent-gold .app-box { background: color-mix(in srgb, var(--gold) 16%, transparent); }
+  .accent-gold svg { color: var(--gold); }
+  .accent-lavender .app-box { background: color-mix(in srgb, var(--lavender) 16%, transparent); }
+  .accent-lavender svg { color: var(--lavender); }
+
+  .context-strip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+    max-width: 360px;
+  }
+  .context-strip .txt { display: flex; flex-direction: column; gap: 2px; }
+  .context-strip .t1 { font-weight: 700; font-size: 0.95rem; }
+  .context-strip .t2 { font-size: 0.78rem; color: var(--text-muted); }
+</style>
+
+<div class="wrap">
+  <h1>Подбор иконок вместо эмодзи</h1>
+  <p class="lede">
+    Для каждой концепции — несколько вариантов из разных иконочных наборов, отрисованные ровно
+    так, как они появятся в приложении: в цветном квадрате 30dp с иконкой 18dp (масштаб слева
+    в карточке), плюс увеличенная версия справа — чтобы оценить силуэт. Внизу каждого раздела —
+    как это будет выглядеть в реальной строке экрана.
+  </p>
+
+  <section>
+    <div class="section-head">
+      <h2>Кофе</h2>
+      <span class="meaning">кнопка «Перерывы»</span>
+    </div>
+    <p class="section-sub">Акцент — бирюзовый (BreaksAccent), как на самой кнопке.</p>
+    <div class="grid accent-teal">
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-mdi-coffee"></span></div>
+          <div class="big-box"><span id="i-mdi-coffee-big"></span></div>
+        </div>
+        <div class="lib-label">mdi:coffee</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-ph-coffee"></span></div>
+          <div class="big-box"><span id="i-ph-coffee-big"></span></div>
+        </div>
+        <div class="lib-label">ph:coffee-fill</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-solar-coffee"></span></div>
+          <div class="big-box"><span id="i-solar-coffee-big"></span></div>
+        </div>
+        <div class="lib-label">solar:cup-hot-bold</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-tabler-coffee"></span></div>
+          <div class="big-box"><span id="i-tabler-coffee-big"></span></div>
+        </div>
+        <div class="lib-label">tabler:coffee</div>
+      </div>
+    </div>
+    <div class="context-strip">
+      <div class="app-box accent-teal-ctx" style="background:color-mix(in srgb, var(--teal) 16%, transparent);"><span id="i-ctx-coffee"></span></div>
+      <div class="txt">
+        <span class="t1">Перерывы</span>
+        <span class="t2">Через интервал использования</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Рюкзак</h2>
+      <span class="meaning">«Время учёбы» в расписании</span>
+    </div>
+    <p class="section-sub">Акцент — золотой (ScheduleStudy).</p>
+    <div class="grid accent-gold">
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-mdi-bag"></span></div>
+          <div class="big-box"><span id="i-mdi-bag-big"></span></div>
+        </div>
+        <div class="lib-label">mdi:bag-personal</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-ph-backpack"></span></div>
+          <div class="big-box"><span id="i-ph-backpack-big"></span></div>
+        </div>
+        <div class="lib-label">ph:backpack-fill</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-solar-backpack"></span></div>
+          <div class="big-box"><span id="i-solar-backpack-big"></span></div>
+        </div>
+        <div class="lib-label">solar:backpack-bold</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-mingcute-backpack"></span></div>
+          <div class="big-box"><span id="i-mingcute-backpack-big"></span></div>
+        </div>
+        <div class="lib-label">mingcute:backpack-fill</div>
+      </div>
+    </div>
+    <div class="context-strip">
+      <div class="app-box" style="background:color-mix(in srgb, var(--gold) 16%, transparent);"><span id="i-ctx-backpack"></span></div>
+      <div class="txt">
+        <span class="t1">Время учёбы</span>
+        <span class="t2">Мягкая блокировка: «Всегда доступные» работают</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Луна</h2>
+      <span class="meaning">«Время сна» в расписании</span>
+    </div>
+    <p class="section-sub">Акцент — сине-лавандовый (ScheduleSleep).</p>
+    <div class="grid accent-lavender">
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-mdi-moon"></span></div>
+          <div class="big-box"><span id="i-mdi-moon-big"></span></div>
+        </div>
+        <div class="lib-label">mdi:moon-waning-crescent</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-tabler-moon"></span></div>
+          <div class="big-box"><span id="i-tabler-moon-big"></span></div>
+        </div>
+        <div class="lib-label">tabler:moon-filled</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-ph-moon"></span></div>
+          <div class="big-box"><span id="i-ph-moon-big"></span></div>
+        </div>
+        <div class="lib-label">ph:moon-fill</div>
+      </div>
+      <div class="card">
+        <div class="render-row">
+          <div class="app-box"><span id="i-solar-moon"></span></div>
+          <div class="big-box"><span id="i-solar-moon-big"></span></div>
+        </div>
+        <div class="lib-label">solar:moon-bold</div>
+      </div>
+    </div>
+    <div class="context-strip">
+      <div class="app-box" style="background:color-mix(in srgb, var(--lavender) 16%, transparent);"><span id="i-ctx-moon"></span></div>
+      <div class="txt">
+        <span class="t1">Время сна</span>
+        <span class="t2">Полная блокировка, снимается только PIN</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const icons = {
+    'mdi-coffee': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M2 21h18v-2H2M20 8h-2V5h2m0-2H4v10a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-3h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/></svg>',
+    'ph-coffee': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path fill="currentColor" d="M208 80H32a8 8 0 0 0-8 8v48a96.3 96.3 0 0 0 32.54 72H32a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16h-24.54a96.6 96.6 0 0 0 27-40.09A40 40 0 0 0 248 128v-8a40 40 0 0 0-40-40m24 48a24 24 0 0 1-17.2 23a96 96 0 0 0 1.2-15V97.38A24 24 0 0 1 232 120ZM112 56V24a8 8 0 0 1 16 0v32a8 8 0 0 1-16 0m32 0V24a8 8 0 0 1 16 0v32a8 8 0 0 1-16 0m-64 0V24a8 8 0 0 1 16 0v32a8 8 0 0 1-16 0"/></svg>',
+    'solar-coffee': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M3.284 11.266c-.133-2-.2-2.999.393-3.632C4.27 7 5.272 7 7.276 7h5.449c2.003 0 3.005 0 3.598.634c.162.173.275.374.35.616H17c2.526 0 4.75 1.812 4.75 4.25s-2.224 4.25-4.75 4.25h-.65l-.035.5H3.685q-.029-.4-.058-.85zM16.45 15.25H17c1.892 0 3.25-1.322 3.25-2.75S18.892 9.75 17 9.75h-.2c-.012.43-.045.93-.084 1.516z" clip-rule="evenodd"/><path fill="currentColor" d="M3.819 18.75h12.362c-.144 1.177-.378 1.917-.938 2.44c-.865.81-2.196.81-4.856.81h-.774c-2.66 0-3.99 0-4.856-.81c-.56-.523-.794-1.263-.938-2.44"/><path fill="currentColor" fill-rule="evenodd" d="M6.977 1.327a.75.75 0 0 1 .175 1.046l-.386.541c.626.474.765 1.364.306 2.007l-.41.576a.75.75 0 0 1-1.222-.871l.386-.542a1.457 1.457 0 0 1-.306-2.007l.411-.575a.75.75 0 0 1 1.046-.175m4 0a.75.75 0 0 1 .175 1.046l-.386.541c.626.474.765 1.364.306 2.007l-.41.576a.75.75 0 1 1-1.222-.871l.386-.542a1.457 1.457 0 0 1-.306-2.007l.411-.575a.75.75 0 0 1 1.046-.175m4 0a.75.75 0 0 1 .175 1.046l-.386.541c.626.474.765 1.364.306 2.007l-.41.576a.75.75 0 1 1-1.222-.871l.386-.542a1.457 1.457 0 0 1-.306-2.007l.411-.575a.75.75 0 0 1 1.046-.175" clip-rule="evenodd"/></svg>',
+    'tabler-coffee': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path fill="currentColor" d="M3 14c.83.642 2.077 1.017 3.5 1c1.423.017 2.67-.358 3.5-1s2.077-1.017 3.5-1c1.423-.017 2.67.358 3.5 1M8 3a2.4 2.4 0 0 0-1 2a2.4 2.4 0 0 0 1 2m4-4a2.4 2.4 0 0 0-1 2a2.4 2.4 0 0 0 1 2"/><path fill="currentColor" d="M3 10h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6z"/><path fill="currentColor" d="M16.746 16.726a3 3 0 1 0 .252-5.555"/></g></svg>',
+
+    'mdi-bag': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M16 5V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1a4 4 0 0 0-4 4v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a4 4 0 0 0-4-4m-6-1h4v1h-4zm2 5l2 2l-2 2l-2-2zm6 7H9v2H8v-2H6v-1h12z"/></svg>',
+    'ph-backpack': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path fill="currentColor" d="M168 40.58V32a24 24 0 0 0-24-24h-32a24 24 0 0 0-24 24v8.58A56.09 56.09 0 0 0 40 96v120a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16V96a56.09 56.09 0 0 0-48-55.42M104 32a8 8 0 0 1 8-8h32a8 8 0 0 1 8 8v8h-48Zm8 40h32a8 8 0 0 1 0 16h-32a8 8 0 0 1 0-16m64 144H80v-40h56v8a8 8 0 0 0 16 0v-8h24Zm0-56H80v-8a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16Z"/></svg>',
+    'solar-backpack': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M7.292 4.786v-.061c0-.339.011-.782.165-1.222A3.75 3.75 0 0 1 11 1h2a3.75 3.75 0 0 1 3.544 2.503c.153.44.165.883.165 1.222v.06a5.97 5.97 0 0 1 4.29 5.631l.001.18v2.323a.8.8 0 0 0-.304.064a21.54 21.54 0 0 1-17.391 0A.75.75 0 0 0 3 12.92v-2.503a5.97 5.97 0 0 1 4.291-5.63m1.582-.794A2.25 2.25 0 0 1 11 2.49h2c.983 0 1.82.626 2.126 1.502c.046.13.068.28.077.47c-2.12-.36-4.286-.36-6.406 0c.009-.19.031-.34.077-.47m.376 8.679c0-.412.336-.745.75-.745h4c.414 0 .75.333.75.745a.747.747 0 0 1-.75.745h-4a.747.747 0 0 1-.75-.745" clip-rule="evenodd"/><path fill="currentColor" d="M21 14.477q-1.352.573-2.75.966v1.201a.747.747 0 0 1-.75.745a.747.747 0 0 1-.75-.745v-.832A23.06 23.06 0 0 1 3 14.477v1.546a4.495 4.495 0 0 0 3.539 4.381c3.597.794 7.325.794 10.923 0A4.495 4.495 0 0 0 21 16.025z"/></svg>',
+    'mingcute-backpack': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" fill-rule="evenodd"><path fill="currentColor" d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2a4 4 0 0 1 3.894 3.08A5 5 0 0 1 20 10v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9a5 5 0 0 1 4.106-4.92A4 4 0 0 1 12 2m3 16H9v2h6zm-1-4h-4a1 1 0 0 0-.993.883L9 15v1h6v-1a1 1 0 0 0-.883-.993zm-1-5h-2a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2m-1-5a2 2 0 0 0-1.732 1h3.464A2 2 0 0 0 12 4"/></g></svg>',
+
+    'mdi-moon': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M2 12a10 10 0 0 0 13 9.54a10 10 0 0 1 0-19.08A10 10 0 0 0 2 12"/></svg>',
+    'tabler-moon': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.992a10 10 0 1 0 9.236 13.838c.341-.82-.476-1.644-1.298-1.31a6.5 6.5 0 0 1-6.864-10.787l.077-.08c.551-.63.113-1.653-.758-1.653h-.266l-.068-.006z"/></svg>',
+    'ph-moon': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path fill="currentColor" d="M235.54 150.21a104.84 104.84 0 0 1-37 52.91A104 104 0 0 1 32 120a103.1 103.1 0 0 1 20.88-62.52a104.84 104.84 0 0 1 52.91-37a8 8 0 0 1 10 10a88.08 88.08 0 0 0 109.8 109.8a8 8 0 0 1 10 10Z"/></svg>',
+    'solar-moon': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10c0-.463-.694-.54-.933-.143a6.5 6.5 0 1 1-8.924-8.924C12.54 2.693 12.463 2 12 2C6.477 2 2 6.477 2 12s4.477 10 10 10"/></svg>'
+  };
+
+  function place(id, svg) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = svg;
+  }
+
+  const pairs = [
+    ['mdi-coffee', 'i-mdi-coffee'], ['mdi-coffee', 'i-mdi-coffee-big'],
+    ['ph-coffee', 'i-ph-coffee'], ['ph-coffee', 'i-ph-coffee-big'],
+    ['solar-coffee', 'i-solar-coffee'], ['solar-coffee', 'i-solar-coffee-big'],
+    ['tabler-coffee', 'i-tabler-coffee'], ['tabler-coffee', 'i-tabler-coffee-big'],
+    ['mdi-bag', 'i-mdi-bag'], ['mdi-bag', 'i-mdi-bag-big'],
+    ['ph-backpack', 'i-ph-backpack'], ['ph-backpack', 'i-ph-backpack-big'],
+    ['solar-backpack', 'i-solar-backpack'], ['solar-backpack', 'i-solar-backpack-big'],
+    ['mingcute-backpack', 'i-mingcute-backpack'], ['mingcute-backpack', 'i-mingcute-backpack-big'],
+    ['mdi-moon', 'i-mdi-moon'], ['mdi-moon', 'i-mdi-moon-big'],
+    ['tabler-moon', 'i-tabler-moon'], ['tabler-moon', 'i-tabler-moon-big'],
+    ['ph-moon', 'i-ph-moon'], ['ph-moon', 'i-ph-moon-big'],
+    ['solar-moon', 'i-solar-moon'], ['solar-moon', 'i-solar-moon-big'],
+    ['solar-coffee', 'i-ctx-coffee'],
+    ['ph-backpack', 'i-ctx-backpack'],
+    ['solar-moon', 'i-ctx-moon']
+  ];
+  pairs.forEach(([key, id]) => place(id, icons[key]));
+</script>

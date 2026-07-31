@@ -8,14 +8,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -23,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.OutlinedButton
@@ -43,18 +44,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
-import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.ui.components.GlassDangerButton
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.ui.theme.BreaksAccentDark
 import ru.homelab.kidguard.ui.theme.BreaksAccentLight
-import ru.homelab.kidguard.ui.theme.DangerAccentDark
-import ru.homelab.kidguard.ui.theme.DangerAccentLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -106,51 +108,6 @@ fun DailyLimitScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
-            // окантовку приглушаем, чтобы читалась как неактивная.
-            val resetGold = MaterialTheme.colorScheme.tertiary
-            OutlinedButton(
-                onClick = { showResetTodayConfirm = true },
-                enabled = todayHasLimit,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = resetGold),
-                border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_refresh),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.daily_limit_reset_today),
-                    fontSize = 16.sp
-                )
-            }
-            // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
-            val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
-            OutlinedButton(
-                onClick = { showBlockTodayConfirm = true },
-                enabled = todayHasLimit,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed),
-                border = BorderStroke(1.dp, dangerRed.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.daily_limit_block_today),
-                    fontSize = 16.sp
-                )
-            }
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val days = DayOfWeek.entries
@@ -162,6 +119,63 @@ fun DailyLimitScreen(
                             onClick = { editingDay = day }
                         )
                         if (index < days.lastIndex) HorizontalDivider()
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
+                // окантовку приглушаем, чтобы читалась как неактивная.
+                val resetGold = MaterialTheme.colorScheme.tertiary
+                OutlinedButton(
+                    onClick = { showResetTodayConfirm = true },
+                    enabled = todayHasLimit,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = resetGold),
+                    border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.daily_limit_reset_today),
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+                // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
+                GlassDangerButton(
+                    onClick = { showBlockTodayConfirm = true },
+                    enabled = todayHasLimit,
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.daily_limit_block_today),
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
@@ -177,7 +191,13 @@ fun DailyLimitScreen(
                     .fillMaxWidth()
                     .padding(top = 12.dp)
             ) {
-                Text("☕ " + stringResource(R.string.daily_limit_breaks_button))
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_coffee),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(text = stringResource(R.string.daily_limit_breaks_button), fontSize = 16.sp)
             }
             TextButton(
                 onClick = { showResetConfirm = true },
@@ -196,7 +216,7 @@ fun DailyLimitScreen(
     }
 
     if (showResetConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_reset_all_title)) },
             text = { Text(stringResource(R.string.daily_limit_reset_all_message)) },
@@ -220,7 +240,7 @@ fun DailyLimitScreen(
     }
 
     if (showResetTodayConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showResetTodayConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_reset_today_title)) },
             text = { Text(stringResource(R.string.daily_limit_reset_today_message)) },
@@ -241,7 +261,7 @@ fun DailyLimitScreen(
     }
 
     if (showBlockTodayConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showBlockTodayConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_block_today_title)) },
             text = { Text(stringResource(R.string.daily_limit_block_today_message)) },
@@ -329,7 +349,7 @@ private fun LimitEditorSheet(
 ) {
     var minutes by remember { mutableIntStateOf(currentMinutes ?: DEFAULT_MINUTES) }
     var applyToAll by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(stringResource(day.nameRes()), style = MaterialTheme.typography.titleLarge)
             Text(

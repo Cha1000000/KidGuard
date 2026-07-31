@@ -56,6 +56,7 @@
     <string name="coparent_pending">Приглашение отправлено — родитель получит доступ после входа</string>
     <string name="common_cancel">Отмена</string>
     <string name="common_error">Что-то пошло не так. Проверьте подключение и попробуйте снова.</string>
+    <string name="common_retry">Повторить</string>
 
     <!-- Родитель: нижняя навигация -->
     <string name="parent_tab_children">Дети</string>
@@ -92,6 +93,9 @@
     <string name="rules_schedule_subtitle">Часы учёбы и сна, когда телефон закрыт</string>
     <string name="rules_pin_title">PIN-защита</string>
     <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
+    <string name="rules_section_screen_time">ВРЕМЯ ЭКРАНА</string>
+    <string name="rules_section_content_access">ДОСТУП К КОНТЕНТУ</string>
+    <string name="rules_section_security">БЕЗОПАСНОСТЬ</string>
     <string name="common_back">Назад</string>
     <string name="common_save">Сохранить</string>
 
@@ -261,8 +265,8 @@
     <string name="child_greeting_name_fallback">друг</string>
     <!-- Кольцо остатка времени -->
     <string name="child_time_remaining_of">осталось из %1$s</string>
-    <string name="child_bonus_chip">🎁 +%1$s от родителей</string>
-    <string name="child_guard_status">🛡 Телефон под присмотром KidGuard</string>
+    <string name="child_bonus_chip">+%1$s от родителей</string>
+    <string name="child_guard_status">Телефон под присмотром KidGuard</string>
     <!-- Состояние «время вышло» -->
     <string name="child_time_expired_title">Время вышло</string>
     <string name="child_time_expired_sub">Израсходовано %1$s из %1$s.\nДоступны только «всегда доступные» приложения.</string>
@@ -271,12 +275,36 @@
     <string name="child_time_nolimit_sub">Сегодня свободный день — пользуйся без ограничений.</string>
     <!-- Раздел «Мои правила» -->
     <string name="child_rules_title">Мои правила</string>
-    <string name="child_rules_allowed_name">Всегда доступные</string>
-    <string name="child_rules_limited_name">С лимитом</string>
     <string name="child_rules_limited_preview">%1$s — осталось %2$s</string>
     <string name="child_rules_limited_expired">%1$s — лимит исчерпан</string>
-    <string name="child_rules_blocked_name">Запрещённые</string>
     <string name="child_rules_none">—</string>
+    <string name="child_rules_limits_label">Лимиты</string>
+    <string name="child_rules_blocked_label">Запрещено</string>
+    <string name="child_rules_allowed_label">Доступно</string>
+    <string name="child_rules_stats_label">Сегодня</string>
+    <plurals name="child_rules_apps_count">
+        <item quantity="one">%d приложение</item>
+        <item quantity="few">%d приложения</item>
+        <item quantity="many">%d приложений</item>
+        <item quantity="other">%d приложений</item>
+    </plurals>
+    <!-- Заголовки детальных экранов правил. Отдельно от коротких подписей карточек сетки
+         (child_rules_*_label): в заголовке места больше, поэтому формулировки развёрнутые. -->
+    <string name="child_limits_title">Лимиты приложений</string>
+    <string name="child_blocked_title">Запрещённые приложения</string>
+    <string name="child_allowed_title">Всегда доступные</string>
+    <string name="child_limits_spent">Потрачено %1$s из %2$s</string>
+    <string name="child_limits_expired">Лимит исчерпан</string>
+    <string name="child_limits_empty_title">Лимитов пока нет</string>
+    <string name="child_limits_empty_desc">Родитель не ограничил по времени ни одно приложение.</string>
+    <string name="child_blocked_empty_title">Запрещённых приложений нет</string>
+    <string name="child_blocked_empty_desc">Родитель не закрыл ни одно приложение.</string>
+    <string name="child_allowed_empty_title">Список пуст</string>
+    <string name="child_allowed_empty_desc">Приложения, доступные даже после лимита, пока не выбраны.</string>
+    <string name="child_stats_empty_title">Пока ничего не наиграно</string>
+    <string name="child_stats_empty_desc">Здесь появится, сколько времени ушло на каждое приложение.</string>
+    <string name="child_today_error_title">Не удалось загрузить</string>
+    <string name="child_today_error_desc">Проверьте подключение к интернету. Экран обновится сам, как только связь появится.</string>
     <!-- Локальный аватар ребёнка (веха 4.1.5) -->
     <string name="child_avatar_edit_cd">Сменить аватар</string>
     <string name="child_avatar_picker_title">Выбери свой аватар</string>
@@ -289,6 +317,15 @@
     <string name="permissions_grant">Выдать</string>
     <string name="permissions_granted">Выдано</string>
     <string name="permissions_continue">Продолжить</string>
+    <string name="permissions_progress">Выдано %1$d из %2$d</string>
+    <string name="permissions_section_required">ОБЯЗАТЕЛЬНЫЕ</string>
+    <string name="permissions_section_optional">ДОПОЛНИТЕЛЬНЫЕ</string>
+    <string name="permissions_required_badge">ОБЯЗАТЕЛЬНО</string>
+    <string name="permissions_warning_title">Продолжить без всех разрешений?</string>
+    <string name="permissions_warning_message">Без этого контроль не будет работать полностью:</string>
+    <string name="permissions_warning_question">Вернуться и выдать сейчас, или продолжить и донастроить позже?</string>
+    <string name="permissions_warning_cancel">Вернуться</string>
+    <string name="permissions_warning_proceed">Всё равно продолжить</string>
     <string name="permissions_done">Готово</string>
     <string name="child_pin_title">Разрешения</string>
     <string name="child_pin_prompt">Введите PIN родителя</string>
@@ -312,11 +349,11 @@
     <string name="permission_emergency_call_desc">Чтобы с ночного экрана блокировки ребёнок звонил вам одним нажатием. Без разрешения откроется телефон с уже набранным номером — на одно нажатие больше.</string>
     <!-- Watchdog (веха 6): что видит родитель, когда контроль на телефоне ребёнка сломан.
          Ребёнку не показывается ничего — это подсказка «защиты нет, можно гулять». -->
-    <string name="child_health_broken">⚠ Не работает: %1$s</string>
+    <string name="child_health_broken">Не работает: %1$s</string>
     <!-- Сломано несколько: показываем первое и честно говорим, что есть ещё. Иначе родитель
          починит одно и решит, что всё. Полный список — в листе по тапу. -->
-    <string name="child_health_broken_more">⚠ Не работает: %1$s и ещё %2$d</string>
-    <string name="child_health_silent">⚠ Не выходил на связь %1$s</string>
+    <string name="child_health_broken_more">Не работает: %1$s и ещё %2$d</string>
+    <string name="child_health_silent">Не выходил на связь %1$s</string>
     <string name="child_health_broken_title">Контроль не работает</string>
     <string name="child_health_silent_title">Устройство не выходит на связь</string>
     <string name="child_health_last_seen">Последняя связь: %1$s</string>

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: детальные экраны «Мои правила»</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1400px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:70ch; }
+  .intro ul { margin:10px 0 0; padding-left:20px; color:var(--page-muted); max-width:70ch; }
+  .intro li { margin-bottom:4px; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+
+  .screens { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:24px; margin-top:18px; align-items:start; }
+  @media (max-width:1300px){ .screens{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:700px){ .screens{ grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:320px; margin:0 auto; border-radius:36px; padding:11px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#d1544e; --scr-warn:#f5b301;
+    border-radius:26px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:0 14px 18px; min-height:640px; position:relative;
+  }
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#b3261e; --scr-warn:#a86400;
+  }
+
+  .topbar { display:flex; align-items:center; gap:10px; padding:14px 2px 10px; }
+  .topbar .back { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--scr-glass); border:1px solid var(--scr-glass-border); flex:none; }
+  .topbar .back svg { width:16px; height:16px; fill:var(--scr-fg); }
+  .topbar .title { font-size:15px; font-weight:700; }
+
+  .row { display:flex; align-items:center; gap:12px; padding:11px 4px; }
+  .row + .row { border-top:1px solid var(--scr-glass-border); }
+  .row .ic { width:38px; height:38px; border-radius:11px; flex:none; background:linear-gradient(140deg,#7e57c2,#42a5f5);
+    display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#fff; }
+  .row .body { flex:1; min-width:0; }
+  .row .name { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .sub { font-size:11.5px; color:var(--scr-muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .val { font-size:13px; font-weight:700; color:var(--scr-accent); flex:none; text-align:right; }
+  .row.limits .val { color:var(--scr-warn); }
+
+  .empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:64px 20px 0; }
+  .empty .eico { width:52px; height:52px; border-radius:50%; background:var(--scr-glass); border:1px solid var(--scr-glass-border);
+    display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+  .empty .eico svg { width:24px; height:24px; fill:var(--scr-muted); }
+  .empty .etitle { font-size:14px; font-weight:700; color:var(--scr-muted); }
+
+  .today-card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:18px; padding:14px 16px; margin:4px 2px 16px; display:flex; align-items:center; }
+  .today-card .tlabel { font-size:11.5px; color:var(--scr-muted); }
+  .today-card .tval { font-size:26px; font-weight:800; color:var(--scr-accent); margin-top:2px; }
+  .today-card .tlimit { font-size:11.5px; color:var(--scr-muted); margin-top:3px; }
+  .today-card .tico { width:38px; height:38px; border-radius:11px; background:rgba(79,195,176,.16); display:flex; align-items:center; justify-content:center; margin-left:auto; }
+  .today-card .tico svg { width:18px; height:18px; fill:var(--scr-accent); }
+
+  .section-label { font-size:12px; font-weight:700; color:var(--scr-muted); margin:2px 4px 8px; text-transform:uppercase; letter-spacing:.04em; }
+
+  .bar-row { padding:9px 4px; }
+  .bar-row .top { display:flex; align-items:center; gap:12px; }
+  .bar-row .ic { width:34px; height:34px; border-radius:10px; flex:none; background:linear-gradient(140deg,#26a69a,#42a5f5);
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; }
+  .bar-row .body { flex:1; min-width:0; }
+  .bar-row .name { font-size:13.5px; font-weight:600; }
+  .bar-row .pkg { font-size:10.5px; color:var(--scr-muted); }
+  .bar-row .time { font-size:12.5px; font-weight:700; color:var(--scr-accent); }
+  .bar-row .track { height:5px; border-radius:3px; background:var(--scr-glass-border); margin:6px 0 0 46px; overflow:hidden; }
+  .bar-row .fill { height:100%; background:var(--scr-accent); border-radius:3px; }
+
+  .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
+  @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard p + p { margin-top:8px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование</p>
+    <h1>Детальные экраны «Мои правила» — по тапу на карточки сетки 2×2</h1>
+    <p>Сейчас 4 карточки сетки на экране «Сегодня» (Лимиты / Запрещено / Доступно / Сегодня) —
+      просто витрина с цифрой, некликабельны. Задача: по тапу открывать детальный список.
+      Экраны read-only — ребёнок смотрит свои правила, изменить лимиты/списки может только
+      родитель через свои PIN-защищённые экраны.</p>
+    <ul>
+      <li><b>«Лимиты»</b> — какие приложения ограничены по времени и сколько именно (потрачено
+        сегодня / дневной лимит).</li>
+      <li><b>«Запрещено»</b> / <b>«Доступно»</b> — простой список приложений, без цифр.</li>
+      <li><b>«Сегодня»</b> — тот же блок «Экранное время сегодня» + «По приложениям», что и в
+        родительской «Статистике», но БЕЗ выбора ребёнка и БЕЗ графика за неделю (эти два блока
+        Володя явно исключил на скриншоте) — только сегодняшний день.</li>
+    </ul>
+  </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- ЭКРАН 1: Лимиты -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Лимиты</div>
+          </div>
+          <div class="row limits">
+            <div class="ic" style="background:linear-gradient(140deg,#ff7043,#ffb300)">Y</div>
+            <div class="body"><div class="name">YouTube</div><div class="sub">потрачено 30 / 60 мин сегодня</div></div>
+            <div class="val">60 мин</div>
+          </div>
+          <div class="row limits">
+            <div class="ic" style="background:linear-gradient(140deg,#5c7cfa,#26a69a)">Р</div>
+            <div class="body"><div class="name">Роблокс</div><div class="sub">лимит исчерпан — 45 / 45 мин</div></div>
+            <div class="val">45 мин</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>1</b> · «Лимиты» — приложение, сколько уже потрачено сегодня, дневной лимит справа</div>
+    </div>
+
+    <!-- ЭКРАН 2: Запрещено -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Запрещено</div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:linear-gradient(140deg,#ec627b,#7e57c2)">T</div>
+            <div class="body"><div class="name">TikTok</div><div class="sub">com.zhiliaoapp.musically</div></div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:linear-gradient(140deg,#9ccc65,#26a69a)">D</div>
+            <div class="body"><div class="name">Discord</div><div class="sub">com.discord</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>2</b> · «Запрещено» — простой список, без цифр и действий</div>
+    </div>
+
+    <!-- ЭКРАН 3: Доступно -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Доступно</div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:linear-gradient(140deg,#42a5f5,#26a69a)">К</div>
+            <div class="body"><div class="name">Камера</div><div class="sub">com.android.camera2</div></div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:linear-gradient(140deg,#ffb300,#ff7043)">Т</div>
+            <div class="body"><div class="name">Телефон</div><div class="sub">com.android.dialer</div></div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:linear-gradient(140deg,#7e57c2,#5c7cfa)">Ч</div>
+            <div class="body"><div class="name">Читалка</div><div class="sub">com.example.reader</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>3</b> · «Доступно» — приложения без ограничений, доступны даже после исчерпания лимита</div>
+    </div>
+
+    <!-- ЭКРАН 4: Сегодня -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Сегодня</div>
+          </div>
+          <div class="today-card">
+            <div>
+              <div class="tlabel">Экранное время сегодня</div>
+              <div class="tval">2 ч 55 мин</div>
+              <div class="tlimit">Лимит: 3 ч 00 мин · осталось 5 мин</div>
+            </div>
+            <div class="tico"><svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.27 14.3H3.73L12 5.45zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg></div>
+          </div>
+          <div class="section-label">По приложениям · сегодня</div>
+          <div class="bar-row">
+            <div class="top">
+              <div class="ic">R</div>
+              <div class="body"><div class="name">Roblox</div><div class="pkg">com.roblox.client</div></div>
+              <div class="time">1 ч 20 мин</div>
+            </div>
+            <div class="track"><div class="fill" style="width:70%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="top">
+              <div class="ic" style="background:linear-gradient(140deg,#42a5f5,#7e57c2)">S</div>
+              <div class="body"><div class="name">SmartPanel</div><div class="pkg">com.transsion.smartpanel</div></div>
+              <div class="time">11 мин</div>
+            </div>
+            <div class="track"><div class="fill" style="width:8%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="top">
+              <div class="ic" style="background:linear-gradient(140deg,#ec627b,#ffb300)">J</div>
+              <div class="body"><div class="name">Juggle</div><div class="pkg">com.block.juggle</div></div>
+              <div class="time">7 мин</div>
+            </div>
+            <div class="track"><div class="fill" style="width:5%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>4</b> · «Сегодня» — как родительская «Статистика», но без выбора ребёнка и без графика недели</div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <div class="ncard">
+      <h3>Откуда данные — везде локально, без сети</h3>
+      <p>Все 4 экрана читают ту же связку, что уже использует <code>TodayViewModel</code>:
+        <code>PolicyRepository</code> (лимиты/чёрный/белый список) + <code>UsageRepository</code>
+        (потрачено сегодня по пакетам) + <code>InstalledAppsSource.launchableApps()</code>
+        (имена и иконки с этого же устройства). Сетевых запросов нет — в отличие от родительской
+        «Статистики», которая тянет историю с сервера.</p>
+    </div>
+    <div class="ncard">
+      <h3>Почему «Сегодня» без графика и без выбора ребёнка</h3>
+      <p>На детском устройстве всегда один ребёнок — свой; выбирать некого. График «последние 7
+        дней» — по вашему фидбэку, для детского экрана оставляем только сегодняшний срез, без
+        недельной истории.</p>
+    </div>
+    <div class="ncard">
+      <h3>Пустые состояния</h3>
+      <p>Если списки пустые (например, лимитов на приложения не задано вообще) — вместо пустого
+        экрана показывается <code>EmptyState</code> (тот же компонент, что уже используется на
+        других экранах): иконка + короткая подпись «Нет приложений с лимитом» и т.п.</p>
+    </div>
+    <div class="ncard">
+      <h3>Что НЕ входит в эту фичу</h3>
+      <p>Экраны только для просмотра — тапнуть по строке приложения в списке и что-то изменить
+        (снять лимит, разблокировать) нельзя. Управление правилами остаётся только у родителя в
+        PIN-защищённых экранах «Правила».</p>
+    </div>
+  </div>
+
+  <div class="foot">Файл: <code>docs/ui-concepts/child-rules-detail/child-rules-detail-mockup.html</code> · после согласования — реализация 4 новых экранов в <code>feature/child/rules/</code> + навигация внутри <code>ChildScreen.kt</code>.</div>
+</div>
+
+<script>
+  function setTheme(t) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', t === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  }
+</script>
+</body>
+</html>

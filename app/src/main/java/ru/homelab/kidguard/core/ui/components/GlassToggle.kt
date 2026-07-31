@@ -5,9 +5,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -102,10 +103,13 @@ fun GlassToggle(
                 ),
                 shape = trackShape
             )
-            .clickable(
+            .toggleable(
+                value = checked,
+                onValueChange = onCheckedChange,
+                role = Role.Switch,
                 interactionSource = interactionSource,
                 indication = null
-            ) { onCheckedChange(!checked) }
+            )
             .padding(3.dp)
     ) {
         // Бегунок с эффектом свечения
