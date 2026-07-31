@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -26,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.OutlinedButton
@@ -53,11 +51,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDangerButton
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.ui.theme.BreaksAccentDark
 import ru.homelab.kidguard.ui.theme.BreaksAccentLight
-import ru.homelab.kidguard.ui.theme.DangerAccentDark
-import ru.homelab.kidguard.ui.theme.DangerAccentLight
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -157,12 +156,9 @@ fun DailyLimitScreen(
                     }
                 }
                 // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
-                val dangerRed = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
-                OutlinedButton(
+                GlassDangerButton(
                     onClick = { showBlockTodayConfirm = true },
                     enabled = todayHasLimit,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed),
-                    border = BorderStroke(1.dp, dangerRed.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
                     shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
                     modifier = Modifier.weight(1f)
@@ -220,7 +216,7 @@ fun DailyLimitScreen(
     }
 
     if (showResetConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_reset_all_title)) },
             text = { Text(stringResource(R.string.daily_limit_reset_all_message)) },
@@ -244,7 +240,7 @@ fun DailyLimitScreen(
     }
 
     if (showResetTodayConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showResetTodayConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_reset_today_title)) },
             text = { Text(stringResource(R.string.daily_limit_reset_today_message)) },
@@ -265,7 +261,7 @@ fun DailyLimitScreen(
     }
 
     if (showBlockTodayConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showBlockTodayConfirm = false },
             title = { Text(stringResource(R.string.daily_limit_block_today_title)) },
             text = { Text(stringResource(R.string.daily_limit_block_today_message)) },
@@ -353,7 +349,7 @@ private fun LimitEditorSheet(
 ) {
     var minutes by remember { mutableIntStateOf(currentMinutes ?: DEFAULT_MINUTES) }
     var applyToAll by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(stringResource(day.nameRes()), style = MaterialTheme.typography.titleLarge)
             Text(
