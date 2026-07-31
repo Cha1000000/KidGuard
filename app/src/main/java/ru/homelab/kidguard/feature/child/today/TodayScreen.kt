@@ -442,9 +442,14 @@ private fun RuleGridCard(
     modifier: Modifier = Modifier,
     subtitle: String? = null
 ) {
+    // Фиксированная высота на все 4 карточки: у «Лимиты» есть третья строка-подсказка (первое
+    // лимитированное приложение), у остальных — нет, из-за чего карточки без подсказки были
+    // короче и сетка 2×2 «съезжала» (не выравнивалась по высоте между соседними карточками).
     GlassCard(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(12.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .height(140.dp),
+        contentPadding = PaddingValues(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -464,7 +469,7 @@ private fun RuleGridCard(
             Spacer(Modifier.height(9.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
