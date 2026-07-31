@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: Мастер разрешений (Фаза 3)</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1180px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:70ch; }
+  .intro ul { margin:10px 0 0; padding-left:20px; color:var(--page-muted); max-width:70ch; }
+  .intro li { margin-bottom:4px; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+
+  .screens { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:24px; margin-top:18px; align-items:start; }
+  @media (max-width:860px){ .screens{ grid-template-columns:1fr; gap:32px; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:390px; margin:0 auto; border-radius:40px; padding:12px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  /* Тёмная тема приложения (Deep Teal) — значения из ui/theme/Color.kt */
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#d1544e;
+    --track-off:rgba(157,178,184,.22);
+    border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:14px 14px 18px; min-height:780px; position:relative;
+  }
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#b3261e;
+    --track-off:rgba(91,107,114,.22);
+  }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:4px 6px 10px; }
+  .topbar { display:flex; align-items:center; gap:10px; padding:0 2px 4px; }
+  .topbar .back { color:var(--scr-muted); font-size:20px; }
+  .topbar h2 { font-size:19px; margin:0; font-weight:700; }
+  .subtitle { font-size:12px; color:var(--scr-muted); margin:8px 4px 14px; }
+
+  /* --- Прогресс: счётчик + степ-индикатор (LinearStepIndicator) --- */
+  .progress-row { display:flex; justify-content:space-between; align-items:baseline; margin:0 4px 6px; }
+  .progress-label { font-size:12.5px; color:var(--scr-muted); }
+  .progress-label b { color:var(--scr-fg); font-variant-numeric: tabular-nums; }
+  .steps { display:flex; gap:5px; margin:0 4px 16px; }
+  .steps i { flex:1; height:4px; border-radius:2px; background:var(--track-off); display:block; }
+  .steps i.on { background:var(--scr-accent); }
+
+  .section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--scr-muted); margin:16px 4px 8px; }
+  .section-title:first-of-type { margin-top:0; }
+
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:12px 14px; margin-bottom:9px; }
+  .prow { display:flex; align-items:center; gap:12px; }
+  .prow .ico { width:32px; height:32px; border-radius:10px; flex:none; display:grid; place-items:center; font-size:16px; background:rgba(79,195,176,.14); }
+  .prow.required .ico { background:rgba(79,195,176,.14); }
+  .prow .pinfo { flex:1; min-width:0; }
+  .prow .ptitle { font-size:14px; font-weight:600; }
+  .prow .pdesc { font-size:11.5px; color:var(--scr-muted); margin-top:2px; line-height:1.35; }
+  .badge-req { font-size:9.5px; font-weight:700; color:var(--scr-danger); border:1px solid var(--scr-danger);
+    border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:middle; letter-spacing:.02em; }
+  .granted { width:26px; height:26px; border-radius:50%; background:var(--scr-accent); color:var(--scr-on-accent);
+    display:grid; place-items:center; font-size:14px; font-weight:800; flex:none; }
+  .grantbtn { border:1px solid var(--scr-glass-border); background:transparent; color:var(--scr-fg); font-size:12px;
+    font-weight:600; border-radius:10px; padding:7px 13px; font-family:inherit; cursor:pointer; flex:none; }
+
+  .info-card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:16px; padding:13px 14px; margin-bottom:9px; }
+  .info-card .ititle { font-size:13.5px; font-weight:600; }
+  .info-card .idesc { font-size:11px; color:var(--scr-muted); margin-top:4px; line-height:1.4; }
+  .info-card button { margin-top:10px; border:none; border-radius:10px; padding:8px 13px; background:transparent;
+    border:1px solid var(--scr-glass-border); color:var(--scr-fg); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+
+  .continue-btn { width:100%; margin-top:12px; border:none; border-radius:14px; padding:13px 0; font-size:14.5px;
+    font-weight:700; background:var(--scr-accent); color:var(--scr-on-accent); cursor:pointer; font-family:inherit; }
+
+  /* --- Диалог предупреждения (GlassDialog) --- */
+  .scrim { position:absolute; inset:0; background:rgba(4,8,7,.62); display:flex; align-items:center; justify-content:center; padding:26px; }
+  .gdialog { width:100%; background:var(--scr-bg1); border:1px solid var(--scr-glass-border); border-radius:24px; padding:20px; }
+  .screen.light .gdialog { background:#f6fafb; }
+  .gdialog h3 { margin:0 0 10px; font-size:17px; font-weight:700; }
+  .gdialog p { margin:0 0 8px; font-size:12.5px; color:var(--scr-muted); line-height:1.5; }
+  .gdialog .missing-list { margin:0 0 14px; padding-left:18px; font-size:12.5px; color:var(--scr-fg); }
+  .gdialog .missing-list li { margin-bottom:3px; }
+  .gdialog-actions { display:flex; justify-content:flex-end; gap:16px; margin-top:4px; }
+  .gdialog-actions .txt { font-size:13px; font-weight:700; background:none; border:none; cursor:pointer; font-family:inherit; }
+  .gdialog-actions .cancel { color:var(--scr-accent); }
+  .gdialog-actions .proceed { color:var(--scr-danger); }
+
+  .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
+  @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard p + p { margin-top:8px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование · Фаза 3 UI-аудита</p>
+    <h1>Мастер разрешений: прогресс, группировка, предупреждение</h1>
+    <p>Экран <code>PermissionsWizardScreen</code> — самый рискованный для отвала родителя на
+       середине настройки (7 разрешений подряд, без единой карточки не понять, сколько ещё
+       осталось). Что меняется:</p>
+    <ul>
+      <li><b>Счётчик + степ-индикатор</b> сверху — «Выдано 3 из 7» и полоска прогресса
+        (переиспользуем <code>LinearStepIndicator</code>, уже сделан в Фазе 2).</li>
+      <li><b>Группировка «Обязательные» / «Дополнительные»</b> — данные для этого уже есть
+        (обязательные пять — те же, что входят в <code>DeviceHealth</code>: Спец. возможности,
+        Поверх экрана, Администратор устройства, Без оптимизации батареи, VPN; дополнительные
+        — Уведомления и Экстренный звонок). У обязательных, если не выданы — маленький бейдж
+        «ОБЯЗАТЕЛЬНО».</li>
+      <li><b>Кнопка «Продолжить» не блокируется</b> (родитель может решить донастроить позже),
+        но если не хватает обязательных — по тапу сначала показывается предупреждение
+        (<code>GlassDialog</code> из Фазы 2) с конкретным списком, что не выдано, и явным выбором
+        «Вернуться» / «Всё равно продолжить».</li>
+      <li>Иконки по разрешениям — черновой вариант для структуры, финальный подбор (как с
+        кофе/рюкзаком/луной) сделаем отдельно перед реализацией.</li>
+    </ul>
+  </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- ЭКРАН 1: список, сгруппированный, с прогрессом -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+          <div class="topbar"><span class="back">‹</span><h2>Настройка разрешений</h2></div>
+          <div class="subtitle">Для работы контроля выдайте приложению разрешения ниже.</div>
+
+          <div class="progress-row">
+            <span class="progress-label">Выдано <b>3</b> из <b>7</b></span>
+          </div>
+          <div class="steps">
+            <i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i>
+          </div>
+
+          <div class="section-title">Обязательные</div>
+          <div class="card"><div class="prow required">
+            <div class="ico">♿</div>
+            <div class="pinfo"><div class="ptitle">Специальные возможности</div>
+              <div class="pdesc">Определяет активное приложение и блокирует нежелательные.</div></div>
+            <div class="granted">✓</div>
+          </div></div>
+          <div class="card"><div class="prow required">
+            <div class="ico">▢</div>
+            <div class="pinfo"><div class="ptitle">Поверх других приложений</div>
+              <div class="pdesc">Нужен для экранов блокировки и предупреждений.</div></div>
+            <div class="granted">✓</div>
+          </div></div>
+          <div class="card"><div class="prow required">
+            <div class="ico">🛡</div>
+            <div class="pinfo"><div class="ptitle">Администратор устройства<span class="badge-req">ОБЯЗАТЕЛЬНО</span></div>
+              <div class="pdesc">Защищает приложение от удаления.</div></div>
+            <button type="button" class="grantbtn">Выдать</button>
+          </div></div>
+          <div class="card"><div class="prow required">
+            <div class="ico">🔋</div>
+            <div class="pinfo"><div class="ptitle">Без оптимизации батареи<span class="badge-req">ОБЯЗАТЕЛЬНО</span></div>
+              <div class="pdesc">Чтобы система не выгружала фоновый контроль.</div></div>
+            <button type="button" class="grantbtn">Выдать</button>
+          </div></div>
+          <div class="card"><div class="prow required">
+            <div class="ico">🔒</div>
+            <div class="pinfo"><div class="ptitle">Блокировка интернета (VPN)<span class="badge-req">ОБЯЗАТЕЛЬНО</span></div>
+              <div class="pdesc">Блокирует интернет всем, кроме белого списка, после лимита.</div></div>
+            <button type="button" class="grantbtn">Выдать</button>
+          </div></div>
+
+          <div class="section-title">Дополнительные</div>
+          <div class="card"><div class="prow">
+            <div class="ico">🔔</div>
+            <div class="pinfo"><div class="ptitle">Уведомления</div>
+              <div class="pdesc">Чтобы было видно, что контроль активен.</div></div>
+            <div class="granted">✓</div>
+          </div></div>
+          <div class="card"><div class="prow">
+            <div class="ico">📞</div>
+            <div class="pinfo"><div class="ptitle">Экстренный звонок</div>
+              <div class="pdesc">Прямой звонок с ночного замка одним нажатием.</div></div>
+            <button type="button" class="grantbtn">Выдать</button>
+          </div></div>
+
+          <div class="info-card">
+            <div class="ititle">Автозапуск в фоне</div>
+            <div class="idesc">На HiOS/MIUI/EMUI есть свой список автозапуска — без него контроль может выгрузиться из фона.</div>
+            <button type="button">Открыть настройки автозапуска</button>
+          </div>
+          <div class="info-card">
+            <div class="ititle">Постоянный VPN</div>
+            <div class="idesc">Чтобы ребёнок не обошёл блокировку простым отключением VPN.</div>
+            <button type="button">Открыть настройки VPN</button>
+          </div>
+
+          <button type="button" class="continue-btn">Продолжить</button>
+        </div>
+      </div>
+      <div class="caption"><b>1</b> · Список разрешений: счётчик, степ-индикатор, две секции, бейджи «ОБЯЗАТЕЛЬНО» у невыданных критичных</div>
+    </div>
+
+    <!-- ЭКРАН 2: предупреждение при "Продолжить" без критичных -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen" style="min-height:780px;">
+          <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+          <div class="topbar"><span class="back">‹</span><h2>Настройка разрешений</h2></div>
+          <div class="subtitle" style="filter:blur(1px);opacity:.5">Для работы контроля выдайте приложению разрешения ниже.</div>
+          <div style="filter:blur(1.5px);opacity:.35;">
+            <div class="progress-row"><span class="progress-label">Выдано <b>3</b> из <b>7</b></span></div>
+            <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+            <div class="section-title">Обязательные</div>
+            <div class="card"><div class="prow required"><div class="ico">♿</div>
+              <div class="pinfo"><div class="ptitle">Специальные возможности</div></div><div class="granted">✓</div></div></div>
+            <div class="card"><div class="prow required"><div class="ico">🛡</div>
+              <div class="pinfo"><div class="ptitle">Администратор устройства</div></div><button type="button" class="grantbtn">Выдать</button></div></div>
+          </div>
+
+          <div class="scrim">
+            <div class="gdialog">
+              <h3>Продолжить без всех разрешений?</h3>
+              <p>Без этого контроль не будет работать полностью:</p>
+              <ul class="missing-list">
+                <li>Администратор устройства</li>
+                <li>Без оптимизации батареи</li>
+                <li>Блокировка интернета (VPN)</li>
+              </ul>
+              <p>Вернуться и выдать сейчас, или продолжить и донастроить позже?</p>
+              <div class="gdialog-actions">
+                <button type="button" class="txt cancel">Вернуться</button>
+                <button type="button" class="txt proceed">Всё равно продолжить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>2</b> · Тап «Продолжить» с недостающими обязательными — <code>GlassDialog</code> с конкретным списком</div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <div class="ncard">
+      <h3>Почему предупреждение, а не блокировка кнопки</h3>
+      <p>Полная блокировка «Продолжить» до выдачи всех 7 разрешений жёстче, чем сейчас, и рискует
+        просто застопорить часть родителей на VPN-разрешении (отдельный системный флоу, может
+        захотеться сделать позже). Предупреждение с явным выбором — тот же эффект «не дать пройти
+        мимо не глядя», но без жёсткого тупика.</p>
+    </div>
+    <div class="ncard">
+      <h3>Откуда список «обязательных»</h3>
+      <p>Ровно те 5 разрешений, что входят в <code>DeviceHealth.brokenPermissions()</code>
+        (<code>core/domain/model/DeviceHealth.kt</code>) — то же самое множество, о поломке
+        которого родителю уже сигналит watchdog на карточке ребёнка. Дублировать логику не
+        придётся, критерий «обязательности» уже есть в коде.</p>
+    </div>
+    <div class="ncard">
+      <h3>Что не меняется</h3>
+      <p>Порядок разрешений внутри своей секции — как в <code>DevicePermission</code> enum (он же
+        порядок шагов). Карточки автозапуска/VPN (<code>InfoActionCard</code>, Фаза 2) остаются
+        после списка, без своей секции — они не входят в счётчик «N из 7», это отдельные
+        рекомендации без проверяемого статуса.</p>
+    </div>
+    <div class="ncard">
+      <h3>Иконки — черновик</h3>
+      <p>Символы на макете — только чтобы показать расположение (кружок слева от текста).
+        Финальный подбор — как с иконками кофе/рюкзака/луны: соберу 3-4 варианта на каждое
+        разрешение из разных наборов в реальном масштабе карточки, покажу файлом перед тем, как
+        вписывать в код.</p>
+    </div>
+  </div>
+
+  <div class="foot">Файл: <code>docs/ui-concepts/permissions-wizard/permissions-wizard-mockup.html</code> · после согласования — план реализации → PermissionsWizardScreen.kt.</div>
+</div>
+
+<script>
+  function setTheme(t) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', t === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  }
+</script>
+</body>
+</html>
