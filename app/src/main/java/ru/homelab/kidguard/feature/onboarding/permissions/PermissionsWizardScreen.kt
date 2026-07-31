@@ -6,15 +6,21 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
+import androidx.annotation.StringRes
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
@@ -22,12 +28,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,8 +48,11 @@ import ru.homelab.kidguard.core.domain.model.DevicePermission
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.core.ui.components.InfoActionCard
+import ru.homelab.kidguard.core.ui.components.LinearStepIndicator
 import ru.homelab.kidguard.core.ui.components.descRes
+import ru.homelab.kidguard.core.ui.components.isRequired
 import ru.homelab.kidguard.core.ui.components.titleRes
 
 /**
@@ -53,6 +68,7 @@ fun PermissionsWizardScreen(
     viewModel: PermissionsViewModel = hiltViewModel()
 ) {
     val statuses by viewModel.statuses.collectAsStateWithLifecycle()
+    var showMissingRequiredWarning by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(StartActivityForResult()) {
         viewModel.refresh()
@@ -70,6 +86,10 @@ fun PermissionsWizardScreen(
         onPauseOrDispose { }
     }
 
+    val grantedCount = DevicePermission.entries.count { statuses[it] == true }
+    val totalCount = DevicePermission.entries.size
+    val missingRequired = DevicePermission.entries.filter { it.isRequired && statuses[it] != true }
+
     GlassBackground(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             // «Назад» есть только при входе из детского меню: в онбординге возвращаться некуда.
@@ -80,9 +100,13 @@ fun PermissionsWizardScreen(
                 )
             }
             LazyColumn(
+                // safeDrawingPadding — только когда нет CompactTopBar: он сам уже съедает статус-бар
+                // через statusBarsPadding(), и добавление ещё и safeDrawingPadding ниже по дереву
+                // (сиблинг, не потомок — инсет не считается «съеденным» автоматически) удваивало
+                // отступ сверху между шапкой и первым текстом.
                 modifier = Modifier
                     .fillMaxSize()
-                    .safeDrawingPadding()
+                    .then(if (onBack == null) Modifier.safeDrawingPadding() else Modifier.navigationBarsPadding())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -107,7 +131,37 @@ fun PermissionsWizardScreen(
                         )
                     }
                 }
-                items(DevicePermission.entries) { permission ->
+                item {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.permissions_progress, grantedCount, totalCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        LinearStepIndicator(currentStep = grantedCount, totalSteps = totalCount)
+                    }
+                }
+                item {
+                    PermissionSectionHeader(R.string.permissions_section_required)
+                }
+                items(DevicePermission.entries.filter { it.isRequired }) { permission ->
+                    PermissionRow(
+                        permission = permission,
+                        granted = statuses[permission] == true,
+                        onGrant = {
+                            if (permission == DevicePermission.EMERGENCY_CALL) {
+                                callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                            } else {
+                                viewModel.grantIntent(permission)?.let(launcher::launch)
+                            }
+                        }
+                    )
+                }
+                item {
+                    PermissionSectionHeader(R.string.permissions_section_optional)
+                }
+                items(DevicePermission.entries.filterNot { it.isRequired }) { permission ->
                     PermissionRow(
                         permission = permission,
                         granted = statuses[permission] == true,
@@ -132,7 +186,9 @@ fun PermissionsWizardScreen(
                 }
                 item {
                     Button(
-                        onClick = onFinished,
+                        onClick = {
+                            if (missingRequired.isEmpty()) onFinished() else showMissingRequiredWarning = true
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(finishLabelRes))
@@ -141,6 +197,61 @@ fun PermissionsWizardScreen(
             }
         }
     }
+
+    if (showMissingRequiredWarning) {
+        GlassDialog(
+            onDismissRequest = { showMissingRequiredWarning = false },
+            title = { Text(stringResource(R.string.permissions_warning_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.permissions_warning_message),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    missingRequired.forEach { permission ->
+                        Text(
+                            text = "• " + stringResource(permission.titleRes()),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.permissions_warning_question),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showMissingRequiredWarning = false
+                    onFinished()
+                }) {
+                    Text(
+                        text = stringResource(R.string.permissions_warning_proceed),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMissingRequiredWarning = false }) {
+                    Text(stringResource(R.string.permissions_warning_cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun PermissionSectionHeader(@StringRes textRes: Int, modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(textRes),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 1.sp,
+        modifier = modifier.padding(top = 4.dp, bottom = 2.dp, start = 4.dp)
+    )
 }
 
 /**
@@ -206,15 +317,32 @@ private fun PermissionRow(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (granted) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = stringResource(R.string.permissions_granted),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                OutlinedButton(onClick = onGrant) {
-                    Text(stringResource(R.string.permissions_grant))
+            // Бейдж — в правой колонке над кнопкой, а не в тексте слева: так «статус» и «действие»
+            // читаются одним блоком («обязательно → выдать»), а левая колонка остаётся чистым
+            // текстом (заголовок+описание) без постороннего элемента между ними.
+            Column(horizontalAlignment = Alignment.End) {
+                if (permission.isRequired && !granted) {
+                    Text(
+                        text = stringResource(R.string.permissions_required_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(5.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
+                if (granted) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = stringResource(R.string.permissions_granted),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    OutlinedButton(onClick = onGrant) {
+                        Text(stringResource(R.string.permissions_grant))
+                    }
                 }
             }
         }

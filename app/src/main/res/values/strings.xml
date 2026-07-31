@@ -293,6 +293,15 @@
     <string name="permissions_grant">Выдать</string>
     <string name="permissions_granted">Выдано</string>
     <string name="permissions_continue">Продолжить</string>
+    <string name="permissions_progress">Выдано %1$d из %2$d</string>
+    <string name="permissions_section_required">ОБЯЗАТЕЛЬНЫЕ</string>
+    <string name="permissions_section_optional">ДОПОЛНИТЕЛЬНЫЕ</string>
+    <string name="permissions_required_badge">ОБЯЗАТЕЛЬНО</string>
+    <string name="permissions_warning_title">Продолжить без всех разрешений?</string>
+    <string name="permissions_warning_message">Без этого контроль не будет работать полностью:</string>
+    <string name="permissions_warning_question">Вернуться и выдать сейчас, или продолжить и донастроить позже?</string>
+    <string name="permissions_warning_cancel">Вернуться</string>
+    <string name="permissions_warning_proceed">Всё равно продолжить</string>
     <string name="permissions_done">Готово</string>
     <string name="child_pin_title">Разрешения</string>
     <string name="child_pin_prompt">Введите PIN родителя</string>
