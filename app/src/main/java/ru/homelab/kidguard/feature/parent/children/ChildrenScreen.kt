@@ -25,15 +25,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -69,7 +70,10 @@ import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.DevicePermission
 import ru.homelab.kidguard.core.ui.components.AvatarGrid
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
+import ru.homelab.kidguard.core.ui.components.EmptyState
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.core.ui.components.healthImpactRes
@@ -131,15 +135,23 @@ fun ChildrenScreen(
             item {
                 AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
             }
-            if (uiState.children.isEmpty() && !uiState.loading) {
+            if (uiState.loading) {
                 item {
-                    Text(
-                        text = stringResource(
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (uiState.children.isEmpty()) {
+                item {
+                    EmptyState(
+                        icon = if (uiState.loadError) Icons.Filled.Warning else Icons.Filled.Person,
+                        title = stringResource(
                             if (uiState.loadError) R.string.children_load_error else R.string.children_empty
                         ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -311,7 +323,7 @@ private fun HealthSheet(child: Child, onDismiss: () -> Unit) {
     val broken = child.health?.brokenPermissions().orEmpty()
     val isSilent = broken.isEmpty()
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
                 text = stringResource(
@@ -452,7 +464,7 @@ private fun AddChildSheet(onDismiss: () -> Unit, onCreate: (name: String, avatar
     var name by remember { mutableStateOf("") }
     var avatar by remember { mutableStateOf(0) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         // verticalScroll + ручная сетка рядами (не Lazy) — чтобы всё содержимое, включая кнопку
         // «Создать», было доступно скроллом на любом экране; LazyVerticalGrid внутри скролла
         // конфликтует.
@@ -501,7 +513,7 @@ private fun ChildActionsSheet(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -590,7 +602,7 @@ private fun CodeSheet(code: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val copiedMsg = stringResource(R.string.child_code_copied)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.child_code_title), style = MaterialTheme.typography.titleLarge)
             Text(
@@ -644,7 +656,7 @@ private fun CoParentSheet(
     val pendingMsg = stringResource(R.string.coparent_pending)
     val errorMsg = stringResource(R.string.common_error)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.coparent_title), style = MaterialTheme.typography.titleLarge)
             Text(
@@ -702,7 +714,7 @@ private fun EditChildSheet(
     val context = LocalContext.current
     val errorMsg = stringResource(R.string.common_error)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -751,7 +763,7 @@ private fun DeleteChildDialog(
     val context = LocalContext.current
     val errorMsg = stringResource(R.string.common_error)
 
-    AlertDialog(
+    GlassDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.delete_child_title, child.name)) },
         text = { Text(stringResource(R.string.delete_child_message)) },
