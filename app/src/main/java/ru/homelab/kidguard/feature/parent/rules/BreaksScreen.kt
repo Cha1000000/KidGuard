@@ -20,12 +20,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -56,7 +54,9 @@ import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 import ru.homelab.kidguard.ui.theme.BreaksAccentDark
 import ru.homelab.kidguard.ui.theme.BreaksAccentLight
@@ -196,7 +196,7 @@ fun BreaksScreen(
     }
 
     if (showResetConfirm) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text(stringResource(R.string.breaks_reset_title)) },
             text = { Text(stringResource(R.string.breaks_reset_message)) },
@@ -535,7 +535,7 @@ private fun BreakHourSheet(
     val minuteOfDay = hour * 60 + minute
     val alreadyAdded = minuteOfDay in existingHours
 
-    ModalBottomSheet(
+    GlassBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
