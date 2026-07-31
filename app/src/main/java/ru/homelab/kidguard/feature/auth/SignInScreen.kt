@@ -1,19 +1,18 @@
 package ru.homelab.kidguard.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.GlassBackground
+import ru.homelab.kidguard.core.ui.components.HeroHeader
 
 /**
  * Экран входа через Google — общий для обеих ролей, показывается один раз после выбора роли
@@ -63,37 +62,15 @@ fun SignInScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(96.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_shield_logo),
-                        contentDescription = null,
-                        // Unspecified — иконка двухцветная сама по себе (см. ic_shield_logo.xml),
-                        // единый tint убрал бы внутренний блик.
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
-            }
-            Text(
-                text = stringResource(R.string.signin_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 24.dp)
+            HeroHeader(
+                iconPainter = painterResource(R.drawable.ic_shield_logo),
+                title = stringResource(R.string.signin_title),
+                subtitle = stringResource(R.string.signin_subtitle),
+                // Unspecified — иконка двухцветная сама по себе (см. ic_shield_logo.xml),
+                // единый tint убрал бы внутренний блик.
+                iconTint = Color.Unspecified
             )
-            Text(
-                text = stringResource(R.string.signin_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 36.dp)
-            )
+            Spacer(Modifier.height(28.dp))
 
             when (val state = uiState) {
                 SignInUiState.Loading -> {
