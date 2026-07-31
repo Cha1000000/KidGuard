@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
-import ru.homelab.kidguard.core.ui.components.CenteredMessage
+import ru.homelab.kidguard.core.ui.components.EmptyState
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
@@ -65,14 +69,18 @@ fun StatisticsScreen(
                 CircularProgressIndicator()
             }
 
-            uiState.noChildren -> CenteredMessage(
-                text = stringResource(R.string.statistics_no_children),
-                modifier = Modifier.weight(1f)
+            uiState.noChildren -> EmptyState(
+                icon = Icons.Filled.Person,
+                title = stringResource(R.string.statistics_no_children),
+                modifier = Modifier.weight(1f).fillMaxWidth()
             )
 
-            uiState.error -> CenteredMessage(
-                text = stringResource(R.string.statistics_load_error),
-                modifier = Modifier.weight(1f)
+            uiState.error -> EmptyState(
+                icon = Icons.Filled.Warning,
+                title = stringResource(R.string.statistics_load_error),
+                actionLabel = stringResource(R.string.common_retry),
+                onAction = viewModel::refresh,
+                modifier = Modifier.weight(1f).fillMaxWidth()
             )
 
             else -> StatisticsContent(uiState)
@@ -91,8 +99,9 @@ private fun StatisticsContent(state: StatisticsUiState) {
             .padding(bottom = GlassDockBarReservedHeight)
     ) {
         if (!state.hasData) {
-            CenteredMessage(
-                text = stringResource(R.string.statistics_empty),
+            EmptyState(
+                icon = Icons.Filled.Info,
+                title = stringResource(R.string.statistics_empty),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 80.dp)
