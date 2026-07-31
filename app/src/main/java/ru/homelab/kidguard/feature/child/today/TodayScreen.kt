@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -56,19 +55,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.ChildAvatars
 import ru.homelab.kidguard.core.ui.components.EmptyState
-import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.NeonProgress
+import ru.homelab.kidguard.core.ui.components.formatDurationMinutes
 
 /**
  * Детский главный экран «Сегодня» (веха 4.1.3, доработан в Фазе 4 UI-аудита): приветствие,
  * крупный остаток времени на сегодня (кольцо / карточка «время вышло» / «без лимита»), статус
- * контроля стеклянной плашкой и сетка 2×2 сводки правил + наигранное сегодня время. Один экран
- * без навигации — списки правил пока read-only (раскрытие — позже).
+ * контроля стеклянной плашкой и сетка 2×2 сводки правил + наигранное сегодня время. Карточки
+ * сетки кликабельны — открывают детальные read-only экраны списков правил (Фаза UI-аудита).
  */
 @Composable
 fun TodayScreen(
     onOpenPermissions: () -> Unit,
+    onOpenLimits: () -> Unit,
+    onOpenBlocked: () -> Unit,
+    onOpenAllowed: () -> Unit,
+    onOpenStats: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel()
 ) {
@@ -77,9 +80,7 @@ fun TodayScreen(
     when (val current = state) {
         TodayScreenState.Loading -> {
             Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding(),
+                modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
@@ -87,19 +88,15 @@ fun TodayScreen(
         }
 
         TodayScreenState.Error -> {
-            GlassBackground(modifier = modifier) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    EmptyState(
-                        icon = Icons.Filled.Warning,
-                        title = stringResource(R.string.child_today_error_title),
-                        description = stringResource(R.string.child_today_error_desc)
-                    )
-                }
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyState(
+                    icon = Icons.Filled.Warning,
+                    title = stringResource(R.string.child_today_error_title),
+                    description = stringResource(R.string.child_today_error_desc)
+                )
             }
         }
 
@@ -108,38 +105,35 @@ fun TodayScreen(
             // Нижний лист выбора локального аватара (веха 4.1.5) — открывается по тапу на аватарку.
             var showAvatarPicker by remember { mutableStateOf(false) }
 
-            GlassBackground(modifier = modifier) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding()
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = 24.dp)
-                ) {
-                    GreetingRow(
-                        name = ui.childName,
-                        avatar = ui.childAvatar,
-                        onAvatarClick = { showAvatarPicker = true },
-                        onOpenPermissions = onOpenPermissions
-                    )
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp)
+            ) {
+                GreetingRow(
+                    name = ui.childName,
+                    avatar = ui.childAvatar,
+                    onAvatarClick = { showAvatarPicker = true },
+                    onOpenPermissions = onOpenPermissions
+                )
 
-                    when (val time = ui.time) {
-                        is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
-                        is TodayTimeState.Expired -> ExpiredCard(time)
-                        TodayTimeState.NoLimit -> NoLimitCard()
-                    }
-
-                    GuardStatus()
-
-                    Text(
-                        text = stringResource(R.string.child_rules_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
-                    )
-                    RulesGrid(ui)
+                when (val time = ui.time) {
+                    is TodayTimeState.Remaining -> RemainingSection(time, ui.bonusMinutes)
+                    is TodayTimeState.Expired -> ExpiredCard(time)
+                    TodayTimeState.NoLimit -> NoLimitCard()
                 }
+
+                GuardStatus()
+
+                Text(
+                    text = stringResource(R.string.child_rules_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+                )
+                RulesGrid(ui, onOpenLimits, onOpenBlocked, onOpenAllowed, onOpenStats)
             }
 
             if (showAvatarPicker) {
@@ -235,7 +229,7 @@ private fun RemainingSection(time: TodayTimeState.Remaining, bonusMinutes: Int) 
                 modifier = Modifier.padding(top = 14.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.child_bonus_chip, formatDuration(bonusMinutes)),
+                    text = stringResource(R.string.child_bonus_chip, formatDurationMinutes(bonusMinutes)),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -257,8 +251,8 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
         size = 220.dp,
         strokeWidth = 12.dp,
         glowRadius = 4.dp,
-        valueText = formatDuration(minutesLeft),
-        subtitleText = stringResource(R.string.child_time_remaining_of, formatDuration(totalMinutes))
+        valueText = formatDurationMinutes(minutesLeft),
+        subtitleText = stringResource(R.string.child_time_remaining_of, formatDurationMinutes(totalMinutes))
     )
 }
 
@@ -268,7 +262,7 @@ private fun ExpiredCard(time: TodayTimeState.Expired) {
         iconTint = MaterialTheme.colorScheme.error,
         title = stringResource(R.string.child_time_expired_title),
         titleColor = MaterialTheme.colorScheme.error,
-        subtitle = stringResource(R.string.child_time_expired_sub, formatDuration(time.totalMinutes)),
+        subtitle = stringResource(R.string.child_time_expired_sub, formatDurationMinutes(time.totalMinutes)),
         icon = ImageVector.vectorResource(R.drawable.ic_timer)
     )
 }
@@ -366,7 +360,13 @@ private fun GuardStatus() {
  * данные уже читались в TodayViewModel для расчёта кольца, просто не показывались в UI.
  */
 @Composable
-private fun RulesGrid(ui: TodayUiState) {
+private fun RulesGrid(
+    ui: TodayUiState,
+    onOpenLimits: () -> Unit,
+    onOpenBlocked: () -> Unit,
+    onOpenAllowed: () -> Unit,
+    onOpenStats: () -> Unit
+) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -379,7 +379,8 @@ private fun RulesGrid(ui: TodayUiState) {
                 iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
                 label = stringResource(R.string.child_rules_limits_label),
                 value = pluralStringResource(R.plurals.child_rules_apps_count, ui.limited.count, ui.limited.count),
-                subtitle = limitedGridSubtitle(ui.limited)
+                subtitle = limitedGridSubtitle(ui.limited),
+                onClick = onOpenLimits
             )
             RuleGridCard(
                 modifier = Modifier.weight(1f),
@@ -387,7 +388,8 @@ private fun RulesGrid(ui: TodayUiState) {
                 iconTint = MaterialTheme.colorScheme.error,
                 iconBackground = MaterialTheme.colorScheme.errorContainer,
                 label = stringResource(R.string.child_rules_blocked_label),
-                value = pluralStringResource(R.plurals.child_rules_apps_count, ui.blocked.count, ui.blocked.count)
+                value = pluralStringResource(R.plurals.child_rules_apps_count, ui.blocked.count, ui.blocked.count),
+                onClick = onOpenBlocked
             )
         }
         Spacer(Modifier.height(10.dp))
@@ -405,7 +407,8 @@ private fun RulesGrid(ui: TodayUiState) {
                     R.plurals.child_rules_apps_count,
                     ui.alwaysAllowed.count,
                     ui.alwaysAllowed.count
-                )
+                ),
+                onClick = onOpenAllowed
             )
             RuleGridCard(
                 modifier = Modifier.weight(1f),
@@ -413,7 +416,8 @@ private fun RulesGrid(ui: TodayUiState) {
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
                 label = stringResource(R.string.child_rules_stats_label),
-                value = formatDuration(ui.usedMinutes)
+                value = formatDurationMinutes(ui.usedMinutes),
+                onClick = onOpenStats
             )
         }
     }
@@ -428,7 +432,7 @@ private fun limitedGridSubtitle(limited: LimitedGroup): String? {
     return if (minutesLeft <= 0) {
         stringResource(R.string.child_rules_limited_expired, label)
     } else {
-        stringResource(R.string.child_rules_limited_preview, label, formatDuration(minutesLeft))
+        stringResource(R.string.child_rules_limited_preview, label, formatDurationMinutes(minutesLeft))
     }
 }
 
@@ -439,6 +443,7 @@ private fun RuleGridCard(
     iconBackground: Color,
     label: String,
     value: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null
 ) {
@@ -449,7 +454,8 @@ private fun RuleGridCard(
         modifier = modifier
             .fillMaxWidth()
             .height(140.dp),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(16.dp),
+        onClick = onClick
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -492,16 +498,5 @@ private fun RuleGridCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun formatDuration(minutes: Int): String {
-    val safe = minutes.coerceAtLeast(0)
-    return when {
-        // Целые часы показываем без «00 мин» — «2 ч» вместо «2 ч 00 мин» (как на макете).
-        safe >= 60 && safe % 60 == 0 -> stringResource(R.string.limit_value_h, safe / 60)
-        safe >= 60 -> stringResource(R.string.limit_value_hm, safe / 60, safe % 60)
-        else -> stringResource(R.string.limit_value_m, safe)
     }
 }

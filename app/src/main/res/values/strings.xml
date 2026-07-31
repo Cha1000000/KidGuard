@@ -288,6 +288,21 @@
         <item quantity="many">%d приложений</item>
         <item quantity="other">%d приложений</item>
     </plurals>
+    <!-- Заголовки детальных экранов правил. Отдельно от коротких подписей карточек сетки
+         (child_rules_*_label): в заголовке места больше, поэтому формулировки развёрнутые. -->
+    <string name="child_limits_title">Лимиты приложений</string>
+    <string name="child_blocked_title">Запрещённые приложения</string>
+    <string name="child_allowed_title">Всегда доступные</string>
+    <string name="child_limits_spent">Потрачено %1$s из %2$s</string>
+    <string name="child_limits_expired">Лимит исчерпан</string>
+    <string name="child_limits_empty_title">Лимитов пока нет</string>
+    <string name="child_limits_empty_desc">Родитель не ограничил по времени ни одно приложение.</string>
+    <string name="child_blocked_empty_title">Запрещённых приложений нет</string>
+    <string name="child_blocked_empty_desc">Родитель не закрыл ни одно приложение.</string>
+    <string name="child_allowed_empty_title">Список пуст</string>
+    <string name="child_allowed_empty_desc">Приложения, доступные даже после лимита, пока не выбраны.</string>
+    <string name="child_stats_empty_title">Пока ничего не наиграно</string>
+    <string name="child_stats_empty_desc">Здесь появится, сколько времени ушло на каждое приложение.</string>
     <string name="child_today_error_title">Не удалось загрузить</string>
     <string name="child_today_error_desc">Проверьте подключение к интернету. Экран обновится сам, как только связь появится.</string>
     <!-- Локальный аватар ребёнка (веха 4.1.5) -->

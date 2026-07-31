@@ -43,8 +43,8 @@ import ru.homelab.kidguard.core.ui.components.EmptyState
 import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
+import ru.homelab.kidguard.core.ui.components.AppIconImage
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
-import ru.homelab.kidguard.feature.parent.rules.AppIconImage
 import java.time.format.TextStyle
 import java.util.Locale
 
