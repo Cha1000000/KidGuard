@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +35,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
@@ -77,7 +75,9 @@ import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.text.RussianDative
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.GlassDialog
 import ru.homelab.kidguard.core.ui.components.GlassToggle
 import ru.homelab.kidguard.ui.theme.ScheduleSleepDark
 import ru.homelab.kidguard.ui.theme.ScheduleSleepLight
@@ -296,7 +296,7 @@ fun ScheduleScreen(
         } else {
             R.string.schedule_reset_sleep_title
         }
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { resetConfirmKind = null },
             title = { Text(stringResource(titleRes)) },
             text = { Text(stringResource(R.string.schedule_reset_message)) },
@@ -694,7 +694,7 @@ private fun ScheduleTimeSheet(
     // размаху, шторка перехватывала на себя и закрывалась, теряя выставленное время. Закрыть
     // по-прежнему можно кнопками и тапом по затемнению — их onDismissRequest не проходит через
     // это состояние.
-    ModalBottomSheet(
+    GlassBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = true,
