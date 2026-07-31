@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: экран «Сегодня» (Фаза 4)</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1180px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:70ch; }
+  .intro ul { margin:10px 0 0; padding-left:20px; color:var(--page-muted); max-width:70ch; }
+  .intro li { margin-bottom:4px; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+
+  .screens { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:24px; margin-top:18px; align-items:start; }
+  @media (max-width:1000px){ .screens{ grid-template-columns:1fr; gap:32px; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:360px; margin:0 auto; border-radius:40px; padding:12px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#d1544e;
+    --allowed-bg: rgba(79,195,176,.16);
+    border-radius:30px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:16px 16px 20px; min-height:720px; position:relative;
+  }
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#b3261e;
+    --allowed-bg: rgba(46,107,126,.12);
+  }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:12px; color:var(--scr-muted); padding:2px 4px 12px; }
+
+  .greeting { display:flex; align-items:center; gap:12px; padding:0 2px 4px; }
+  .greeting .av { width:44px; height:44px; border-radius:50%; background:linear-gradient(140deg,#c94fd6,#4f8cd6); flex:none; }
+  .greeting .hello { font-size:13px; color:var(--scr-muted); }
+  .greeting .name { font-size:16px; font-weight:700; }
+  .greeting .dots { margin-left:auto; color:var(--scr-muted); font-size:20px; }
+
+  .ring-wrap { display:flex; flex-direction:column; align-items:center; padding:14px 0 4px; }
+  .ring { width:190px; height:190px; border-radius:50%; position:relative;
+    background:conic-gradient(var(--scr-accent) 0deg 300deg, var(--scr-glass-border) 300deg 360deg);
+    display:flex; align-items:center; justify-content:center;
+    filter:drop-shadow(0 0 14px rgba(79,195,176,.35)); }
+  .ring::before { content:""; position:absolute; inset:14px; border-radius:50%; background:var(--scr-bg0); }
+  .ring .rv { position:relative; text-align:center; }
+  .ring .rv .big { font-size:30px; font-weight:800; }
+  .ring .rv .sub { font-size:11.5px; color:var(--scr-muted); margin-top:2px; }
+
+  /* --- Стеклянная плашка-футер (замена простого текста со щитом) --- */
+  .guard-pill { display:flex; align-items:center; gap:7px; justify-content:center; margin:14px auto 6px;
+    width:fit-content; background:var(--scr-glass); border:1px solid var(--scr-glass-border);
+    border-radius:999px; padding:7px 16px; font-size:11.5px; color:var(--scr-muted); }
+  .guard-pill svg { width:13px; height:13px; fill:var(--scr-muted); flex:none; }
+
+  .grid-title { font-size:13px; font-weight:700; margin:14px 4px 10px; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .gcard { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:18px; padding:12px; }
+  .gcard .gico { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:9px; }
+  .gcard .gico svg { width:16px; height:16px; }
+  .gcard.limits .gico { background:rgba(245,179,1,.16); }
+  .gcard.limits .gico svg { fill:#f5b301; }
+  .gcard.blocked .gico { background:rgba(209,84,78,.16); }
+  .gcard.blocked .gico svg { fill:var(--scr-danger); }
+  .gcard.allowed .gico { background:var(--allowed-bg); }
+  .gcard.allowed .gico svg { fill:var(--scr-accent); }
+  .gcard.stats .gico { background:rgba(138,164,247,.16); }
+  .gcard.stats .gico svg { fill:#8aa4f7; }
+  .gcard .glabel { font-size:11px; color:var(--scr-muted); }
+  .gcard .gvalue { font-size:15px; font-weight:700; margin-top:2px; }
+  .gcard .gsub { font-size:10.5px; color:var(--scr-muted); margin-top:2px; line-height:1.3; }
+
+  /* --- Ошибка вместо бесконечного спиннера --- */
+  .error-state { display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:70px 20px 0; }
+  .error-state .eico { width:56px; height:56px; border-radius:50%; background:rgba(209,84,78,.14);
+    display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .error-state .eico svg { width:26px; height:26px; fill:var(--scr-danger); }
+  .error-state .etitle { font-size:16px; font-weight:700; margin-bottom:6px; }
+  .error-state .edesc { font-size:12.5px; color:var(--scr-muted); max-width:240px; line-height:1.5; }
+
+  .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
+  @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard p + p { margin-top:8px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование · Фаза 4 UI-аудита</p>
+    <h1>Экран «Сегодня»: сетка 2×2, стеклянная плашка, error-состояние</h1>
+    <p>Самый частый экран приложения (открывает ребёнок), сильнее всех разошёлся с исходным
+       макетом вехи 6Б. Что меняется:</p>
+    <ul>
+      <li><b>«Мои правила» — сетка 2×2</b> вместо вертикального списка из 3 строк: «Лимиты»,
+        «Запрещено», «Доступно», плюс новая карточка <b>«Статистика»</b> — сколько уже наиграно
+        сегодня (сейчас этой цифры на экране нет вообще, хотя данные для неё уже читаются в
+        <code>TodayViewModel</code>, просто не выводятся в UI).</li>
+      <li><b>Статус защиты — стеклянная плашка</b> вместо голой строки текста: тот же
+        <code>ic_shield_logo</code> и тот же текст, просто на полупрозрачном фоне с рамкой,
+        как остальные стеклянные поверхности приложения.</li>
+      <li><b>Error-состояние</b> — сейчас при сбое синхронизации (нет сети, ошибка сервера)
+        экран вечно крутит спиннер и ничего не объясняет. Добавляется понятное сообщение
+        (<code>EmptyState</code> из Фазы 2).</li>
+    </ul>
+  </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- ЭКРАН 1: обычное состояние -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+          <div class="greeting">
+            <div class="av"></div>
+            <div>
+              <div class="hello">Привет,</div>
+              <div class="name">Аня!</div>
+            </div>
+            <div class="dots">⋮</div>
+          </div>
+
+          <div class="ring-wrap">
+            <div class="ring"><div class="rv"><div class="big">2 ч</div><div class="sub">осталось из 3 ч</div></div></div>
+          </div>
+
+          <div class="guard-pill">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            Телефон под присмотром KidGuard
+          </div>
+
+          <div class="grid-title">Мои правила</div>
+          <div class="grid2">
+            <div class="gcard limits">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.27 14.3H3.73L12 5.45zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg></div>
+              <div class="glabel">Лимиты</div>
+              <div class="gvalue">2 приложения</div>
+              <div class="gsub">YouTube — 30 мин</div>
+            </div>
+            <div class="gcard blocked">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg></div>
+              <div class="glabel">Запрещено</div>
+              <div class="gvalue">2 приложения</div>
+            </div>
+            <div class="gcard allowed">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div>
+              <div class="glabel">Доступно</div>
+              <div class="gvalue">7 всегда</div>
+            </div>
+            <div class="gcard stats">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+              <div class="glabel">Сегодня</div>
+              <div class="gvalue">1 ч 05 мин</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>1</b> · Обычное состояние: стеклянная плашка + сетка 2×2 (счётчик «Сегодня» — новый)</div>
+    </div>
+
+    <!-- ЭКРАН 2: время вышло -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+          <div class="greeting">
+            <div class="av"></div>
+            <div><div class="hello">Привет,</div><div class="name">Аня!</div></div>
+            <div class="dots">⋮</div>
+          </div>
+
+          <div style="margin:18px 4px 0; background:var(--scr-glass); border:1px solid var(--scr-glass-border);
+            border-radius:22px; padding:22px; text-align:center;">
+            <div style="width:40px;height:40px;margin:0 auto 10px;border-radius:50%;background:rgba(209,84,78,.16);
+              display:flex;align-items:center;justify-content:center;">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:var(--scr-danger)"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            </div>
+            <div style="font-size:17px;font-weight:800;color:var(--scr-danger)">Время вышло</div>
+            <div style="font-size:12.5px;color:var(--scr-muted);margin-top:4px">Израсходовано 3 ч из 3 ч</div>
+          </div>
+
+          <div class="guard-pill">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            Телефон под присмотром KidGuard
+          </div>
+
+          <div class="grid-title">Мои правила</div>
+          <div class="grid2">
+            <div class="gcard limits">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.27 14.3H3.73L12 5.45zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg></div>
+              <div class="glabel">Лимиты</div>
+              <div class="gvalue">2 приложения</div>
+            </div>
+            <div class="gcard blocked">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg></div>
+              <div class="glabel">Запрещено</div>
+              <div class="gvalue">2 приложения</div>
+            </div>
+            <div class="gcard allowed">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div>
+              <div class="glabel">Доступно</div>
+              <div class="gvalue">7 всегда</div>
+            </div>
+            <div class="gcard stats">
+              <div class="gico"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+              <div class="glabel">Сегодня</div>
+              <div class="gvalue">3 ч 00 мин</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>2</b> · «Время вышло» — карточка состояния без изменений, сетка и плашка ниже остаются</div>
+    </div>
+
+    <!-- ЭКРАН 3: ошибка синхронизации -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>16:49</span><span>▤ ▤ ▮</span></div>
+          <div class="error-state">
+            <div class="eico"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+            <div class="etitle">Не удалось загрузить</div>
+            <div class="edesc">Проверьте подключение к интернету. Экран обновится сам, как только связь появится.</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>3</b> · Сбой синхронизации — вместо вечного спиннера понятное сообщение</div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <div class="ncard">
+      <h3>Откуда берётся «Сегодня» в сетке</h3>
+      <p>Значение уже вычисляется в <code>TodayViewModel.computeTime()</code> как
+        <code>usedSeconds / 60</code> — используется только для расчёта остатка в кольце, наружу
+        не отдаётся. Нужно добавить это же число полем в <code>TodayUiState</code>, второй запрос
+        на sync не потребуется.</p>
+    </div>
+    <div class="ncard">
+      <h3>Почему карточки компактнее списка</h3>
+      <p>Текущий список показывает превью (до 3 названий приложений) — в сетке 2×2 места меньше,
+        оставляем count + одну короткую подсказку, где есть место (как в «Лимиты» на первом
+        экране). Полный список названий по-прежнему можно посмотреть в других местах приложения
+        родителем — на детском экране это была витрина, а не единственный источник.</p>
+    </div>
+    <div class="ncard">
+      <h3>Что с error-состоянием дальше</h3>
+      <p>Это минимальное улучшение по формулировке аудита — заменить бесконечный спиннер понятным
+        сообщением. Полноценный retry (кнопка «Повторить», которая передёргивает подписку) — вне
+        рамок этой фазы, экран пересоберётся сам при следующем реактивном обновлении данных
+        (флоу переподпишется, если родитель/сеть восстановятся и придёт новое значение).</p>
+    </div>
+    <div class="ncard">
+      <h3>Что не меняется</h3>
+      <p>Кольцо остатка времени, карточки «Время вышло»/«Без лимита», приветствие с аватаром —
+        без изменений. Смешение иконок (<code>Icons.Filled.MoreVert</code>/<code>CheckCircle</code>
+        vs кастомные SVG) и подсказка «аватар кликабелен» — отдельные мелкие находки аудита, не
+        входят в эту фазу, чтобы не раздувать её.</p>
+    </div>
+  </div>
+
+  <div class="foot">Файл: <code>docs/ui-concepts/today-screen/today-screen-mockup.html</code> · после согласования — реализация → TodayScreen.kt + TodayViewModel.kt.</div>
+</div>
+
+<script>
+  function setTheme(t) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', t === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  }
+</script>
+</body>
+</html>
