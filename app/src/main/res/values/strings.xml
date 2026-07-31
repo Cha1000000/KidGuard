@@ -93,6 +93,9 @@
     <string name="rules_schedule_subtitle">Часы учёбы и сна, когда телефон закрыт</string>
     <string name="rules_pin_title">PIN-защита</string>
     <string name="rules_pin_subtitle">Защита настроек на телефоне ребёнка от отключения</string>
+    <string name="rules_section_screen_time">ВРЕМЯ ЭКРАНА</string>
+    <string name="rules_section_content_access">ДОСТУП К КОНТЕНТУ</string>
+    <string name="rules_section_security">БЕЗОПАСНОСТЬ</string>
     <string name="common_back">Назад</string>
     <string name="common_save">Сохранить</string>
 
