@@ -36,6 +36,7 @@ import ru.homelab.kidguard.core.domain.model.DevicePermission
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassCard
+import ru.homelab.kidguard.core.ui.components.InfoActionCard
 import ru.homelab.kidguard.core.ui.components.descRes
 import ru.homelab.kidguard.core.ui.components.titleRes
 
@@ -153,25 +154,13 @@ private fun AutostartCard(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.autostart_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.autostart_desc),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            OutlinedButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                Text(stringResource(R.string.autostart_open_settings))
-            }
-        }
-    }
+    InfoActionCard(
+        title = stringResource(R.string.autostart_title),
+        description = stringResource(R.string.autostart_desc),
+        actionLabel = stringResource(R.string.autostart_open_settings),
+        onAction = onOpenSettings,
+        modifier = modifier.fillMaxWidth()
+    )
 }
 
 /**
@@ -185,25 +174,13 @@ private fun AlwaysOnVpnCard(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.always_on_vpn_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.always_on_vpn_desc),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            OutlinedButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                Text(stringResource(R.string.always_on_vpn_open_settings))
-            }
-        }
-    }
+    InfoActionCard(
+        title = stringResource(R.string.always_on_vpn_title),
+        description = stringResource(R.string.always_on_vpn_desc),
+        actionLabel = stringResource(R.string.always_on_vpn_open_settings),
+        onAction = onOpenSettings,
+        modifier = modifier.fillMaxWidth()
+    )
 }
 
 @Composable
