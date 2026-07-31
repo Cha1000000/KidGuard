@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.AvatarGrid
+import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 
 /**
  * Нижний лист выбора локального аватара ребёнка (веха 4.1.5). Выбор хранится только на этом
@@ -28,7 +28,7 @@ fun AvatarPickerSheet(
     onReset: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text(
                 text = stringResource(R.string.child_avatar_picker_title),
