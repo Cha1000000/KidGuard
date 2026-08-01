@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.platform.R
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,9 +83,9 @@ class PinOverlayManager @Inject constructor(
         try {
             windowManager?.addView(view, buildLayoutParams())
             overlayView = view
-            android.util.Log.d("PinOverlay", "PIN-оверлей добавлен в WindowManager")
+            Timber.d("PIN-оверлей добавлен в WindowManager")
         } catch (e: Exception) {
-            android.util.Log.e("PinOverlay", "Ошибка добавления оверлея", e)
+            Timber.e(e, "Ошибка добавления оверлея")
         }
     }
 

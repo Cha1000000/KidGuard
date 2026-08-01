@@ -11,6 +11,7 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,7 +57,7 @@ class BreakWarningOverlay @Inject constructor(
             overlayView = view
             scheduleHide(view)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Не удалось показать плашку предупреждения", e)
+            Timber.e(e, "Не удалось показать плашку предупреждения")
         }
     }
 
@@ -75,7 +76,7 @@ class BreakWarningOverlay @Inject constructor(
         try {
             windowManager?.removeView(view)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Не удалось убрать плашку предупреждения", e)
+            Timber.e(e, "Не удалось убрать плашку предупреждения")
         }
         overlayView = null
     }
@@ -134,7 +135,6 @@ class BreakWarningOverlay @Inject constructor(
     }
 
     private companion object {
-        const val TAG = "BreakWarning"
         const val ICON = "☕"
         const val VISIBLE_MS = 4_000L
         const val FADE_MS = 400L

@@ -37,8 +37,10 @@ import ru.homelab.kidguard.data.db.entity.WhitelistedAppEntity
         BreakRulesEntity::class,
         BreakHourEntity::class
     ],
+    // Экспорт схемы включён: после релиза на устройствах будут реальные БД,
+    // и без сохранённых JSON-схем миграции нельзя проверить через MigrationTestHelper.
     version = 11,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class KidGuardDatabase : RoomDatabase() {
     abstract fun policyDao(): PolicyDao

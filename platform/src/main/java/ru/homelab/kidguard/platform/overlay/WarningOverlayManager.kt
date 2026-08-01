@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.homelab.kidguard.platform.R
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,9 +59,9 @@ class WarningOverlayManager @Inject constructor(
         try {
             windowManager?.addView(view, buildLayoutParams())
             overlayView = view
-            android.util.Log.d("WarningOverlay", "Warning-оверлей добавлен в WindowManager")
+            Timber.d("Warning-оверлей добавлен в WindowManager")
         } catch (e: Exception) {
-            android.util.Log.e("WarningOverlay", "Ошибка добавления оверлея", e)
+            Timber.e(e, "Ошибка добавления оверлея")
         }
     }
 
@@ -80,7 +81,7 @@ class WarningOverlayManager @Inject constructor(
         try {
             windowManager?.removeView(view)
         } catch (e: Exception) {
-            android.util.Log.e("WarningOverlay", "Ошибка удаления оверлея", e)
+            Timber.e(e, "Ошибка удаления оверлея")
         }
         overlayView = null
     }

@@ -1,12 +1,51 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+# Правила R8 для релизной сборки KidGuard.
+# AGP 9 сам собирает все файлы из src/main/keepRules и передаёт их R8 — classic proguardFiles
+# в build.gradle.kts не нужен.
 #
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# Чего здесь НЕТ и почему: Retrofit, OkHttp, Dagger/Hilt, Coroutines и Room поставляют свои
+# keep-правила внутри артефактов (META-INF/proguard), дублировать их не надо. Руками добиваем
+# только то, о чём библиотеки не сообщают сами.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- kotlinx.serialization ---------------------------------------------------
+# Единственная наша библиотека без consumer-правил. Сериализаторы генерируются в compile-time
+# и разрешаются по имени класса — без этих правил R8 их вырежет, и сеть отвалится НЕ на сборке,
+# а в рантайме при первом же запросе к серверу.
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.**
+
+-keepclassmembers class kotlinx.serialization.json.** {
+    *** Companion;
+}
+-keepclasseswithmembers class kotlinx.serialization.json.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+# DTO сетевого слоя (data/network/*Api.kt) и всё остальное, помеченное @Serializable:
+# сериализатор живёт в синтетическом $$serializer и в Companion — их нельзя ни удалять,
+# ни переименовывать.
+-keep,includedescriptorclasses class ru.homelab.kidguard.**$$serializer { *; }
+-keepclassmembers class ru.homelab.kidguard.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep @kotlinx.serialization.Serializable class ru.homelab.kidguard.** { *; }
+
+# --- Room --------------------------------------------------------------------
+# Правила Room закрывают её собственный код, но не наши сущности — их поля читает
+# сгенерированный код.
+-keep class ru.homelab.kidguard.data.db.entity.** { *; }
+
+# --- Android-компоненты, создаваемые системой по имени из манифеста ------------
+# Ссылок из кода на них нет (инстанцирует система), поэтому без keep R8 сочтёт их мусором.
+# Hilt-инъекция в сервисы тоже завязана на сохранённые имена классов.
+-keep class ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService { *; }
+-keep class ru.homelab.kidguard.platform.deviceadmin.KidGuardDeviceAdminReceiver { *; }
+-keep class ru.homelab.kidguard.platform.foreground.KidGuardForegroundService { *; }
+-keep class ru.homelab.kidguard.platform.foreground.BootReceiver { *; }
+-keep class ru.homelab.kidguard.platform.vpn.KidGuardVpnService { *; }
+
+# --- Диагностика -------------------------------------------------------------
+# Без этого стек-трейс из релиза нечитаем: имя файла и номер строки нужны, чтобы
+# восстановить место падения по mapping.txt (build/outputs/mapping/release/).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

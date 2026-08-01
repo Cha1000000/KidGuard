@@ -27,6 +27,7 @@ import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.core.domain.text.RussianDative
 import ru.homelab.kidguard.platform.R
+import timber.log.Timber
 import kotlin.random.Random
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -106,7 +107,7 @@ class FullScreenLockOverlayManager @Inject constructor(
         // запоминая view — иначе isShowing() соврёт, и контроллер решит, что замок уже висит.
         val manager = windowManager
         if (manager == null) {
-            android.util.Log.w(TAG, "WindowManager ещё не привязан — замок покажем на следующем тике")
+            Timber.w("WindowManager ещё не привязан — замок покажем на следующем тике")
             return@post
         }
         enteredDigits.clear()
@@ -117,7 +118,7 @@ class FullScreenLockOverlayManager @Inject constructor(
             manager.addView(view, buildLayoutParams())
             overlayView = view
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Не удалось показать ночной замок", e)
+            Timber.e(e, "Не удалось показать ночной замок")
         }
     }
 
@@ -136,7 +137,7 @@ class FullScreenLockOverlayManager @Inject constructor(
         try {
             windowManager?.removeView(view)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Не удалось убрать замок", e)
+            Timber.e(e, "Не удалось убрать замок")
         }
         overlayView = null
     }
@@ -560,7 +561,6 @@ class FullScreenLockOverlayManager @Inject constructor(
     }
 
     private companion object {
-        const val TAG = "FullScreenLock"
         const val PIN_LENGTH = 4
         const val DOT_SIZE_DP = 13
         const val DOT_MARGIN_DP = 7
