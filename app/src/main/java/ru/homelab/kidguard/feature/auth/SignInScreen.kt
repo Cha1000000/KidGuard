@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.auth
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,14 @@ import kotlinx.coroutines.launch
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.HeroHeader
+
+/** Текст ошибки под кнопкой: у каждой причины своя подсказка, что делать дальше. */
+@StringRes
+private fun errorMessageFor(failure: SignInFailure): Int = when (failure) {
+    SignInFailure.NO_GOOGLE_ACCOUNT -> R.string.signin_error_no_account
+    SignInFailure.GOOGLE_UNAVAILABLE -> R.string.signin_error_google
+    SignInFailure.SERVER -> R.string.signin_error
+}
 
 /**
  * Экран входа через Google — общий для обеих ролей, показывается один раз после выбора роли
@@ -88,12 +97,18 @@ fun SignInScreen(
                         onClick = {
                             viewModel.resetError()
                             scope.launch {
-                                val idToken = GoogleSignInLauncher.requestIdToken(
+                                val result = GoogleSignInLauncher.requestIdToken(
                                     context = context,
                                     filterByAuthorizedAccounts = false
                                 )
-                                if (idToken != null) {
-                                    viewModel.signIn(idToken)
+                                when (result) {
+                                    is GoogleSignInResult.Success -> viewModel.signIn(result.idToken)
+                                    // Пользователь сам передумал — сообщение было бы навязчивым.
+                                    GoogleSignInResult.Cancelled -> Unit
+                                    GoogleSignInResult.NoAccount ->
+                                        viewModel.onGoogleSignInFailed(SignInFailure.NO_GOOGLE_ACCOUNT)
+                                    GoogleSignInResult.Failed ->
+                                        viewModel.onGoogleSignInFailed(SignInFailure.GOOGLE_UNAVAILABLE)
                                 }
                             }
                         },
@@ -119,7 +134,7 @@ fun SignInScreen(
                     )
                     if (state is SignInUiState.Error) {
                         Text(
-                            text = stringResource(R.string.signin_error),
+                            text = stringResource(errorMessageFor(state.failure)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
