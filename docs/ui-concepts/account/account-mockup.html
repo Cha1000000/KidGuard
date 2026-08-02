@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: меню родителя, выход и удаление аккаунта</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1500px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:74ch; }
+  .intro ul { margin:10px 0 0; padding-left:20px; color:var(--page-muted); max-width:74ch; }
+  .intro li { margin-bottom:5px; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+
+  .screens { display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:20px; margin-top:18px; align-items:start; }
+  @media (max-width:1400px){ .screens{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:900px){ .screens{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:640px){ .screens{ grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:300px; margin:0 auto; border-radius:34px; padding:10px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#d1544e;
+    --scr-sheet:#1b2a30; --scr-field:rgba(255,255,255,.05);
+    border-radius:25px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:0 13px 16px; min-height:600px; position:relative;
+  }
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#b3261e;
+    --scr-sheet:#ffffff; --scr-field:rgba(22,35,42,.05);
+  }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:11px; color:var(--scr-muted); padding:8px 3px 6px; }
+
+  .titlerow { display:flex; align-items:flex-start; gap:8px; padding:8px 2px 10px; }
+  .titlerow .t { font-size:23px; font-weight:700; flex:1; line-height:1.15; }
+  .dots { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:var(--scr-muted); font-size:19px; flex:none; }
+  .dots.active { background:var(--scr-glass); }
+
+  .topbar { display:flex; align-items:center; gap:9px; padding:12px 2px 8px; }
+  .topbar .back { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--scr-glass); border:1px solid var(--scr-glass-border); flex:none; }
+  .topbar .back svg { width:14px; height:14px; fill:var(--scr-fg); }
+  .topbar .title { font-size:15px; font-weight:700; }
+
+  .menu { position:absolute; right:14px; top:56px; width:196px; background:var(--scr-sheet);
+    border:1px solid var(--scr-glass-border); border-radius:13px; padding:5px; z-index:5;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.6); }
+  .menu .mi { padding:11px 12px; font-size:14px; border-radius:9px; display:flex; align-items:center; gap:10px; }
+  .menu .mi:hover { background:var(--scr-glass); }
+  .menu .mi svg { width:16px; height:16px; fill:var(--scr-muted); flex:none; }
+
+  .card { background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:17px; padding:14px; margin-bottom:11px; }
+  .card .lbl { font-size:11px; color:var(--scr-muted); }
+  .card .val { font-size:15px; font-weight:600; margin-top:3px; word-break:break-all; }
+  .acc-head { display:flex; align-items:center; gap:11px; }
+  .acc-head .ava { width:42px; height:42px; border-radius:50%; flex:none;
+    background:linear-gradient(140deg,#4f8cd6,#c94fd6); display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:#fff; font-size:17px; }
+
+  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    border-radius:13px; padding:13px; font-size:14.5px; font-weight:600; margin-top:9px; }
+  .btn svg { width:17px; height:17px; }
+  .btn.outline { border:1px solid var(--scr-glass-border); color:var(--scr-fg); background:var(--scr-glass); }
+  .btn.outline svg { fill:var(--scr-fg); }
+  .btn.danger { border:1px solid rgba(209,84,78,.45); color:var(--scr-danger); background:rgba(209,84,78,.10); }
+  .btn.danger svg { fill:var(--scr-danger); }
+  .btn.disabled { opacity:.4; }
+  .hint { font-size:11.5px; color:var(--scr-muted); margin-top:8px; line-height:1.45; }
+  .sect { font-size:11px; font-weight:700; color:var(--scr-muted); text-transform:uppercase;
+    letter-spacing:.06em; margin:18px 2px 8px; }
+
+  .scrim { position:absolute; inset:0; background:rgba(0,0,0,.55); border-radius:25px; z-index:8; }
+  .dialog { position:absolute; left:12px; right:12px; top:50%; transform:translateY(-50%);
+    background:var(--scr-sheet); border:1px solid var(--scr-glass-border); border-radius:20px;
+    padding:18px 17px; z-index:9; box-shadow:0 24px 60px -16px rgba(0,0,0,.7); }
+  .dialog h3 { margin:0 0 9px; font-size:16.5px; }
+  .dialog p { margin:0 0 10px; font-size:13px; color:var(--scr-muted); line-height:1.5; }
+  .dialog ul { margin:0 0 12px; padding-left:17px; font-size:12.5px; color:var(--scr-muted); }
+  .dialog li { margin-bottom:5px; }
+  .dialog li b { color:var(--scr-fg); }
+  .field { background:var(--scr-field); border:1px solid var(--scr-glass-border); border-radius:11px;
+    padding:11px 12px; font-size:14px; color:var(--scr-muted); margin-bottom:12px; }
+  .field.filled { color:var(--scr-fg); font-weight:700; letter-spacing:.08em; border-color:var(--scr-danger); }
+  .dlg-actions { display:flex; gap:9px; }
+  .dlg-actions .b { flex:1; text-align:center; padding:11px; border-radius:11px; font-size:14px; font-weight:600; }
+  .dlg-actions .cancel { border:1px solid var(--scr-glass-border); color:var(--scr-fg); }
+  .dlg-actions .confirm { background:var(--scr-danger); color:#fff; }
+  .dlg-actions .confirm.off { opacity:.35; }
+  .dlg-actions .confirm.ok { background:var(--scr-accent); color:var(--scr-on-accent); }
+
+  .about-wrap { display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:56px; }
+  .about-wrap .ico { width:74px; height:74px; border-radius:20px; background:var(--scr-accent);
+    display:flex; align-items:center; justify-content:center; margin-bottom:15px; }
+  .about-wrap .ico svg { width:42px; height:42px; fill:var(--scr-on-accent); }
+  .about-wrap .nm { font-size:20px; font-weight:700; }
+  .about-wrap .ver { font-size:13px; color:var(--scr-muted); margin-top:3px; }
+  .about-wrap .todo { font-size:12px; color:var(--scr-muted); margin-top:22px; border:1px dashed var(--scr-glass-border);
+    border-radius:12px; padding:12px; line-height:1.5; }
+
+  .dock { position:absolute; left:13px; right:13px; bottom:14px; display:flex; justify-content:space-around;
+    background:var(--scr-glass); border:1px solid var(--scr-glass-border); border-radius:19px; padding:9px 4px; }
+  .dock div { font-size:10px; color:var(--scr-muted); text-align:center; }
+  .dock div.on { color:var(--scr-accent); font-weight:600; }
+
+  .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
+  @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard p + p { margin-top:8px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование</p>
+    <h1>Меню родителя, выход и удаление аккаунта</h1>
+    <p>В политике конфиденциальности обещано удаление учётной записи, и Google с RuStore ждут, что
+       оно доступно из приложения. Сейчас в KidGuard нет ни выхода, ни удаления. Добавляем меню
+       «три точки» и экран «Аккаунт».</p>
+    <ul>
+      <li><b>Меню — на всех трёх вкладках</b> родителя (Дети / Правила / Статистика), справа от
+        заголовка. Пункты: «О приложении» и «Аккаунт».</li>
+      <li><b>Выход</b> — с коротким подтверждением, данные на сервере не трогаются.</li>
+      <li><b>Удаление</b> — красная кнопка, диалог с перечнем последствий <b>и фактическими
+        числами</b>, плюс ввод слова «УДАЛИТЬ». Ребёнок, у которого есть второй родитель,
+        не удаляется — мы только отвязываемся.</li>
+      <li>Оба действия возвращают на экран выбора роли «Чей это телефон?».</li>
+    </ul>
+  </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- 1. Меню открыто -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>18:40</span><span>▤ ▮</span></div>
+          <div class="titlerow">
+            <div class="t">Дети</div>
+            <div class="dots active">⋮</div>
+          </div>
+          <div class="menu">
+            <div class="mi">
+              <svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              О приложении
+            </div>
+            <div class="mi">
+              <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              Аккаунт
+            </div>
+          </div>
+          <div class="card" style="opacity:.5">
+            <div class="acc-head">
+              <div class="ava" style="background:linear-gradient(140deg,#c94fd6,#4f8cd6)"></div>
+              <div><div class="val" style="font-size:14px">Alina</div><div class="lbl">Привязан</div></div>
+            </div>
+          </div>
+          <div class="card" style="opacity:.5">
+            <div class="acc-head">
+              <div class="ava" style="background:linear-gradient(140deg,#26a69a,#5c7cfa)"></div>
+              <div><div class="val" style="font-size:14px">Олег</div><div class="lbl">Привязан</div></div>
+            </div>
+          </div>
+          <div class="dock"><div class="on">Дети</div><div>Правила</div><div>Статистика</div></div>
+        </div>
+      </div>
+      <div class="caption"><b>1</b> · Меню «три точки» справа от заголовка — одинаково на всех вкладках</div>
+    </div>
+
+    <!-- 2. Экран Аккаунт -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>18:40</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Аккаунт</div>
+          </div>
+
+          <div class="card">
+            <div class="acc-head">
+              <div class="ava">В</div>
+              <div style="min-width:0">
+                <div class="val" style="font-size:14.5px">Владимир Милешко</div>
+                <div class="lbl" style="margin-top:2px">racerkafa@gmail.com</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect">Сеанс</div>
+          <div class="btn outline">
+            <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg>
+            Выйти из аккаунта
+          </div>
+          <div class="hint">Данные детей и правила останутся. Вы сможете войти снова тем же
+            Google-аккаунтом.</div>
+
+          <div class="sect">Необратимое</div>
+          <div class="btn danger">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Удалить аккаунт
+          </div>
+          <div class="hint">Удалит вашу учётную запись и данные детей, которыми управляете только вы.</div>
+        </div>
+      </div>
+      <div class="caption"><b>2</b> · Экран «Аккаунт»: кто вошёл, выход и отдельно — необратимое удаление</div>
+    </div>
+
+    <!-- 3. Диалог выхода -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>18:41</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Аккаунт</div>
+          </div>
+          <div class="card" style="opacity:.45">
+            <div class="acc-head">
+              <div class="ava">В</div>
+              <div><div class="val" style="font-size:14px">Владимир Милешко</div></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="dialog">
+            <h3>Выйти из аккаунта?</h3>
+            <p>Приложение вернётся к выбору роли. Дети, правила и статистика сохранятся на сервере —
+               после повторного входа всё будет на месте.</p>
+            <div class="dlg-actions">
+              <div class="b cancel">Отмена</div>
+              <div class="b confirm ok">Выйти</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>3</b> · Выход — короткое подтверждение, ничего не удаляется</div>
+    </div>
+
+    <!-- 4. Диалог удаления -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>18:42</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Аккаунт</div>
+          </div>
+          <div class="scrim"></div>
+          <div class="dialog">
+            <h3 style="color:var(--scr-danger)">Удалить аккаунт?</h3>
+            <p>Действие необратимо. Будет удалено:</p>
+            <ul>
+              <li>ваша учётная запись <b>racerkafa@gmail.com</b>;</li>
+              <li><b>Alina</b> — правила, статистика, список приложений;</li>
+              <li><b>Олег</b> — правила, статистика, список приложений.</li>
+            </ul>
+            <p>Для подтверждения введите слово <b>УДАЛИТЬ</b>:</p>
+            <div class="field">УДАЛИТЬ</div>
+            <div class="dlg-actions">
+              <div class="b cancel">Отмена</div>
+              <div class="b confirm off">Удалить</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>4</b> · Пока слово не введено — кнопка неактивна. Перечень с реальными именами детей</div>
+    </div>
+
+    <!-- 5. Диалог удаления: есть со-родитель + О приложении -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>18:42</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Аккаунт</div>
+          </div>
+          <div class="scrim"></div>
+          <div class="dialog">
+            <h3 style="color:var(--scr-danger)">Удалить аккаунт?</h3>
+            <p>Действие необратимо. Будет удалено:</p>
+            <ul>
+              <li>ваша учётная запись <b>racerkafa@gmail.com</b>;</li>
+              <li><b>Олег</b> — правила, статистика, список приложений.</li>
+            </ul>
+            <p style="color:var(--scr-fg)"><b>Alina</b> не будет удалена — ребёнком управляет ещё
+               один родитель. Вы просто перестанете иметь к ней доступ.</p>
+            <div class="field filled">УДАЛИТЬ</div>
+            <div class="dlg-actions">
+              <div class="b cancel">Отмена</div>
+              <div class="b confirm">Удалить</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>5</b> · Если у ребёнка есть второй родитель — он остаётся, мы только отвязываемся</div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <div class="ncard">
+      <h3>Почему числа в диалоге настоящие</h3>
+      <p>Формулировка вида «все ваши данные будут удалены» ничего не говорит человеку. Диалог
+        перечисляет детей поимённо и отдельно отмечает тех, кто останется у второго родителя, —
+        видно точные последствия до нажатия, а не после.</p>
+    </div>
+    <div class="ncard">
+      <h3>Что происходит на сервере</h3>
+      <p>Для каждого ребёнка считается число родителей: если их больше одного — удаляется только
+        связь с вами; если вы единственный — ребёнок и все его данные удаляются целиком.
+        Всё одной транзакцией.</p>
+    </div>
+    <div class="ncard">
+      <h3>Если нет сети</h3>
+      <p>Удаление сначала выполняется на сервере и только при успехе стирает локальные данные.
+        При ошибке показывается сообщение, и пользователь остаётся в аккаунте — иначе человек
+        решил бы, что аккаунт удалён, а он остался.</p>
+    </div>
+    <div class="ncard">
+      <h3>Экран «О приложении»</h3>
+      <p>Пока заглушка: иконка, название, версия — чтобы пункт меню не был мёртвым. Содержимое
+        (ссылка на политику, контакты, лицензии) обсуждаем отдельной задачей.</p>
+    </div>
+  </div>
+
+  <div class="foot">Файл: <code>docs/ui-concepts/account/account-mockup.html</code> · после согласования — сервер (<code>DELETE /me</code> + тесты), затем клиент.</div>
+</div>
+
+<script>
+  function setTheme(t) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', t === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  }
+</script>
+</body>
+</html>

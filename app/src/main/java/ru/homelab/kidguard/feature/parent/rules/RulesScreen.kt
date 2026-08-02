@@ -32,6 +32,7 @@ import ru.homelab.kidguard.core.ui.components.GlassCard
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
+import ru.homelab.kidguard.feature.parent.ParentMenu
 
 /** Вкладка «Правила»: карточки-ссылки на дневной лимит, лимиты приложений, запрет и белый список. */
 @Composable
@@ -43,10 +44,15 @@ fun RulesScreen(
     onOpenSchedule: () -> Unit,
     onOpenWhitelist: () -> Unit,
     onOpenPinProtection: () -> Unit,
+    onOpenAbout: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        ScreenTitle(stringResource(R.string.parent_tab_rules))
+        ScreenTitle(
+            stringResource(R.string.parent_tab_rules),
+            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+        )
         ChildSelectorChip()
         // LazyColumn, а не Column: на невысоких экранах 7 карточек (+ заголовки секций) не
         // влезают целиком, и без прокрутки нижние карточки обрезались. Отступ под док-бар — в

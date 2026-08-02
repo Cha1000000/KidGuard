@@ -29,6 +29,8 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val childProfile: Flow<PairedChild?> = authLocalStore.childProfile
 
+    override val parentProfile: Flow<AuthUser?> = authLocalStore.parentProfile
+
     override suspend fun signInWithGoogleIdToken(googleIdToken: String): Result<AuthUser> = try {
         val response = authApi.signInWithGoogle(GoogleAuthRequest(googleIdToken))
         authLocalStore.saveParentSession(
@@ -59,6 +61,15 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun setChildLocalAvatar(index: Int) = authLocalStore.setLocalAvatar(index)
 
     override suspend fun clearChildLocalAvatar() = authLocalStore.clearLocalAvatar()
+
+    override suspend fun clearParentSession() = authLocalStore.clearParentSession()
+
+    override suspend fun deleteAccount(): Result<Unit> = try {
+        authApi.deleteAccount()
+        Result.success(Unit)
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
 
     /**
      * Читает поле `exp` (Unix-секунды) из тела JWT БЕЗ проверки подписи — нужно только для

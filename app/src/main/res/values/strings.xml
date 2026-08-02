@@ -57,6 +57,7 @@
     <string name="coparent_linked">Родитель добавлен</string>
     <string name="coparent_pending">Приглашение отправлено — родитель получит доступ после входа</string>
     <string name="common_cancel">Отмена</string>
+    <string name="common_delete">Удалить</string>
     <string name="common_error">Что-то пошло не так. Проверьте подключение и попробуйте снова.</string>
     <string name="common_retry">Повторить</string>
 
@@ -64,6 +65,36 @@
     <string name="parent_tab_children">Дети</string>
     <string name="parent_tab_rules">Правила</string>
     <string name="parent_tab_statistics">Статистика</string>
+
+    <!-- Меню родителя («три точки») -->
+    <string name="parent_menu_open_cd">Открыть меню</string>
+    <string name="parent_menu_about">О приложении</string>
+    <string name="parent_menu_account">Аккаунт</string>
+
+    <!-- Аккаунт: выход и удаление -->
+    <string name="account_title">Аккаунт</string>
+    <string name="account_section_session">Сеанс</string>
+    <string name="account_section_danger">Необратимое</string>
+    <string name="account_sign_out">Выйти из аккаунта</string>
+    <string name="account_sign_out_hint">Данные детей и правила останутся. Вы сможете войти снова тем же Google-аккаунтом.</string>
+    <string name="account_delete">Удалить аккаунт</string>
+    <string name="account_delete_hint">Удалит вашу учётную запись и данные детей, которыми управляете только вы.</string>
+    <string name="account_signout_dialog_title">Выйти из аккаунта?</string>
+    <string name="account_signout_dialog_text">Приложение вернётся к выбору роли. Дети, правила и статистика сохранятся на сервере — после повторного входа всё будет на месте.</string>
+    <string name="account_delete_dialog_title">Удалить аккаунт?</string>
+    <string name="account_delete_dialog_intro">Действие необратимо. Будет удалено:</string>
+    <string name="account_delete_dialog_child">%1$s — правила, статистика, список приложений</string>
+    <string name="account_delete_dialog_account">ваша учётная запись %1$s</string>
+    <string name="account_delete_dialog_kept">%1$s не будет удалён(а) — этим ребёнком управляет ещё один родитель. Вы просто перестанете иметь к нему доступ.</string>
+    <string name="account_delete_dialog_confirm_prompt">Для подтверждения введите слово %1$s:</string>
+    <string name="account_delete_confirm_word">УДАЛИТЬ</string>
+    <string name="account_delete_error">Не удалось удалить аккаунт. Проверьте подключение и попробуйте снова.</string>
+    <string name="account_signout_error">Не удалось выйти из аккаунта. Проверьте подключение и попробуйте снова.</string>
+
+    <!-- О приложении (заглушка) -->
+    <string name="about_title">О приложении</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_placeholder">Здесь появится информация о приложении: политика конфиденциальности, контакты и лицензии.</string>
 
     <!-- Статистика (родитель) -->
     <string name="statistics_today_label">Экранное время сегодня</string>

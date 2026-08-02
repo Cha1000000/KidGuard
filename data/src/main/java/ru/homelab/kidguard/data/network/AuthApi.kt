@@ -2,6 +2,7 @@ package ru.homelab.kidguard.data.network
 
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.POST
 
 @Serializable
@@ -13,9 +14,16 @@ data class AuthResponseDto(val token: String, val user: UserDto)
 @Serializable
 data class UserDto(val id: Int, val email: String, val displayName: String? = null)
 
+@Serializable
+data class DeleteAccountResponse(val ok: Boolean = true)
+
 /** Соответствует контракту `POST /auth/google` из docs/plans/milestone-04-accounts-backend-sync.md. */
 interface AuthApi {
 
     @POST("auth/google")
     suspend fun signInWithGoogle(@Body request: GoogleAuthRequest): AuthResponseDto
+
+    /** Удаляет учётную запись родителя на сервере (каскадно — вместе с его детьми и данными). */
+    @DELETE("me")
+    suspend fun deleteAccount(): DeleteAccountResponse
 }

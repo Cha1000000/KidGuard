@@ -45,12 +45,15 @@ import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
 import ru.homelab.kidguard.core.ui.components.AppIconImage
 import ru.homelab.kidguard.feature.parent.ChildSelectorChip
+import ru.homelab.kidguard.feature.parent.ParentMenu
 import java.time.format.TextStyle
 import java.util.Locale
 
 /** Вкладка «Статистика» родителя (веха 4.4): экранное время ребёнка с сервера. */
 @Composable
 fun StatisticsScreen(
+    onOpenAbout: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
@@ -61,7 +64,10 @@ fun StatisticsScreen(
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     Column(modifier = modifier.fillMaxSize()) {
-        ScreenTitle(stringResource(R.string.parent_tab_statistics))
+        ScreenTitle(
+            stringResource(R.string.parent_tab_statistics),
+            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+        )
         if (!uiState.noChildren) ChildSelectorChip()
 
         when {

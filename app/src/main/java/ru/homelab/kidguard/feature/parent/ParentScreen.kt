@@ -20,6 +20,8 @@ import androidx.navigation.compose.rememberNavController
 import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassDockBar
 import ru.homelab.kidguard.core.ui.components.GlassDockItem
+import ru.homelab.kidguard.feature.parent.about.AboutScreen
+import ru.homelab.kidguard.feature.parent.account.AccountScreen
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
 import ru.homelab.kidguard.feature.parent.rules.BlockedAppsScreen
@@ -40,6 +42,8 @@ private const val ROUTE_RULES_BLOCKED_SITES = "parent/rules/blocked-sites"
 private const val ROUTE_RULES_SCHEDULE = "parent/rules/schedule"
 private const val ROUTE_RULES_PIN = "parent/rules/pin"
 private const val ROUTE_RULES_BREAKS = "parent/rules/breaks"
+private const val ROUTE_ACCOUNT = "parent/account"
+private const val ROUTE_ABOUT = "parent/about"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -47,6 +51,7 @@ private const val ROUTE_RULES_BREAKS = "parent/rules/breaks"
  */
 @Composable
 fun ParentScreen(
+    onSignedOut: () -> Unit,
     modifier: Modifier = Modifier,
     // Поднимает петлю синхронизации политики (веха 4.3) на время жизни родительского режима.
     @Suppress("UNUSED_PARAMETER") syncViewModel: ParentSyncViewModel = hiltViewModel()
@@ -68,7 +73,12 @@ fun ParentScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
-            composable(ParentTab.CHILDREN.route) { ChildrenScreen() }
+            composable(ParentTab.CHILDREN.route) {
+                ChildrenScreen(
+                    onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
+                )
+            }
             composable(ParentTab.RULES.route) {
                 RulesScreen(
                     onOpenDailyLimit = { navController.navigate(ROUTE_RULES_LIMIT) },
@@ -77,7 +87,9 @@ fun ParentScreen(
                     onOpenBlockedSites = { navController.navigate(ROUTE_RULES_BLOCKED_SITES) },
                     onOpenSchedule = { navController.navigate(ROUTE_RULES_SCHEDULE) },
                     onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) },
-                    onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) }
+                    onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) },
+                    onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
                 )
             }
             composable(ROUTE_RULES_LIMIT) {
@@ -110,7 +122,21 @@ fun ParentScreen(
             composable(ROUTE_RULES_PIN) {
                 PinSetupScreen(onBack = { navController.popBackStack() })
             }
-            composable(ParentTab.STATISTICS.route) { StatisticsScreen() }
+            composable(ParentTab.STATISTICS.route) {
+                StatisticsScreen(
+                    onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
+                )
+            }
+            composable(ROUTE_ACCOUNT) {
+                AccountScreen(
+                    onBack = { navController.popBackStack() },
+                    onSignedOut = onSignedOut
+                )
+            }
+            composable(ROUTE_ABOUT) {
+                AboutScreen(onBack = { navController.popBackStack() })
+            }
         }
 
         // Плавающий Glass Dock Bar поверх контента

@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import ru.homelab.kidguard.core.domain.model.AuthUser
 import ru.homelab.kidguard.core.domain.model.PairedChild
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,6 +68,13 @@ class AuthLocalStore @Inject constructor(
         PairedChild(id = childId, name = childName, avatar = avatar)
     }
 
+    /** Профиль вошедшего родителя (почта, имя) — для экрана «Аккаунт»; `null`, если сессии нет. */
+    val parentProfile: Flow<AuthUser?> = context.authDataStore.data.map { prefs ->
+        val userId = prefs[Keys.USER_ID] ?: return@map null
+        val email = prefs[Keys.USER_EMAIL] ?: return@map null
+        AuthUser(id = userId, email = email, displayName = prefs[Keys.USER_DISPLAY_NAME])
+    }
+
     suspend fun saveParentSession(token: String, expiresAtMillis: Long, userId: Int, email: String, displayName: String?) {
         context.authDataStore.edit { prefs ->
             prefs[Keys.TOKEN] = token
@@ -83,6 +91,21 @@ class AuthLocalStore @Inject constructor(
             prefs[Keys.CHILD_ID] = childId
             prefs[Keys.CHILD_NAME] = childName
             prefs[Keys.CHILD_AVATAR] = childAvatar
+        }
+    }
+
+    /**
+     * Стереть родительскую сессию (токен, срок действия, профиль) при выходе/удалении аккаунта.
+     * Детские ключи (pairing) не трогает — устройство может быть одновременно только в одной
+     * роли, но очистка одной сессии не должна задевать другую по совпадению.
+     */
+    suspend fun clearParentSession() {
+        context.authDataStore.edit { prefs ->
+            prefs.remove(Keys.TOKEN)
+            prefs.remove(Keys.EXPIRES_AT_MILLIS)
+            prefs.remove(Keys.USER_ID)
+            prefs.remove(Keys.USER_EMAIL)
+            prefs.remove(Keys.USER_DISPLAY_NAME)
         }
     }
 
