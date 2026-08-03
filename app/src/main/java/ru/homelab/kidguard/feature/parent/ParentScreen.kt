@@ -21,6 +21,9 @@ import ru.homelab.kidguard.core.ui.components.GlassBackground
 import ru.homelab.kidguard.core.ui.components.GlassDockBar
 import ru.homelab.kidguard.core.ui.components.GlassDockItem
 import ru.homelab.kidguard.feature.parent.about.AboutScreen
+import ru.homelab.kidguard.feature.parent.about.GuideScreen
+import ru.homelab.kidguard.feature.parent.about.PrivacyPolicyScreen
+import ru.homelab.kidguard.feature.parent.about.TermsScreen
 import ru.homelab.kidguard.feature.parent.account.AccountScreen
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
@@ -44,6 +47,9 @@ private const val ROUTE_RULES_PIN = "parent/rules/pin"
 private const val ROUTE_RULES_BREAKS = "parent/rules/breaks"
 private const val ROUTE_ACCOUNT = "parent/account"
 private const val ROUTE_ABOUT = "parent/about"
+private const val ROUTE_GUIDE = "parent/about/guide"
+private const val ROUTE_PRIVACY = "parent/about/privacy"
+private const val ROUTE_TERMS = "parent/about/terms"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -135,7 +141,21 @@ fun ParentScreen(
                 )
             }
             composable(ROUTE_ABOUT) {
-                AboutScreen(onBack = { navController.popBackStack() })
+                AboutScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
+                    onOpenPrivacy = { navController.navigate(ROUTE_PRIVACY) },
+                    onOpenTerms = { navController.navigate(ROUTE_TERMS) }
+                )
+            }
+            composable(ROUTE_GUIDE) {
+                GuideScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_PRIVACY) {
+                PrivacyPolicyScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_TERMS) {
+                TermsScreen(onBack = { navController.popBackStack() })
             }
         }
 

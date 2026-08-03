@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KidGuard — макет: экран «О приложении»</title>
+<style>
+  :root {
+    --page-bg: #eef2f0; --page-fg: #14201b; --page-muted: #5c6b64;
+    --page-card: #fff; --page-border: rgba(20,32,27,.10); --accent: #0f9d74;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg:#0b1310; --page-fg:#e7efeb; --page-muted:#93a29b; --page-card:#121d19;
+            --page-border:rgba(255,255,255,.09); --accent:#35e0ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--page-bg);
+         color:var(--page-fg); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width: 1500px; margin:0 auto; padding: 32px 20px 64px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px; }
+  h1 { font-size: clamp(22px,3vw,30px); margin:0 0 8px; }
+  .intro p { margin:0; color:var(--page-muted); max-width:74ch; }
+  .intro ul { margin:10px 0 0; padding-left:20px; color:var(--page-muted); max-width:74ch; }
+  .intro li { margin-bottom:5px; }
+  .intro b { color:var(--page-fg); }
+
+  .themebar { display:flex; align-items:center; gap:10px; margin:22px 0 0; flex-wrap:wrap; }
+  .themebar .lbl { font-size:13px; color:var(--page-muted); }
+  .tabs { display:inline-flex; background:var(--page-card); border:1px solid var(--page-border); border-radius:11px; padding:3px; }
+  .tabs button { border:none; background:transparent; color:var(--page-muted); font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { .tabs button.on { color:#06120d; } }
+
+  .screens { display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:18px; margin-top:18px; align-items:start; }
+  @media (max-width:1400px){ .screens{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:900px){ .screens{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:640px){ .screens{ grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .caption { font-size:12.5px; color:var(--page-muted); text-align:center; }
+  .caption b { color:var(--page-fg); font-weight:600; }
+
+  .phone { width:100%; max-width:295px; margin:0 auto; border-radius:34px; padding:10px;
+    background:linear-gradient(160deg,#1b2b25,#0a120f); box-shadow:0 30px 70px -24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset; }
+
+  .screen {
+    --scr-bg0:#0a161a; --scr-bg1:#17282e; --scr-fg:#e6eef0; --scr-muted:#9db2b8;
+    --scr-glass:rgba(255,255,255,.055); --scr-glass-border:rgba(255,255,255,.09);
+    --scr-accent:#4fc3b0; --scr-on-accent:#04312b; --scr-danger:#d1544e;
+    border-radius:25px; overflow:hidden; background:radial-gradient(120% 80% at 50% 0%,var(--scr-bg1),var(--scr-bg0));
+    color:var(--scr-fg); padding:0 13px 16px; min-height:680px; position:relative;
+  }
+  .screen.light {
+    --scr-bg0:#eef4f6; --scr-bg1:#f6fafb; --scr-fg:#16232a; --scr-muted:#5b6b72;
+    --scr-glass:rgba(255,255,255,.75); --scr-glass-border:rgba(22,35,42,.12);
+    --scr-accent:#2e6b7e; --scr-on-accent:#ffffff; --scr-danger:#b3261e;
+  }
+
+  .statusbar { display:flex; justify-content:space-between; font-size:11px; color:var(--scr-muted); padding:8px 3px 6px; }
+  .topbar { display:flex; align-items:center; gap:9px; padding:12px 2px 8px; }
+  .topbar .back { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--scr-glass); border:1px solid var(--scr-glass-border); flex:none; }
+  .topbar .back svg { width:14px; height:14px; fill:var(--scr-fg); }
+  .topbar .title { font-size:15px; font-weight:700; }
+
+  /* --- шапка с иконкой --- */
+  .apphead { display:flex; flex-direction:column; align-items:center; text-align:center; padding:14px 6px 6px; }
+  .appicon { width:96px; height:96px; border-radius:24px; overflow:hidden; flex:none;
+    box-shadow:0 14px 30px -10px rgba(0,0,0,.5); background:#eef4f6;
+    display:flex; align-items:center; justify-content:center; }
+  .appicon svg { width:100%; height:100%; }
+  .appname { font-size:23px; font-weight:800; margin-top:13px; letter-spacing:-.2px; }
+  .slogan { font-size:13.5px; color:var(--scr-muted); margin-top:4px; line-height:1.35; max-width:230px; }
+  .slogan.long { color:var(--scr-fg); }
+  .version { font-size:12px; color:var(--scr-muted); margin-top:7px; opacity:.75; }
+
+  .divider { height:1px; background:var(--scr-glass-border); margin:15px 2px 13px; }
+
+  .about-text { font-size:13px; color:var(--scr-muted); line-height:1.55; padding:0 3px 4px; }
+  .about-text b { color:var(--scr-fg); font-weight:600; }
+
+  .sect { font-size:11px; font-weight:700; color:var(--scr-muted); text-transform:uppercase;
+    letter-spacing:.06em; margin:16px 3px 8px; }
+
+  .row { display:flex; align-items:center; gap:12px; background:var(--scr-glass);
+    border:1px solid var(--scr-glass-border); border-radius:15px; padding:13px 14px; margin-bottom:8px; }
+  .row svg { width:19px; height:19px; fill:var(--scr-muted); flex:none; }
+  .row .t { flex:1; font-size:14px; }
+  .row .chev { color:var(--scr-muted); font-size:16px; opacity:.65; }
+  .row.soon { opacity:.45; }
+  .row.soon .badge { font-size:10px; color:var(--scr-muted); border:1px solid var(--scr-glass-border);
+    border-radius:6px; padding:2px 6px; }
+  .row.accent svg { fill:var(--scr-accent); }
+  .row.heart svg { fill:#e0709a; }
+
+  .soonhint { font-size:11px; color:var(--scr-muted); padding:2px 4px 0; line-height:1.45; opacity:.8; }
+
+  /* --- экран документа --- */
+  .doc h2 { font-size:15px; margin:14px 2px 8px; }
+  .doc p { font-size:12.5px; color:var(--scr-muted); line-height:1.55; margin:0 2px 9px; }
+  .doc .meta { font-size:11px; color:var(--scr-muted); opacity:.7; margin:0 2px 12px; }
+  .doc table { width:100%; border-collapse:collapse; font-size:11px; margin:6px 0 10px; }
+  .doc th, .doc td { border:1px solid var(--scr-glass-border); padding:5px 6px; text-align:left; color:var(--scr-muted); }
+  .doc th { background:var(--scr-glass); color:var(--scr-fg); }
+
+  .todo-box { border:1px dashed var(--scr-glass-border); border-radius:14px; padding:16px 14px;
+    font-size:12.5px; color:var(--scr-muted); line-height:1.55; margin-top:16px; text-align:center; }
+
+  .snack { position:absolute; left:14px; right:14px; bottom:20px; background:#2a3b42; color:#e6eef0;
+    border-radius:12px; padding:12px 14px; font-size:12.5px; box-shadow:0 14px 30px -10px rgba(0,0,0,.6); }
+
+  .notes { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; margin-top:34px; }
+  @media (max-width:760px){ .notes{ grid-template-columns:1fr; } }
+  .ncard { background:var(--page-card); border:1px solid var(--page-border); border-radius:16px; padding:16px 18px; }
+  .ncard h3 { margin:0 0 6px; font-size:15px; }
+  .ncard p { margin:0; color:var(--page-muted); font-size:14px; }
+  .ncard p + p { margin-top:8px; }
+  .ncard b { color:var(--page-fg); font-weight:600; }
+  .ncard code { font-size:13px; background:rgba(128,128,128,.14); border-radius:5px; padding:1px 5px; }
+  .foot { margin-top:28px; font-size:13px; color:var(--page-muted); border-top:1px solid var(--page-border); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">KidGuard · макет на согласование</p>
+    <h1>Экран «О приложении»</h1>
+    <p>Вместо текущей заглушки — полноценный экран по образцу твоего Habit Tracker: иконка,
+       назначение приложения, справочные документы и кнопки поддержки.</p>
+    <ul>
+      <li><b>Экраны 1 и 2 отличаются только слоганом</b> — твой вариант и укороченный. Выбери,
+        какой смотрится лучше: длинный переносится на две строки.</li>
+      <li><b>Политика конфиденциальности</b> открывается экраном внутри приложения (текст уже
+        написан) — работает без интернета и не ждёт GitHub Pages.</li>
+      <li><b>Руководство и пользовательское соглашение</b> — экраны есть, тексты составим
+        отдельными шагами.</li>
+      <li><b>Оценить / Поделиться / На кофе</b> — показаны, но неактивны: нет ссылки на RuStore и
+        сервиса донатов. <b>Обратная связь работает сразу</b> — открывает почтовый клиент.</li>
+    </ul>
+  </header>
+
+  <div class="themebar">
+    <span class="lbl">Тема приложения:</span>
+    <div class="tabs">
+      <button type="button" id="btn-dark" class="on" onclick="setTheme('dark')">Тёмная</button>
+      <button type="button" id="btn-light" onclick="setTheme('light')">Светлая</button>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- 1. Основной, слоган Володи -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>23:40</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">О приложении</div>
+          </div>
+
+          <div class="apphead">
+            <div class="appicon">
+              <svg viewBox="0 0 120 120">
+                <rect width="120" height="120" rx="26" fill="#eef4f6"/>
+                <path d="M60 22 L92 34 V62 c0 20-14 32-32 38 -18-6-32-18-32-38 V34 Z" fill="#7fc6c0" opacity=".55"/>
+                <path d="M60 28 L86 38 V62 c0 17-11 27-26 32 -15-5-26-15-26-32 V38 Z" fill="#cfe8e6"/>
+                <circle cx="52" cy="48" r="9" fill="#5aa8b0"/>
+                <path d="M38 74c0-8 6-14 14-14s14 6 14 14z" fill="#5aa8b0"/>
+                <circle cx="72" cy="55" r="6" fill="#e8b96a"/>
+                <path d="M63 74c0-5 4-9 9-9s9 4 9 9z" fill="#e8b96a"/>
+                <circle cx="60" cy="82" r="17" fill="#f3d9a4" stroke="#dcb877" stroke-width="2"/>
+                <path d="M60 72v10l7 4" stroke="#b98c3e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <rect x="55" y="86" width="10" height="9" rx="2" fill="#b98c3e"/>
+              </svg>
+            </div>
+            <div class="appname">KidGuard</div>
+            <div class="slogan long">Идеальное приложение родительского контроля без лишнего</div>
+            <div class="version">Версия 1.0.0</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="about-text">
+            Помогает договориться об экранном времени: вы задаёте дневные лимиты, расписания учёбы
+            и сна, списки разрешённых и запрещённых приложений — а <b>ребёнок видит свои правила
+            на собственном экране</b>. Приложение не прячется и не читает переписку.
+          </div>
+
+          <div class="sect">Справка</div>
+          <div class="row">
+            <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 6h8v2H8zm0 4h8v2H8zm0 4h5v2H8z"/></svg>
+            <div class="t">Как пользоваться</div>
+            <div class="chev">›</div>
+          </div>
+          <div class="row">
+            <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></svg>
+            <div class="t">Политика конфиденциальности</div>
+            <div class="chev">›</div>
+          </div>
+          <div class="row">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8zm-1 7V3.5L18.5 9z"/></svg>
+            <div class="t">Пользовательское соглашение</div>
+            <div class="chev">›</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>1</b> · Твой слоган — ложится в две строки</div>
+    </div>
+
+    <!-- 2. Слоган короткий + секция поддержки -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>23:40</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">О приложении</div>
+          </div>
+
+          <div class="apphead">
+            <div class="appicon">
+              <svg viewBox="0 0 120 120">
+                <rect width="120" height="120" rx="26" fill="#eef4f6"/>
+                <path d="M60 22 L92 34 V62 c0 20-14 32-32 38 -18-6-32-18-32-38 V34 Z" fill="#7fc6c0" opacity=".55"/>
+                <path d="M60 28 L86 38 V62 c0 17-11 27-26 32 -15-5-26-15-26-32 V38 Z" fill="#cfe8e6"/>
+                <circle cx="52" cy="48" r="9" fill="#5aa8b0"/>
+                <path d="M38 74c0-8 6-14 14-14s14 6 14 14z" fill="#5aa8b0"/>
+                <circle cx="72" cy="55" r="6" fill="#e8b96a"/>
+                <path d="M63 74c0-5 4-9 9-9s9 4 9 9z" fill="#e8b96a"/>
+                <circle cx="60" cy="82" r="17" fill="#f3d9a4" stroke="#dcb877" stroke-width="2"/>
+                <path d="M60 72v10l7 4" stroke="#b98c3e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <rect x="55" y="86" width="10" height="9" rx="2" fill="#b98c3e"/>
+              </svg>
+            </div>
+            <div class="appname">KidGuard</div>
+            <div class="slogan">Родительский контроль без лишнего</div>
+            <div class="version">Версия 1.0.0</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="sect">Поддержать</div>
+          <div class="row soon">
+            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <div class="t">Оценить приложение</div>
+            <div class="badge">скоро</div>
+          </div>
+          <div class="row soon">
+            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+            <div class="t">Поделиться с друзьями</div>
+            <div class="badge">скоро</div>
+          </div>
+          <div class="row accent">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5z"/></svg>
+            <div class="t">Обратная связь</div>
+            <div class="chev">›</div>
+          </div>
+          <div class="row soon heart">
+            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"/></svg>
+            <div class="t">На кофе разработчику</div>
+            <div class="badge">скоро</div>
+          </div>
+          <div class="soonhint">«Скоро» — станет доступно после публикации приложения в RuStore.</div>
+        </div>
+      </div>
+      <div class="caption"><b>2</b> · Короткий слоган + секция «Поддержать» (низ того же экрана)</div>
+    </div>
+
+    <!-- 3. Политика конфиденциальности -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>23:41</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Политика конфиденциальности</div>
+          </div>
+          <div class="doc">
+            <div class="meta">Действует с 1 августа 2026 г.</div>
+            <h2>1. Общие положения</h2>
+            <p>KidGuard — приложение родительского контроля. Устанавливается на телефон родителя и
+               телефон ребёнка, устройства связываются одноразовым кодом.</p>
+            <h2>2. Какие данные обрабатываются</h2>
+            <p><b>Данные родителя:</b> адрес электронной почты и имя из аккаунта Google.</p>
+            <table>
+              <tr><th>Данные</th><th>Зачем</th></tr>
+              <tr><td>Почта</td><td>Идентификация учётной записи</td></tr>
+              <tr><td>Имя ребёнка</td><td>Различение детей</td></tr>
+            </table>
+            <p><b>Приложение не собирает</b> геолокацию, фото, содержимое переписок и историю
+               посещённых страниц.</p>
+            <h2>3. Разрешения</h2>
+            <p>Специальные возможности — определять активное приложение, чтобы считать время…</p>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>3</b> · Политика — экраном внутри приложения, текст уже написан</div>
+    </div>
+
+    <!-- 4. Руководство (заглушка) -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>23:41</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">Как пользоваться</div>
+          </div>
+          <div class="doc">
+            <h2>С чего начать</h2>
+            <p>1. Установите KidGuard на свой телефон и выберите «Это телефон родителя».</p>
+            <p>2. Добавьте ребёнка и получите код привязки.</p>
+            <p>3. На телефоне ребёнка выберите «Это телефон ребёнка» и введите код.</p>
+            <div class="todo-box">
+              Полный текст руководства со скриншотами экранов и разделами по каждой функции
+              (лимиты, расписания, перерывы, запрет сайтов) составим отдельным шагом.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><b>4</b> · Руководство — структура экрана; текст пишем следующим шагом</div>
+    </div>
+
+    <!-- 5. Нажатие на неактивную кнопку -->
+    <div class="col">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>23:42</span><span>▤ ▮</span></div>
+          <div class="topbar">
+            <div class="back"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></div>
+            <div class="title">О приложении</div>
+          </div>
+          <div class="sect" style="margin-top:8px">Поддержать</div>
+          <div class="row soon">
+            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <div class="t">Оценить приложение</div>
+            <div class="badge">скоро</div>
+          </div>
+          <div class="row soon">
+            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+            <div class="t">Поделиться с друзьями</div>
+            <div class="badge">скоро</div>
+          </div>
+          <div class="snack">Появится после публикации приложения в RuStore</div>
+        </div>
+      </div>
+      <div class="caption"><b>5</b> · Нажатие на «скоро» — короткое пояснение внизу, а не мёртвая кнопка</div>
+    </div>
+
+  </div>
+
+  <div class="notes">
+    <div class="ncard">
+      <h3>Почему документы внутри приложения</h3>
+      <p>Текст лежит в ресурсах и открывается обычным экраном: работает без интернета, не ждёт
+        настройки GitHub Pages и не сломается, если сайт переедет. Когда Pages появятся, можно
+        добавить внизу ссылку «Открыть в браузере» — экран это не ломает.</p>
+    </div>
+    <div class="ncard">
+      <h3>Обратная связь работает сразу</h3>
+      <p>Открывает почтовый клиент с уже подставленным адресом, темой письма и версией приложения
+        в теле — чтобы вы сразу видели, о какой сборке речь, и не переспрашивали.</p>
+    </div>
+    <div class="ncard">
+      <h3>Про «скоро»</h3>
+      <p>Кнопки видны, но приглушены и помечены. По нажатию — короткое пояснение внизу экрана,
+        а не тишина. Когда приложение появится в RuStore, достаточно вписать одну ссылку —
+        вёрстку править не придётся.</p>
+    </div>
+    <div class="ncard">
+      <h3>Что делаем следующими шагами</h3>
+      <p>Текст руководства со скриншотами и текст пользовательского соглашения — отдельные задачи,
+        как договаривались. Экраны под них уже будут готовы.</p>
+    </div>
+  </div>
+
+  <div class="foot">Файл: <code>docs/ui-concepts/about/about-mockup.html</code> · иконка на макете — схематичная перерисовка реальной <code>ic_launcher</code>; в приложении будет настоящий PNG.</div>
+</div>
+
+<script>
+  function setTheme(t) {
+    document.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('light', t === 'light');
+    });
+    document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+    document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  }
+</script>
+</body>
+</html>
