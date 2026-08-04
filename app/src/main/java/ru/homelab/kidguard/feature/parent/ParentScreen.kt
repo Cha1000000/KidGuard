@@ -23,6 +23,7 @@ import ru.homelab.kidguard.core.ui.components.GlassDockItem
 import ru.homelab.kidguard.feature.parent.about.AboutScreen
 import ru.homelab.kidguard.feature.parent.about.GuideScreen
 import ru.homelab.kidguard.feature.parent.about.PrivacyPolicyScreen
+import ru.homelab.kidguard.feature.parent.about.SupportScreen
 import ru.homelab.kidguard.feature.parent.about.TermsScreen
 import ru.homelab.kidguard.feature.parent.account.AccountScreen
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
@@ -50,6 +51,7 @@ private const val ROUTE_ABOUT = "parent/about"
 private const val ROUTE_GUIDE = "parent/about/guide"
 private const val ROUTE_PRIVACY = "parent/about/privacy"
 private const val ROUTE_TERMS = "parent/about/terms"
+private const val ROUTE_SUPPORT = "parent/about/support"
 
 /**
  * Каркас родительского режима: нижняя навигация (Дети / Правила / Статистика) с вложенным
@@ -145,7 +147,8 @@ fun ParentScreen(
                     onBack = { navController.popBackStack() },
                     onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
                     onOpenPrivacy = { navController.navigate(ROUTE_PRIVACY) },
-                    onOpenTerms = { navController.navigate(ROUTE_TERMS) }
+                    onOpenTerms = { navController.navigate(ROUTE_TERMS) },
+                    onOpenSupport = { navController.navigate(ROUTE_SUPPORT) }
                 )
             }
             composable(ROUTE_GUIDE) {
@@ -156,6 +159,9 @@ fun ParentScreen(
             }
             composable(ROUTE_TERMS) {
                 TermsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_SUPPORT) {
+                SupportScreen(onBack = { navController.popBackStack() })
             }
         }
 

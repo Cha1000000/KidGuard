@@ -69,6 +69,7 @@ fun AboutScreen(
     onOpenGuide: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenTerms: () -> Unit,
+    onOpenSupport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -235,9 +236,9 @@ fun AboutScreen(
                 AboutRow(
                     icon = Icons.Filled.Favorite,
                     title = stringResource(R.string.about_donate),
-                    enabled = false,
-                    badge = soonBadge,
-                    onClick = onSoonClick
+                    enabled = true,
+                    badge = null,
+                    onClick = onOpenSupport
                 )
 
                 Text(

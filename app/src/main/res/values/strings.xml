@@ -104,13 +104,37 @@
     <string name="about_rate">Оценить приложение</string>
     <string name="about_share">Поделиться с друзьями</string>
     <string name="about_feedback">Обратная связь</string>
-    <string name="about_donate">На кофе разработчику</string>
+    <string name="about_donate">Поддержать проект</string>
     <string name="about_badge_soon">скоро</string>
     <string name="about_soon_hint">Некоторые действия станут доступны после публикации приложения в RuStore.</string>
     <string name="about_soon_snack">Появится после публикации приложения в RuStore</string>
     <string name="about_feedback_subject">KidGuard %1$s — обратная связь</string>
     <string name="about_feedback_body">\n\n---\nВерсия: %1$s\nУстройство: %2$s %3$s, Android %4$s</string>
     <string name="about_feedback_no_client">Не найдено приложение для отправки почты</string>
+
+    <!-- Поддержать проект -->
+    <string name="support_title">Поддержать проект</string>
+    <string name="support_hero_title">KidGuard делает один человек</string>
+    <string name="support_hero_subtitle">Приложение бесплатное и без рекламы. Поддержка помогает оплачивать сервер и находить время на новые функции.</string>
+    <string name="support_spend_title">На что расходуются средства</string>
+    <string name="support_spend_server">Сервер — синхронизация правил между вашим телефоном и телефоном ребёнка</string>
+    <string name="support_spend_domain">Домен и сертификат — чтобы данные ходили по защищённому соединению</string>
+    <string name="support_spend_dev">Развитие — новые функции и поддержка новых версий Android</string>
+    <string name="support_section_once">Разовая поддержка</string>
+    <string name="support_amount_100">100 ₽</string>
+    <string name="support_amount_300">300 ₽</string>
+    <string name="support_amount_500">500 ₽</string>
+    <string name="support_amount_custom">Своя сумма</string>
+    <string name="support_amount_popular">чаще всего</string>
+    <string name="support_copy_link">Скопировать ссылку</string>
+    <string name="support_link_copied">Ссылка скопирована</string>
+    <string name="support_open_error">Не удалось открыть страницу оплаты. Проверьте подключение к интернету.</string>
+    <string name="support_section_free">Поддержать бесплатно</string>
+    <string name="support_rate">Оценить в RuStore</string>
+    <string name="support_share">Рассказать друзьям</string>
+    <string name="support_feedback">Прислать идею или баг</string>
+    <string name="support_note">Поддержка добровольная. Она не открывает дополнительных функций — всё в приложении доступно всем одинаково.</string>
+    <string name="support_secure_note">Оплата картой на защищённой странице CloudTips. Приложение не получает данные вашей карты.</string>
 
     <!-- Руководство «Как пользоваться» — перенесено дословно из docs/guide/user-guide.md
          (согласованный черновик, без служебной шапки про согласование). Таблицы markdown
