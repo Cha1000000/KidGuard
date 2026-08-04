@@ -399,7 +399,21 @@
     <string name="statistics_today_label">Экранное время сегодня</string>
     <string name="statistics_today_limit">Лимит: %1$s · осталось %2$s</string>
     <string name="statistics_today_limit_exceeded">Лимит: %1$s · исчерпан</string>
+    <!-- Бюджет дня = дневной лимит + выданное «Дополнительное время». Именно эту сумму сравнивает
+         с расходом сам enforcement, поэтому статистика показывает её же, а не голый лимит. -->
+    <string name="statistics_budget">Бюджет дня %1$s</string>
+    <!-- Кавычки сохраняют ведущие пробелы: без них XML их срезает и получается «20 мин— доступны». -->
+    <string name="statistics_budget_formula">"  ·  %1$s лимит + %2$s бонус"</string>
+    <string name="statistics_budget_closed">"  ·  доступ закрыт"</string>
+    <string name="statistics_budget_left">Осталось %1$s</string>
+    <string name="statistics_budget_spent">Бюджет дня исчерпан</string>
+    <string name="statistics_budget_over">Сверх бюджета %1$s</string>
+    <string name="statistics_budget_over_hint">" — доступны только разрешённые приложения"</string>
+    <string name="statistics_budget_none">На сегодня лимит не задан</string>
     <string name="statistics_week_label">Последние 7 дней</string>
+    <string name="statistics_week_legend_within">в пределах бюджета</string>
+    <string name="statistics_week_legend_over">сверх бюджета</string>
+    <string name="statistics_week_legend_budget">бюджет дня</string>
     <string name="statistics_apps_label">По приложениям · сегодня</string>
     <string name="statistics_apps_show_all">Показать все (ещё %d)</string>
     <string name="statistics_apps_show_less">Свернуть</string>
