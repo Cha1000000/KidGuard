@@ -66,6 +66,7 @@ data class TodayUiState(
     val childAvatar: Int,
     val time: TodayTimeState,
     val bonusMinutes: Int,
+    /** Всё экранное время за сегодня (не только то, что расходует лимит) — карточка «Сегодня». */
     val usedMinutes: Int,
     val alwaysAllowed: RuleGroup,
     val limited: LimitedGroup,
@@ -131,9 +132,12 @@ class TodayViewModel @Inject constructor(
         val timeFlow = combine(
             policyRepository.dailyLimits,
             usageRepository.screenTimeSeconds(today),
+            usageRepository.appScreenTimeByPackage(today),
             bonusRepository.phoneBonusMinutes(today)
-        ) { limits, usedSeconds, bonusMinutes ->
-            computeTime(limits, today, usedSeconds, bonusMinutes)
+        ) { limits, limitedSeconds, appSeconds, bonusMinutes ->
+            // Кольцо остатка считаем по времени, расходующему лимит, а карточку «Сегодня» —
+            // по всему экранному времени: она ведёт на экран статистики, где показано всё.
+            computeTime(limits, today, limitedSeconds, appSeconds.values.sum(), bonusMinutes)
         }
 
         val rulesFlow = combine(
@@ -178,21 +182,23 @@ class TodayViewModel @Inject constructor(
     private fun computeTime(
         limits: DailyLimits,
         today: LocalDate,
-        usedSeconds: Int,
+        limitedSeconds: Int,
+        allScreenSeconds: Int,
         bonusMinutes: Int
     ): TimeAndBonus {
-        val usedMinutes = usedSeconds / 60
+        val limitedMinutes = limitedSeconds / 60
+        val screenMinutes = allScreenSeconds / 60
         val limitMinutes = limits.limitFor(today.dayOfWeek)
-            ?: return TimeAndBonus(TodayTimeState.NoLimit, bonusMinutes = 0, usedMinutes = usedMinutes)
+            ?: return TimeAndBonus(TodayTimeState.NoLimit, bonusMinutes = 0, usedMinutes = screenMinutes)
         // Бонус на сегодня прибавляется к бюджету дня — как в ObserveLimitStateUseCase.
         val totalMinutes = limitMinutes + bonusMinutes
-        val minutesLeft = totalMinutes - usedMinutes
+        val minutesLeft = totalMinutes - limitedMinutes
         val state = if (minutesLeft <= 0) {
             TodayTimeState.Expired(totalMinutes)
         } else {
             TodayTimeState.Remaining(minutesLeft, totalMinutes)
         }
-        return TimeAndBonus(state, bonusMinutes, usedMinutes)
+        return TimeAndBonus(state, bonusMinutes, usedMinutes = screenMinutes)
     }
 
     private fun computeRules(

@@ -18,6 +18,7 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
+import ru.homelab.kidguard.platform.apps.AlwaysAllowedPackages
 import timber.log.Timber
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -36,14 +37,13 @@ class BlockingController @Inject constructor(
     private val observeAppLimitStateUseCase: ObserveAppLimitStateUseCase,
     private val observeScheduleStateUseCase: ObserveScheduleStateUseCase,
     private val policyRepository: PolicyRepository,
-    private val overlayManager: OverlayManager
+    private val overlayManager: OverlayManager,
+    alwaysAllowedPackages: AlwaysAllowedPackages
 ) {
 
-    // Всегда разрешены: само KidGuard и лаунчеры (домашний экран не блокируем).
-    private val alwaysAllowed: Set<String> = buildSet {
-        add(context.packageName)
-        addAll(resolveLauncherPackages())
-    }
+    // Всегда разрешены: само KidGuard и лаунчер (домашний экран не блокируем). То же множество
+    // использует движок учёта, поэтому оно вынесено в общий компонент.
+    private val alwaysAllowed: Set<String> = alwaysAllowedPackages.packages
 
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun run() {
@@ -102,17 +102,6 @@ class BlockingController @Inject constructor(
             .addCategory(Intent.CATEGORY_HOME)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
-    }
-
-    private fun resolveLauncherPackages(): Set<String> {
-        // Только текущий домашний лаунчер по умолчанию. queryIntentActivities(HOME) захватывает
-        // и служебные HOME-активности (напр. Settings.FallbackHome), поэтому берём default.
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val packageName = context.packageManager
-            .resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            ?.activityInfo
-            ?.packageName
-        return setOfNotNull(packageName)
     }
 
     private companion object {

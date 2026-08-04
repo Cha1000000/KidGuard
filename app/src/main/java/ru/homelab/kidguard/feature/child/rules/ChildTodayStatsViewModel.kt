@@ -34,12 +34,18 @@ data class ChildStatsAppUi(
 
 /** Состояние детского экрана статистики за сегодня. */
 data class ChildTodayStatsUiState(
+    /** Всё экранное время за сегодня (сумма по приложениям). */
     val totalMinutes: Int,
+    /** Часть [totalMinutes], расходующая дневной лимит (без «Всегда доступных» и лаунчера). */
+    val limitedMinutes: Int,
     /** Дневной лимит с учётом бонуса; null — на сегодня лимита нет. */
     val limitMinutes: Int?,
     /** По убыванию времени. */
     val apps: List<ChildStatsAppUi>
-)
+) {
+    /** Время в приложениях, которые лимит не закрывает. */
+    val outsideLimitMinutes: Int get() = (totalMinutes - limitedMinutes).coerceAtLeast(0)
+}
 
 /**
  * ViewModel детского экрана «Сегодня» (статистика) — урезанная версия родительской «Статистики»:
@@ -74,8 +80,11 @@ class ChildTodayStatsViewModel @Inject constructor(
                 usageRepository.screenTimeSeconds(today),
                 usageRepository.appScreenTimeByPackage(today),
                 bonusRepository.phoneBonusMinutes(today)
-            ) { limits, screenSeconds, appSeconds, phoneBonus ->
-                val totalMinutes = screenSeconds / 60
+            ) { limits, limitedSeconds, appSeconds, phoneBonus ->
+                // Крупная цифра и доли — по всему экранному времени (сумма пер-app), а лимит
+                // сравнивается только с той частью, которую он реально закрывает.
+                val totalMinutes = appSeconds.values.sum() / 60
+                val limitedMinutes = limitedSeconds / 60
                 // Лимит + бонус — та же формула, что в TodayViewModel.computeTime, чтобы цифра
                 // совпадала с кольцом на экране «Сегодня».
                 val limitMinutes = limits.limitFor(today.dayOfWeek)?.plus(phoneBonus)
@@ -94,7 +103,12 @@ class ChildTodayStatsViewModel @Inject constructor(
                         )
                     }
                     .sortedByDescending { it.minutes }
-                ChildTodayStatsUiState(totalMinutes = totalMinutes, limitMinutes = limitMinutes, apps = apps)
+                ChildTodayStatsUiState(
+                    totalMinutes = totalMinutes,
+                    limitedMinutes = limitedMinutes,
+                    limitMinutes = limitMinutes,
+                    apps = apps
+                )
             }
         )
     }

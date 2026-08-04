@@ -410,7 +410,11 @@
     <string name="statistics_budget_over">Сверх бюджета %1$s</string>
     <string name="statistics_budget_over_hint">" — доступны только разрешённые приложения"</string>
     <string name="statistics_budget_none">На сегодня лимит не задан</string>
-    <string name="statistics_week_label">Последние 7 дней</string>
+    <string name="statistics_outside_limit">Вне лимита %1$s</string>
+    <string name="statistics_outside_limit_hint">" — «Всегда доступные» и домашний экран"</string>
+    <!-- График строится по расходу лимита, а не по всему экранному времени: иначе столбики
+         не сходились бы с риской бюджета. -->
+    <string name="statistics_week_label">Расход лимита за 7 дней</string>
     <string name="statistics_week_legend_within">в пределах бюджета</string>
     <string name="statistics_week_legend_over">сверх бюджета</string>
     <string name="statistics_week_legend_budget">бюджет дня</string>

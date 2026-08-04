@@ -47,4 +47,8 @@ class BonusRepositoryImpl @Inject constructor(
             grants.map { BonusGrantEntity(it.date.toString(), it.packageName, it.minutes) }
         )
     }
+
+    override suspend fun deleteOlderThan(date: LocalDate) {
+        bonusDao.deleteOlderThan(date.toString())
+    }
 }

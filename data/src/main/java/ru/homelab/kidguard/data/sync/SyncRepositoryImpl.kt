@@ -120,6 +120,11 @@ class SyncRepositoryImpl @Inject constructor(
 
     @OptIn(FlowPreview::class)
     override suspend fun parentSyncLoop() = coroutineScope {
+        // Отработавшая история бонусов: держим ровно тот период, который возим в документе.
+        // Чистим до первого push, чтобы старые записи не уехали на сервер.
+        runCatching { bonusRepository.deleteOlderThan(bonusHistoryCutoff()) }
+            .onFailure { Timber.tag(TAG).w(it, "Не удалось почистить старые бонусы") }
+
         // Разовый pull при входе: подхватить правки второго родителя (LWW — сервер прав).
         runCatching { pullAndApply(resolveParentChildId() ?: return@runCatching) }
             .onFailure { Timber.tag(TAG).w(it, "Стартовый pull родителя не удался") }
@@ -451,6 +456,10 @@ class SyncRepositoryImpl @Inject constructor(
         return fallbackId
     }
 
+    /** Самый ранний день, бонусы за который ещё храним и синхронизируем. */
+    private suspend fun bonusHistoryCutoff(): LocalDate =
+        currentDateProvider.today().minusDays((BonusRepository.HISTORY_DAYS - 1).toLong())
+
     private suspend fun currentLocalDocument(): PolicyDocumentDto {
         val pin = policyRepository.pinProtection.first()
         val study = policyRepository.studySchedule.first()
@@ -461,9 +470,11 @@ class SyncRepositoryImpl @Inject constructor(
             appLimits = policyRepository.appLimits.first(),
             whitelist = policyRepository.whitelist.first().toList(),
             blockedApps = policyRepository.blockedApps.first().toList(),
-            // Бонусы датированы «на сегодня»: прошедшие дни в документ не тащим.
+            // История бонусов за последние BonusRepository.HISTORY_DAYS дней: график «Последние
+            // 7 дней» у родителя рисует риску бюджета по бонусу, выданному в тот день, а раньше
+            // в документ уходили только сегодняшние — и после pull история пропадала совсем.
             bonuses = bonusRepository.observeAll().first()
-                .filter { it.date == currentDateProvider.today() }
+                .filter { it.date >= bonusHistoryCutoff() }
                 .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) },
             pinHash = pin?.hash,
             pinSalt = pin?.salt,

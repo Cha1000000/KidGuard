@@ -35,6 +35,15 @@ data class AppUsage(val packageName: String, val seconds: Int, val share: Float,
 data class StatisticsUiState(
     val loading: Boolean = true,
     val child: Child? = null,
+    /**
+     * Всё экранное время за сегодня (сумма по приложениям). Именно оно показывается крупной
+     * цифрой и от него считаются доли в списке «По приложениям».
+     */
+    val todayTotalSeconds: Int = 0,
+    /**
+     * Часть [todayTotalSeconds], расходующая дневной лимит: без «Всегда доступных», лаунчера и
+     * самого KidGuard. С бюджетом сравнивается именно она — как и в enforcement.
+     */
     val todaySeconds: Int = 0,
     /** Лимит на сегодня из локальной политики (минут); null — лимита нет. */
     val todayLimitMinutes: Int? = null,
@@ -45,7 +54,10 @@ data class StatisticsUiState(
     val noChildren: Boolean = false,
     val error: Boolean = false
 ) {
-    val hasData: Boolean get() = week.any { it.seconds > 0 }
+    val hasData: Boolean get() = week.any { it.seconds > 0 } || todayTotalSeconds > 0
+
+    /** Время в приложениях, которые лимит не закрывает. Ноль — таких приложений сегодня не было. */
+    val outsideLimitSeconds: Int get() = (todayTotalSeconds - todaySeconds).coerceAtLeast(0)
 }
 
 @HiltViewModel
@@ -106,17 +118,25 @@ class StatisticsViewModel @Inject constructor(
             }
 
             val todaySeconds = totalsByDate[today] ?: 0
+            val todayAppEntries = entries.filter { !it.isTotal && it.date == today && it.seconds > 0 }
+            // Всё экранное время = сумма по приложениям: общий счётчик с приходом «вне лимита»
+            // («Всегда доступные», лаунчер, само KidGuard) больше не совпадает с фактическим
+            // временем на экране, а пер-app счётчик по-прежнему учитывает всё.
+            val todayTotalSeconds = todayAppEntries.sumOf { it.seconds }
             // Иконки — те же, что видит родитель на экранах Правил (иконка с детского устройства,
             // не с родительского): ChildAppsProvider уже решает приоритет серверная/локальная/нет.
             val iconsByPackage = childAppsProvider.loadActiveChildApps().associate { it.packageName to it.icon }
-            val apps = entries
-                .filter { !it.isTotal && it.date == today && it.seconds > 0 }
+            val apps = todayAppEntries
                 .sortedByDescending { it.seconds }
                 .map { entry ->
                     AppUsage(
                         packageName = entry.packageName,
                         seconds = entry.seconds,
-                        share = if (todaySeconds > 0) entry.seconds.toFloat() / todaySeconds else 0f,
+                        share = if (todayTotalSeconds > 0) {
+                            entry.seconds.toFloat() / todayTotalSeconds
+                        } else {
+                            0f
+                        },
                         icon = iconsByPackage[entry.packageName]
                     )
                 }
@@ -124,6 +144,7 @@ class StatisticsViewModel @Inject constructor(
             _uiState.value = StatisticsUiState(
                 loading = false,
                 child = child,
+                todayTotalSeconds = todayTotalSeconds,
                 todaySeconds = todaySeconds,
                 todayLimitMinutes = limits.limitFor(today.dayOfWeek),
                 todayBonusMinutes = phoneBonusByDate[today] ?: 0,

@@ -188,8 +188,11 @@ private fun TodayCard(state: StatisticsUiState) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    // Крупная цифра — всё экранное время: она совпадает с суммой блока
+                    // «По приложениям». С бюджетом ниже сравнивается только та часть, что
+                    // расходует лимит.
                     Text(
-                        text = formatMinutes(state.todaySeconds / 60),
+                        text = formatMinutes(state.todayTotalSeconds / 60),
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
@@ -248,8 +251,28 @@ private fun TodayCard(state: StatisticsUiState) {
                     OverrunLine(budget.overMinutes)
                 }
             }
+
+            OutsideLimitLine(state.outsideLimitSeconds / 60)
         }
     }
+}
+
+/**
+ * «Вне лимита 1 ч 33 мин — «Всегда доступные» и домашний экран». Без этой строки крупная цифра
+ * не сходилась бы с бюджетом и родитель не понимал бы, куда делась разница.
+ */
+@Composable
+private fun OutsideLimitLine(minutes: Int) {
+    if (minutes <= 0) return
+    Text(
+        text = buildAnnotatedString {
+            append(stringResource(R.string.statistics_outside_limit, formatMinutes(minutes)))
+            append(stringResource(R.string.statistics_outside_limit_hint))
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp)
+    )
 }
 
 /**
