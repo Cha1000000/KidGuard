@@ -73,7 +73,9 @@ class StatisticsViewModel @Inject constructor(
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
 
     init {
-        refresh()
+        // Стартовую загрузку делает сам экран (LaunchedEffect при входе на вкладку) — он же
+        // обновляет данные при каждом возврате. Дублировать её здесь значило бы слать два
+        // одинаковых запроса подряд при первом открытии.
         // Переключение активного ребёнка (чип, веха 4.5) — сразу перегружаем статистику.
         viewModelScope.launch {
             syncRepository.activeChildId.drop(1).collect { refresh() }
