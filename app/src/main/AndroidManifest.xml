@@ -4,9 +4,16 @@
     <!-- Разрешения платформенных функций объявлены в модуле :platform (мёрж манифестов). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+        allowBackup=false осознанно: это приложение родительского контроля. При включённом
+        бэкапе данные приложения (политики, состояние PIN-защиты) можно вытащить и подложить
+        обратно через adb backup/restore — то есть обойти ограничения, не имея root.
+        Цена решения: настройки не переезжают на новый телефон, их нужно задать заново;
+        для родительского контроля это правильный размен.
+    -->
     <application
         android:name=".KidGuardApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"

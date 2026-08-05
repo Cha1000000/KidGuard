@@ -9,6 +9,10 @@ import java.time.Instant
  * [lastSeenAt] и [health] — данные watchdog (веха 6): когда детское устройство последний раз
  * выходило на связь и что доложило о себе. Оба null, пока не пришёл ни один heartbeat (не привязан,
  * или на устройстве старая версия приложения).
+ *
+ * [hasCoParent] — ребёнком управляет ещё кто-то, кроме текущего родителя. При удалении учётной
+ * записи такой ребёнок НЕ удаляется — мы только отвязываемся от него, и диалог подтверждения
+ * должен сказать об этом прямо, а не обещать удаление того, что останется второму родителю.
  */
 data class Child(
     val id: Int,
@@ -16,7 +20,8 @@ data class Child(
     val avatar: Int,
     val paired: Boolean,
     val lastSeenAt: Instant? = null,
-    val health: DeviceHealth? = null
+    val health: DeviceHealth? = null,
+    val hasCoParent: Boolean = false
 ) {
     /**
      * Контроль сломан и родителю надо вмешаться.

@@ -147,6 +147,7 @@ class ObserveAppLimitStateUseCaseTest {
         override suspend fun clearBonus(date: LocalDate, packageName: String?) = Unit
         override fun observeAll(): Flow<List<BonusGrant>> = flowOf(emptyList())
         override suspend fun replaceAll(grants: List<BonusGrant>) = Unit
+        override suspend fun deleteOlderThan(date: LocalDate) = Unit
     }
 
     private class FakeDateProvider(private val date: LocalDate) : CurrentDateProvider {

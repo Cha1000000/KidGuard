@@ -37,6 +37,13 @@ interface BonusDao {
     @Query("DELETE FROM bonus_grants")
     suspend fun deleteAll()
 
+    /**
+     * Удалить бонусы старше указанной даты. Даты хранятся строками ISO (ГГГГ-ММ-ДД), поэтому
+     * лексикографическое сравнение совпадает с хронологическим.
+     */
+    @Query("DELETE FROM bonus_grants WHERE date < :date")
+    suspend fun deleteOlderThan(date: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<BonusGrantEntity>)
 

@@ -99,7 +99,17 @@ fun KidGuardApp(
                         }
                     )
                 }
-                composable(Destinations.PARENT) { ParentScreen() }
+                composable(Destinations.PARENT) {
+                    ParentScreen(
+                        onSignedOut = {
+                            // Стартовый маршрут зафиксирован через remember (см. выше) — реактивно
+                            // на онбординг не перейдём, навигация обязательно императивная.
+                            navController.navigate(Destinations.ONBOARDING) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
+                }
                 composable(Destinations.CHILD) {
                     ChildScreen(
                         onOpenPermissions = { navController.navigate(Destinations.CHILD_PIN) }

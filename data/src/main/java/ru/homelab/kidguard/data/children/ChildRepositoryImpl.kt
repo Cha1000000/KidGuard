@@ -94,7 +94,8 @@ class ChildRepositoryImpl @Inject constructor(
         avatar = avatar,
         paired = paired,
         lastSeenAt = parseLastSeen(lastSeenAt),
-        health = health?.toDomain()
+        health = health?.toDomain(),
+        hasCoParent = hasCoParent
     )
 
     /**

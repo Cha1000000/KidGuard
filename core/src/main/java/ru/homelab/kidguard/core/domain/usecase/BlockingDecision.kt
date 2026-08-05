@@ -37,3 +37,21 @@ fun shouldBlock(
     if (activePackage in whitelist) return false
     return limitState is LimitState.Expired || studyTimeActive
 }
+
+/**
+ * Расходует ли приложение **общий дневной лимит**. Зеркальная сторона [shouldBlock]: что дневной
+ * лимит не закрывает, то он и не тратит.
+ *
+ * Не расходуют лимит [alwaysAllowed] (лаунчер и само KidGuard — пункт 1 матрицы) и [whitelist]
+ * (родительский список «Всегда доступные» — пункт 4). Раньше расходовали все подряд, и час
+ * разговора по телефону съедал час игрового времени, хотя телефон при исчерпанном лимите
+ * оставался доступен.
+ *
+ * Запрещённые приложения и приложения с личным лимитом сюда НЕ входят: их время учитывается
+ * обычным порядком, а закрывают их отдельные правила (пункты 2 и 3), не общий лимит.
+ */
+fun countsTowardsDailyLimit(
+    packageName: String,
+    whitelist: Set<String>,
+    alwaysAllowed: Set<String>
+): Boolean = packageName !in alwaysAllowed && packageName !in whitelist

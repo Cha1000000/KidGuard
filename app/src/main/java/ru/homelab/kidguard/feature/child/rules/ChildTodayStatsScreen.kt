@@ -117,7 +117,9 @@ private fun ChildTodayCard(state: ChildTodayStatsUiState) {
                 )
                 val limitMinutes = state.limitMinutes
                 if (limitMinutes != null) {
-                    val leftMinutes = limitMinutes - state.totalMinutes
+                    // Остаток считается от времени, расходующего лимит: «Всегда доступные»
+                    // и домашний экран его не тратят.
+                    val leftMinutes = limitMinutes - state.limitedMinutes
                     Text(
                         text = if (leftMinutes > 0) {
                             stringResource(
@@ -131,6 +133,17 @@ private fun ChildTodayCard(state: ChildTodayStatsUiState) {
                                 formatDurationMinutes(limitMinutes)
                             )
                         },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                if (state.outsideLimitMinutes > 0) {
+                    Text(
+                        text = stringResource(
+                            R.string.statistics_outside_limit,
+                            formatDurationMinutes(state.outsideLimitMinutes)
+                        ) + stringResource(R.string.statistics_outside_limit_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp)

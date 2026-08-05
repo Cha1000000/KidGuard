@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
+
+/**
+ * Параметры релизной подписи из keystore.properties (в .gitignore, само хранилище — вне
+ * репозитория). Файла нет на машине без ключа: тогда release подписывается debug-ключом,
+ * как было до заведения релизного ключа, — чтобы сборка не падала непонятной ошибкой.
+ */
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile")?.let { file(it).exists() } == true
 
 android {
     namespace = "ru.homelab.kidguard"
@@ -21,15 +36,37 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                // v1 не нужен: minSdk 33, все целевые устройства понимают v2/v3.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
-            optimization {
-                enable = false
+            // R8: сокращает и обфусцирует код. Правила — в src/main/keepRules/*.keep
+            // (AGP 9 собирает их сам, classic proguardFiles не используется).
+            //
+            // Именно isMinifyEnabled, а не optimization.enable: второе в AGP 9 — это
+            // «gradual R8», он требует экспериментального флага android.r8.gradual.support
+            // и падает на конфигурации без него. Для релиза берём стабильный механизм.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                // Фоллбэк для машины без ключа — собрать можно, публиковать нельзя.
+                signingConfigs.getByName("debug")
             }
-            // Пока подписываем debug-ключом: приложение ставится вручную (.apk, своя семья),
-            // и SHA-1 debug-ключа зарегистрирован в Google OAuth — вход работает и в release.
-            // Отдельный релизный ключ заведём перед вехой 6 (защита/обкатка).
-            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

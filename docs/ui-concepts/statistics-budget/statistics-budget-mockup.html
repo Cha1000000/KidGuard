@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Статистика — бюджет дня и перерасход</title>
+<style>
+  :root{
+    --bg:#0E1C21; --surface:#17282E; --container:#17282E; --container-high:#1E353C;
+    --container-highest:#264048; --primary:#4FC3B0; --on-surface:#E6EEF0; --on-variant:#9DB2B8;
+    --gold:#E0A73C; --gold-dim:#8a6a2a; --danger:#D1544E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Roboto','Segoe UI',sans-serif;}
+  body{background:#081215;padding:44px;display:flex;gap:52px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .caption{color:#cfe0e6;font-size:19px;font-weight:600;max-width:400px;text-align:center;}
+  .note{color:#8ea3ab;font-size:14px;max-width:400px;text-align:center;line-height:1.5;}
+  .phone{width:400px;background:var(--bg);border-radius:42px;box-shadow:0 20px 60px rgba(0,0,0,.55);
+    overflow:hidden;position:relative;border:9px solid #0c1418;display:flex;flex-direction:column;padding-bottom:20px;}
+  .status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+  .title{font-size:26px;font-weight:600;color:var(--on-surface);padding:10px 20px 6px;}
+  .child-row{display:flex;align-items:center;gap:10px;padding:2px 20px 12px;}
+  .child-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2b6b60,#1e4a52);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .child-name{font-size:16px;font-weight:600;color:var(--on-surface);}
+
+  .card{margin:0 16px 12px;background:var(--container-high);border-radius:18px;padding:16px;}
+  .card-head{display:flex;align-items:flex-start;}
+  .card-head .grow{flex:1;}
+  .lbl{font-size:13px;color:var(--on-variant);margin-bottom:2px;}
+  .today-time{font-size:38px;font-weight:800;color:var(--primary);line-height:1.1;}
+  .timer-ic{width:40px;height:40px;border-radius:12px;background:rgba(79,195,176,.16);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+
+  /* Шкала бюджета */
+  .track{height:8px;border-radius:4px;background:var(--container-highest);margin-top:14px;overflow:hidden;display:flex;}
+  .track .used{height:100%;background:var(--primary);}
+  .track .over{height:100%;background:var(--gold);}
+  .track .over.red{background:var(--danger);}
+
+  .budget-row{display:flex;align-items:baseline;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .budget-main{font-size:14px;font-weight:600;color:var(--on-surface);}
+  .budget-formula{font-size:13px;color:var(--on-variant);}
+  .state{font-size:13px;margin-top:6px;line-height:1.45;}
+  .state.left{color:var(--primary);font-weight:600;}
+  .state.over{color:var(--gold);font-weight:600;}
+  .state.over.red{color:var(--danger);}
+  .state .hint{color:var(--on-variant);font-weight:400;}
+
+  /* График */
+  .chart{display:flex;align-items:flex-end;gap:10px;height:150px;margin-top:14px;}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;position:relative;}
+  .bar-val{font-size:10px;color:var(--on-variant);}
+  .bar-area{width:100%;flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-end;}
+  .bar{width:100%;border-radius:6px 6px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;}
+  .bar .seg-base{background:var(--primary);opacity:.45;}
+  .bar .seg-over{background:var(--gold);opacity:.55;}
+  .bar.today .seg-base{opacity:1;}
+  .bar.today .seg-over{opacity:1;}
+  /* Пунктирная риска бюджета: шире столбика, чтобы соседние соединялись в линию */
+  .budget-line{position:absolute;left:-6px;right:-6px;border-top:2px dashed rgba(224,167,60,.75);}
+  .bar-day{font-size:11px;color:var(--on-variant);}
+  .legend{display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--on-variant);flex-wrap:wrap;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .dash{width:16px;border-top:2px dashed rgba(224,167,60,.75);display:inline-block;}
+
+  .apps-title{font-size:15px;font-weight:700;color:var(--on-surface);margin:4px 20px 8px;}
+  .app-row{display:flex;align-items:center;gap:12px;padding:8px 20px 2px;}
+  .app-ic{width:38px;height:38px;border-radius:10px;background:var(--container-highest);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .app-info{flex:1;}
+  .app-name{font-size:15px;font-weight:600;color:var(--on-surface);}
+  .app-pkg{font-size:11px;color:var(--on-variant);}
+  .app-time{font-size:14px;font-weight:700;color:var(--primary);}
+  .app-track{height:5px;border-radius:3px;background:var(--container-highest);margin:4px 20px 6px;overflow:hidden;}
+  .app-fill{height:100%;background:var(--primary);border-radius:3px;}
+
+  .compare{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;}
+  .mini{width:368px;background:var(--container-high);border-radius:18px;padding:16px;}
+  h2.section{color:#cfe0e6;font-size:22px;font-weight:700;width:100%;text-align:center;margin:24px 0 0;}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. ОСНОВНОЙ СЛУЧАЙ: перерасход + бонус (данные Олега) ============ -->
+<div class="col">
+  <div class="caption">1 · Сегодняшний день Олега: лимит 3 ч, бонус 1 ч, на экране 4 ч 53 мин</div>
+  <div class="phone">
+    <div class="status"><span>16:06</span><span>📶 🔋</span></div>
+    <div class="title">Статистика</div>
+    <div class="child-row"><div class="child-av">🧒</div><div class="child-name">Олег</div></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="grow">
+          <div class="lbl">Экранное время сегодня</div>
+          <div class="today-time">4 ч 53 мин</div>
+        </div>
+        <div class="timer-ic">⏱</div>
+      </div>
+      <!-- 240 из 293 = 82% бюджет, 18% перерасход -->
+      <div class="track"><div class="used" style="width:82%"></div><div class="over" style="width:18%"></div></div>
+      <div class="budget-row">
+        <span class="budget-main">Бюджет дня 4 ч 00 мин</span>
+        <span class="budget-formula">3 ч лимит + 1 ч бонус</span>
+      </div>
+      <div class="state over">Сверх бюджета 53 мин <span class="hint">— доступны только разрешённые приложения</span></div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Последние 7 дней</div>
+      <div class="chart">
+        <!-- max 293 мин (4:53). Линия бюджета: 180/293 = 61%, у сегодня 240/293 = 82% -->
+        <div class="bar-wrap">
+          <div class="bar-val">4:17</div>
+          <div class="bar-area">
+            <div class="bar" style="height:88%"><div class="seg-over" style="height:30%"></div><div class="seg-base" style="height:70%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Ср</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">4:35</div>
+          <div class="bar-area">
+            <div class="bar" style="height:94%"><div class="seg-over" style="height:35%"></div><div class="seg-base" style="height:65%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Чт</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">3:03</div>
+          <div class="bar-area">
+            <div class="bar" style="height:62%"><div class="seg-over" style="height:2%"></div><div class="seg-base" style="height:98%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Пт</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">4:05</div>
+          <div class="bar-area">
+            <div class="bar" style="height:84%"><div class="seg-over" style="height:27%"></div><div class="seg-base" style="height:73%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Сб</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">0:04</div>
+          <div class="bar-area">
+            <div class="bar" style="height:2%"><div class="seg-base" style="height:100%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Вс</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">3:03</div>
+          <div class="bar-area">
+            <div class="bar" style="height:62%"><div class="seg-over" style="height:2%"></div><div class="seg-base" style="height:98%"></div></div>
+            <div class="budget-line" style="bottom:61%"></div>
+          </div>
+          <div class="bar-day">Пн</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-val">4:53</div>
+          <div class="bar-area">
+            <div class="bar today" style="height:100%"><div class="seg-over" style="height:18%"></div><div class="seg-base" style="height:82%"></div></div>
+            <!-- у сегодня линия выше: бюджет с бонусом -->
+            <div class="budget-line" style="bottom:82%"></div>
+          </div>
+          <div class="bar-day">Вт</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--primary)"></i>в пределах бюджета</span>
+        <span><i class="dot" style="background:var(--gold)"></i>сверх бюджета</span>
+        <span><i class="dash"></i>бюджет дня</span>
+      </div>
+    </div>
+
+    <div class="apps-title">По приложениям · сегодня</div>
+    <div class="app-row">
+      <div class="app-ic">🎮</div>
+      <div class="app-info"><div class="app-name">client</div><div class="app-pkg">com.roblox.client</div></div>
+      <div class="app-time">1 ч 49 мин</div>
+    </div>
+    <div class="app-track"><div class="app-fill" style="width:37%"></div></div>
+    <div class="app-row">
+      <div class="app-ic">📱</div>
+      <div class="app-info"><div class="app-name">systemui</div><div class="app-pkg">com.android.systemui</div></div>
+      <div class="app-time">1 ч 26 мин</div>
+    </div>
+    <div class="app-track"><div class="app-fill" style="width:29%"></div></div>
+  </div>
+  <div class="note">
+    У сегодняшнего столбика риска бюджета выше остальных — в этот день выдан бонус.
+    Линия строится по каждому дню отдельно: лимит того дня недели плюс бонус, выданный в тот день.
+  </div>
+</div>
+
+<!-- ============ 2. Время осталось ============ -->
+<div class="col">
+  <div class="caption">2 · Бонус выдан, время ещё есть</div>
+  <div class="phone">
+    <div class="status"><span>13:20</span><span>📶 🔋</span></div>
+    <div class="title">Статистика</div>
+    <div class="child-row"><div class="child-av">👧</div><div class="child-name">Alina</div></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="grow">
+          <div class="lbl">Экранное время сегодня</div>
+          <div class="today-time">2 ч 53 мин</div>
+        </div>
+        <div class="timer-ic">⏱</div>
+      </div>
+      <!-- 173 из 240 = 72% -->
+      <div class="track"><div class="used" style="width:72%"></div></div>
+      <div class="budget-row">
+        <span class="budget-main">Бюджет дня 4 ч 00 мин</span>
+        <span class="budget-formula">3 ч лимит + 1 ч бонус</span>
+      </div>
+      <div class="state left">Осталось 1 ч 07 мин</div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Последние 7 дней</div>
+      <div class="chart">
+        <div class="bar-wrap"><div class="bar-val">1:20</div><div class="bar-area"><div class="bar" style="height:33%"><div class="seg-base" style="height:100%"></div></div><div class="budget-line" style="bottom:45%"></div></div><div class="bar-day">Ср</div></div>
+        <div class="bar-wrap"><div class="bar-val">2:40</div><div class="bar-area"><div class="bar" style="height:66%"><div class="seg-over" style="height:32%"></div><div class="seg-base" style="height:68%"></div></div><div class="budget-line" style="bottom:45%"></div></div><div class="bar-day">Чт</div></div>
+        <div class="bar-wrap"><div class="bar-val">3:05</div><div class="bar-area"><div class="bar" style="height:76%"><div class="seg-over" style="height:41%"></div><div class="seg-base" style="height:59%"></div></div><div class="budget-line" style="bottom:45%"></div></div><div class="bar-day">Пт</div></div>
+        <div class="bar-wrap"><div class="bar-val">4:02</div><div class="bar-area"><div class="bar" style="height:100%"><div class="seg-base" style="height:100%"></div></div><div class="budget-line" style="bottom:100%"></div></div><div class="bar-day">Сб</div></div>
+        <div class="bar-wrap"><div class="bar-val">3:50</div><div class="bar-area"><div class="bar" style="height:95%"><div class="seg-base" style="height:100%"></div></div><div class="budget-line" style="bottom:100%"></div></div><div class="bar-day">Вс</div></div>
+        <div class="bar-wrap"><div class="bar-val">0:55</div><div class="bar-area"><div class="bar" style="height:23%"><div class="seg-base" style="height:100%"></div></div><div class="budget-line" style="bottom:45%"></div></div><div class="bar-day">Пн</div></div>
+        <div class="bar-wrap"><div class="bar-val">2:53</div><div class="bar-area"><div class="bar today" style="height:71%"><div class="seg-base" style="height:100%"></div></div><div class="budget-line" style="bottom:59%"></div></div><div class="bar-day">Вт</div></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--primary)"></i>в пределах бюджета</span>
+        <span><i class="dot" style="background:var(--gold)"></i>сверх бюджета</span>
+        <span><i class="dash"></i>бюджет дня</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    В выходные (Сб, Вс) лимит другой — 4 ч. Риска бюджета поднимается: линия по дням ступенчатая,
+    а не одна прямая на весь график. При одинаковых лимитах она выглядит ровной.
+  </div>
+</div>
+
+<!-- ============ 3. Прочие состояния ============ -->
+<div class="col">
+  <div class="caption">3 · Остальные состояния карточки</div>
+
+  <div class="mini" style="margin-bottom:4px">
+    <div class="card-head">
+      <div class="grow">
+        <div class="lbl">Экранное время сегодня</div>
+        <div class="today-time">3 ч 41 мин</div>
+      </div>
+      <div class="timer-ic">⏱</div>
+    </div>
+    <div class="track"><div class="used" style="width:81%"></div><div class="over" style="width:19%"></div></div>
+    <div class="budget-row"><span class="budget-main">Бюджет дня 3 ч 00 мин</span></div>
+    <div class="state over">Сверх бюджета 41 мин <span class="hint">— доступны только разрешённые приложения</span></div>
+  </div>
+  <div class="note" style="margin-bottom:14px">Бонуса нет — расшифровку «лимит + бонус» не показываем, она была бы шумом.</div>
+
+  <div class="mini" style="margin-bottom:4px">
+    <div class="card-head">
+      <div class="grow">
+        <div class="lbl">Экранное время сегодня</div>
+        <div class="today-time">1 ч 12 мин</div>
+      </div>
+      <div class="timer-ic">⏱</div>
+    </div>
+    <div class="budget-row"><span class="budget-formula">На сегодня лимит не задан</span></div>
+  </div>
+  <div class="note" style="margin-bottom:14px">Лимита нет — ни шкалы, ни бюджета. Сейчас в этом случае вообще нет подписи, добавляем поясняющую строку.</div>
+
+  <div class="mini" style="margin-bottom:4px">
+    <div class="card-head">
+      <div class="grow">
+        <div class="lbl">Экранное время сегодня</div>
+        <div class="today-time">18 мин</div>
+      </div>
+      <div class="timer-ic">⏱</div>
+    </div>
+    <div class="track"><div class="over" style="width:100%"></div></div>
+    <div class="budget-row"><span class="budget-main">Бюджет дня 0 мин</span><span class="budget-formula">доступ закрыт</span></div>
+    <div class="state over">Сверх бюджета 18 мин <span class="hint">— доступны только разрешённые приложения</span></div>
+  </div>
+  <div class="note">Лимит 0 (день без доступа). Шкала целиком «перерасход», делить на ноль не приходится.</div>
+
+  <h2 class="section">Цвет перерасхода</h2>
+  <div class="mini" style="margin-bottom:4px">
+    <div class="lbl">Вариант A — золотой (акцент темы)</div>
+    <div class="track" style="margin-top:10px"><div class="used" style="width:82%"></div><div class="over" style="width:18%"></div></div>
+    <div class="state over" style="margin-top:8px">Сверх бюджета 53 мин</div>
+  </div>
+  <div class="mini">
+    <div class="lbl">Вариант Б — красный (как «Заблокировать на сегодня»)</div>
+    <div class="track" style="margin-top:10px"><div class="used" style="width:82%"></div><div class="over red" style="width:18%"></div></div>
+    <div class="state over red" style="margin-top:8px">Сверх бюджета 53 мин</div>
+  </div>
+  <div class="note">
+    Золотой — уже используемый акцент (tertiary, предупреждения). Красный в приложении означает
+    опасное действие, поэтому на статистике может читаться как сбой, а не как факт о ребёнке.
+  </div>
+</div>
+
+</body>
+</html>

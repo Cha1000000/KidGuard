@@ -43,4 +43,7 @@ interface SyncRepository {
      * правила тут же исполняются офлайн-движком) + push статистики за сегодня и вчера.
      */
     suspend fun childSyncLoop()
+
+    /** Стереть локальное состояние синхронизации (активный ребёнок, метки последнего синка). */
+    suspend fun clearLocalSyncState()
 }

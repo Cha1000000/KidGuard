@@ -40,4 +40,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setSetupCompleted(completed: Boolean) {
         context.settingsDataStore.edit { prefs -> prefs[Keys.SETUP_COMPLETED] = completed }
     }
+
+    override suspend fun resetSetup() {
+        context.settingsDataStore.edit { prefs ->
+            prefs.remove(Keys.ROLE)
+            prefs.remove(Keys.SETUP_COMPLETED)
+        }
+    }
 }

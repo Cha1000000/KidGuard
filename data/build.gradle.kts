@@ -38,6 +38,13 @@ android {
     }
 }
 
+// Room-плагин androidx.room в проекте не подключён, поэтому каталог схем задаём
+// через KSP-аргумент — Room генерирует JSON-схему при каждой сборке, чтобы миграции
+// можно было проверять через MigrationTestHelper.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":core"))
     implementation(libs.hilt.android)

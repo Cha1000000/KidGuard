@@ -31,6 +31,7 @@ import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.ui.components.EmptyState
 import ru.homelab.kidguard.core.ui.components.GlassDockBarReservedHeight
 import ru.homelab.kidguard.core.ui.components.ScreenTitle
+import ru.homelab.kidguard.feature.parent.ParentMenu
 
 /** Открытый bottom-sheet на экране «Дети». */
 private sealed interface ChildrenSheet {
@@ -48,6 +49,8 @@ private sealed interface ChildrenSheet {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChildrenScreen(
+    onOpenAbout: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChildrenViewModel = hiltViewModel()
 ) {
@@ -59,7 +62,10 @@ fun ChildrenScreen(
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     Column(modifier = modifier.fillMaxSize()) {
-        ScreenTitle(stringResource(R.string.parent_tab_children))
+        ScreenTitle(
+            stringResource(R.string.parent_tab_children),
+            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+        )
 
         LazyColumn(
             modifier = Modifier

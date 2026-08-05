@@ -31,7 +31,10 @@ data class ChildDto(
     val avatar: Int = 0,
     val paired: Boolean = false,
     val lastSeenAt: String? = null,
-    val health: DeviceHealthDto? = null
+    val health: DeviceHealthDto? = null,
+    // Дефолт false нужен для совместимости со старым сервером, который поля ещё не отдаёт:
+    // худшее, что случится, — диалог удаления не покажет подсказку про второго родителя.
+    val hasCoParent: Boolean = false
 )
 
 @Serializable
