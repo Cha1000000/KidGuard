@@ -1,6 +1,8 @@
 package ru.homelab.kidguard.feature.parent.rules
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,18 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,7 +64,7 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = Icons.Filled.DateRange,
+                    icon = R.drawable.ic_clock_solid,
                     title = R.string.rules_daily_limit_title,
                     subtitle = R.string.rules_daily_limit_subtitle,
                     onClick = onOpenDailyLimit
@@ -75,7 +72,7 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_timer),
+                    icon = R.drawable.ic_timer_solid,
                     title = R.string.rules_app_limits_title,
                     subtitle = R.string.rules_app_limits_subtitle,
                     onClick = onOpenAppLimits
@@ -83,7 +80,7 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_schedule),
+                    icon = R.drawable.ic_schedule_solid,
                     title = R.string.rules_schedule_title,
                     subtitle = R.string.rules_schedule_subtitle,
                     onClick = onOpenSchedule
@@ -94,7 +91,7 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = Icons.Filled.CheckCircle,
+                    icon = R.drawable.ic_check_solid,
                     title = R.string.rules_whitelist_title,
                     subtitle = R.string.rules_whitelist_subtitle,
                     onClick = onOpenWhitelist
@@ -102,20 +99,18 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_block),
+                    icon = R.drawable.ic_block_solid,
                     title = R.string.rules_blocked_apps_title,
                     subtitle = R.string.rules_blocked_apps_subtitle,
                     onClick = onOpenBlockedApps,
-                    iconTint = MaterialTheme.colorScheme.error
                 )
             }
             item {
                 RuleCard(
-                    icon = ImageVector.vectorResource(R.drawable.ic_globe_off),
+                    icon = R.drawable.ic_globe_off_solid,
                     title = R.string.rules_blocked_sites_title,
                     subtitle = R.string.rules_blocked_sites_subtitle,
                     onClick = onOpenBlockedSites,
-                    iconTint = MaterialTheme.colorScheme.error
                 )
             }
             item {
@@ -123,7 +118,7 @@ fun RulesScreen(
             }
             item {
                 RuleCard(
-                    icon = Icons.Filled.Lock,
+                    icon = R.drawable.ic_lock_solid,
                     title = R.string.rules_pin_title,
                     subtitle = R.string.rules_pin_subtitle,
                     onClick = onOpenPinProtection
@@ -144,14 +139,21 @@ private fun RuleSectionHeader(@StringRes text: Int, modifier: Modifier = Modifie
     )
 }
 
+/**
+ * Строка списка правил. Иконка — объёмная (градиенты и блики), поэтому рисуется через [Image]:
+ * у [Icon] есть обязательный `tint`, который перекрасил бы всё содержимое одним цветом и свёл
+ * иконку обратно к плоской. По той же причине здесь нет параметра `iconTint` — цвет теперь
+ * заложен в саму иконку (запреты красные, остальные бирюзовые).
+ *
+ * Размер 34dp против прежних 32dp: объёмной иконке нужно чуть больше места, чтобы читались детали.
+ */
 @Composable
 private fun RuleCard(
-    icon: ImageVector,
+    @DrawableRes icon: Int,
     @StringRes title: Int,
     @StringRes subtitle: Int,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    iconTint: Color = MaterialTheme.colorScheme.primary
+    modifier: Modifier = Modifier
 ) {
     GlassCard(
         onClick = onClick,
@@ -163,11 +165,10 @@ private fun RuleCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Icon(
-                imageVector = icon,
+            Image(
+                painter = painterResource(icon),
                 contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(34.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = stringResource(title), style = MaterialTheme.typography.titleMedium)

@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.child.today
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -259,29 +260,27 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
 @Composable
 private fun ExpiredCard(time: TodayTimeState.Expired) {
     StateCard(
-        iconTint = MaterialTheme.colorScheme.error,
         title = stringResource(R.string.child_time_expired_title),
         titleColor = MaterialTheme.colorScheme.error,
         subtitle = stringResource(R.string.child_time_expired_sub, formatDurationMinutes(time.totalMinutes)),
-        icon = ImageVector.vectorResource(R.drawable.ic_timer)
+        icon = R.drawable.ic_timer_solid
     )
 }
 
 @Composable
 private fun NoLimitCard() {
     StateCard(
-        iconTint = MaterialTheme.colorScheme.primary,
         title = stringResource(R.string.child_time_nolimit_title),
         titleColor = MaterialTheme.colorScheme.primary,
         subtitle = stringResource(R.string.child_time_nolimit_sub),
-        icon = Icons.Filled.CheckCircle
+        icon = R.drawable.ic_check_solid
     )
 }
 
+/** Карточка состояния дня. Иконка объёмная — через [Image], как и в сетке правил. */
 @Composable
 private fun StateCard(
-    iconTint: Color,
-    icon: ImageVector,
+    @DrawableRes icon: Int,
     title: String,
     titleColor: Color,
     subtitle: String
@@ -296,10 +295,9 @@ private fun StateCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = icon,
+            Image(
+                painter = painterResource(icon),
                 contentDescription = null,
-                tint = iconTint,
                 modifier = Modifier.size(40.dp)
             )
             Text(
@@ -374,9 +372,7 @@ private fun RulesGrid(
         ) {
             RuleGridCard(
                 modifier = Modifier.weight(1f),
-                icon = ImageVector.vectorResource(R.drawable.ic_timer),
-                iconTint = MaterialTheme.colorScheme.primary,
-                iconBackground = MaterialTheme.colorScheme.surfaceContainerHighest,
+                icon = R.drawable.ic_timer_solid,
                 label = stringResource(R.string.child_rules_limits_label),
                 value = pluralStringResource(R.plurals.child_rules_apps_count, ui.limited.count, ui.limited.count),
                 subtitle = limitedGridSubtitle(ui.limited),
@@ -384,9 +380,7 @@ private fun RulesGrid(
             )
             RuleGridCard(
                 modifier = Modifier.weight(1f),
-                icon = ImageVector.vectorResource(R.drawable.ic_block),
-                iconTint = MaterialTheme.colorScheme.error,
-                iconBackground = MaterialTheme.colorScheme.errorContainer,
+                icon = R.drawable.ic_block_solid,
                 label = stringResource(R.string.child_rules_blocked_label),
                 value = pluralStringResource(R.plurals.child_rules_apps_count, ui.blocked.count, ui.blocked.count),
                 onClick = onOpenBlocked
@@ -399,9 +393,7 @@ private fun RulesGrid(
         ) {
             RuleGridCard(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Filled.CheckCircle,
-                iconTint = MaterialTheme.colorScheme.primary,
-                iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+                icon = R.drawable.ic_check_solid,
                 label = stringResource(R.string.child_rules_allowed_label),
                 value = pluralStringResource(
                     R.plurals.child_rules_apps_count,
@@ -412,9 +404,7 @@ private fun RulesGrid(
             )
             RuleGridCard(
                 modifier = Modifier.weight(1f),
-                icon = ImageVector.vectorResource(R.drawable.ic_clock),
-                iconTint = MaterialTheme.colorScheme.tertiary,
-                iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+                icon = R.drawable.ic_clock_solid,
                 label = stringResource(R.string.child_rules_stats_label),
                 value = formatDurationMinutes(ui.usedMinutes),
                 onClick = onOpenStats
@@ -436,11 +426,14 @@ private fun limitedGridSubtitle(limited: LimitedGroup): String? {
     }
 }
 
+/**
+ * Карточка сетки «Мои правила». Иконка объёмная, поэтому рисуется через [Image]: `tint` у [Icon]
+ * свёл бы её обратно к одноцветной. Подложка-квадрат под иконкой убрана — она нужна была, чтобы
+ * оживить плоский одноцветный значок, а объёмная иконка цветная сама и на подложке выглядит шумно.
+ */
 @Composable
 private fun RuleGridCard(
-    icon: ImageVector,
-    iconTint: Color,
-    iconBackground: Color,
+    @DrawableRes icon: Int,
     label: String,
     value: String,
     onClick: () -> Unit,
@@ -458,20 +451,11 @@ private fun RuleGridCard(
         onClick = onClick
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(iconBackground),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp)
+            )
             Spacer(Modifier.height(9.dp))
             Text(
                 text = label,

@@ -1,0 +1,85 @@
+<!--
+    Перечёркнутый глобус — «Запрет сайтов». Сам глобус нейтрально-стальной,
+    цвет запрета живёт только в перекладине.
+
+    Объёмная иконка: градиенты + блики вместо плоской заливки (см.
+    docs/ui-concepts/icons-volumetric/icons-mockup.html).
+    ВАЖНО: показывать через Image(painterResource(...)), а НЕ Icon — tint у Icon
+    красит содержимое одним цветом и убивает градиенты.
+    Теней нет: VectorDrawable не поддерживает feDropShadow, объём держится на градиентах.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <path
+        android:pathData="M10,48 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="10"
+                android:startY="10"
+                android:endX="86"
+                android:endY="86">
+                <item android:offset="0" android:color="#FFCFE3E6"/>
+                <item android:offset="1" android:color="#FF6E8D95"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M30,48 a18,38 0 1,0 36,0 a18,38 0 1,0 -36,0 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF33565E"
+        android:strokeAlpha="0.55"
+        android:strokeWidth="3" />
+    <path
+        android:pathData="M12 36 H84"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF33565E"
+        android:strokeAlpha="0.55"
+        android:strokeWidth="3" />
+    <path
+        android:pathData="M12 60 H84"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF33565E"
+        android:strokeAlpha="0.55"
+        android:strokeWidth="3" />
+    <path
+        android:pathData="M10,48 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF2A474E"
+        android:strokeAlpha="0.5"
+        android:strokeWidth="3" />
+    <group android:rotation="-28" android:pivotX="34" android:pivotY="28">
+        <path
+            android:pathData="M20,28 a14,8 0 1,0 28,0 a14,8 0 1,0 -28,0 Z"
+            android:fillColor="#FFFFFFFF"
+            android:fillAlpha="0.35" />
+    </group>
+    <group android:rotation="45" android:pivotX="48" android:pivotY="48">
+        <path
+            android:pathData="M50,10 h0 a5,5 0 0,1 5,5 v70 a5,5 0 0,1 -5,5 h0 a5,5 0 0,1 -5,-5 v-70 a5,5 0 0,1 5,-5 Z"
+            android:fillColor="#FF3B0F0C"
+            android:fillAlpha="0.35" />
+    </group>
+    <group android:rotation="45" android:pivotX="48" android:pivotY="48">
+        <path
+            android:pathData="M48,8 h0 a4,4 0 0,1 4,4 v72 a4,4 0 0,1 -4,4 h0 a4,4 0 0,1 -4,-4 v-72 a4,4 0 0,1 4,-4 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="44"
+                    android:startY="8"
+                    android:endX="52"
+                    android:endY="88">
+                    <item android:offset="0" android:color="#FFF6B0AB"/>
+                    <item android:offset=".5" android:color="#FFD1544E"/>
+                    <item android:offset="1" android:color="#FF8E2F2A"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

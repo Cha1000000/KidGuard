@@ -1,0 +1,101 @@
+<!--
+    Часы — «Дневной лимит» у родителя и карточка «Сегодня» у ребёнка.
+
+    Объёмная иконка: градиенты + блики вместо плоской заливки (см.
+    docs/ui-concepts/icons-volumetric/icons-mockup.html).
+    ВАЖНО: показывать через Image(painterResource(...)), а НЕ Icon — tint у Icon
+    красит содержимое одним цветом и убивает градиенты.
+    Теней нет: VectorDrawable не поддерживает feDropShadow, объём держится на градиентах.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <path
+        android:pathData="M8,48 a40,40 0 1,0 80,0 a40,40 0 1,0 -80,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="8"
+                android:startY="8"
+                android:endX="88"
+                android:endY="88">
+                <item android:offset="0" android:color="#FFBFEDE5"/>
+                <item android:offset=".55" android:color="#FF57B0AE"/>
+                <item android:offset="1" android:color="#FF2B7C84"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M17,48 a31,31 0 1,0 62,0 a31,31 0 1,0 -62,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="17"
+                android:startY="17"
+                android:endX="54.2"
+                android:endY="79">
+                <item android:offset="0" android:color="#FFEAFBF7"/>
+                <item android:offset="1" android:color="#FFA8DCD6"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M48,20 h0 a1.5,1.5 0 0,1 1.5,1.5 v4 a1.5,1.5 0 0,1 -1.5,1.5 h0 a1.5,1.5 0 0,1 -1.5,-1.5 v-4 a1.5,1.5 0 0,1 1.5,-1.5 Z"
+        android:fillColor="#FF2B7C84"
+        android:fillAlpha="0.45" />
+    <path
+        android:pathData="M48,69 h0 a1.5,1.5 0 0,1 1.5,1.5 v4 a1.5,1.5 0 0,1 -1.5,1.5 h0 a1.5,1.5 0 0,1 -1.5,-1.5 v-4 a1.5,1.5 0 0,1 1.5,-1.5 Z"
+        android:fillColor="#FF2B7C84"
+        android:fillAlpha="0.45" />
+    <path
+        android:pathData="M21.5,46.5 h4 a1.5,1.5 0 0,1 1.5,1.5 v0 a1.5,1.5 0 0,1 -1.5,1.5 h-4 a1.5,1.5 0 0,1 -1.5,-1.5 v0 a1.5,1.5 0 0,1 1.5,-1.5 Z"
+        android:fillColor="#FF2B7C84"
+        android:fillAlpha="0.45" />
+    <path
+        android:pathData="M70.5,46.5 h4 a1.5,1.5 0 0,1 1.5,1.5 v0 a1.5,1.5 0 0,1 -1.5,1.5 h-4 a1.5,1.5 0 0,1 -1.5,-1.5 v0 a1.5,1.5 0 0,1 1.5,-1.5 Z"
+        android:fillColor="#FF2B7C84"
+        android:fillAlpha="0.45" />
+    <path
+        android:pathData="M48,28 h0 a2,2 0 0,1 2,2 v18 a2,2 0 0,1 -2,2 h0 a2,2 0 0,1 -2,-2 v-18 a2,2 0 0,1 2,-2 Z"
+        android:fillColor="#FF1E5F68" />
+    <path
+        android:pathData="M49,46 h16 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-16 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="47"
+                android:startY="46"
+                android:endX="67"
+                android:endY="50">
+                <item android:offset="0" android:color="#FFFFE7A0"/>
+                <item android:offset=".5" android:color="#FFF0B03F"/>
+                <item android:offset="1" android:color="#FFB87A1C"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M44,48 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="44"
+                android:startY="44"
+                android:endX="52"
+                android:endY="52">
+                <item android:offset="0" android:color="#FFFFE7A0"/>
+                <item android:offset=".5" android:color="#FFF0B03F"/>
+                <item android:offset="1" android:color="#FFB87A1C"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <group android:rotation="-28" android:pivotX="34" android:pivotY="30">
+        <path
+            android:pathData="M19,30 a15,9 0 1,0 30,0 a15,9 0 1,0 -30,0 Z"
+            android:fillColor="#FFFFFFFF"
+            android:fillAlpha="0.28" />
+    </group>
+</vector>

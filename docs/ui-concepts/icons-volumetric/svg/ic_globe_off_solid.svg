@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+<defs>
+<linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#F6B0AB"/><stop offset=".5" stop-color="#D1544E"/><stop offset="1" stop-color="#8E2F2A"/>
+  </linearGradient>
+<linearGradient id="slate" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#CFE3E6"/><stop offset="1" stop-color="#6E8D95"/>
+  </linearGradient>
+</defs>
+<circle cx="48" cy="48" r="38" fill="url(#slate)"/>
+    <g fill="none" stroke="#33565E" stroke-opacity=".55" stroke-width="3">
+      <ellipse cx="48" cy="48" rx="18" ry="38"/>
+      <path d="M12 36 H84"/>
+      <path d="M12 60 H84"/>
+    </g>
+    <circle cx="48" cy="48" r="38" fill="none" stroke="#2A474E" stroke-opacity=".5" stroke-width="3"/>
+    <ellipse cx="34" cy="28" rx="14" ry="8" fill="#fff" opacity=".35" transform="rotate(-28 34 28)"/>
+    <!-- перечёркивание -->
+    <rect x="43" y="8" width="10" height="80" rx="5" fill="#3B0F0C" opacity=".35"
+          transform="rotate(45 48 48) translate(2,2)"/>
+    <rect x="44" y="8" width="8" height="80" rx="4" fill="url(#red)" transform="rotate(45 48 48)"/>
+</svg>
