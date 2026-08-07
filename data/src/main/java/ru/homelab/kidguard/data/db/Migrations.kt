@@ -163,3 +163,18 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE policy_flags ADD COLUMN dailyUsageBlockAt INTEGER")
     }
 }
+
+/**
+ * v11 → v12 («бонус не гасит перерасход»): отдельный счётчик времени сверх исчерпанного лимита —
+ * дневного и личного лимита приложения. Раньше расход рос и после блокировки (оверлей мягкой
+ * блокировки смахивается), поэтому выданный бонус сперва гасил накопленный перерасход и
+ * блокировка не снималась.
+ *
+ * NOT NULL DEFAULT 0: старые строки читаются как «перерасхода не было».
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE screen_time ADD COLUMN overrunSeconds INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE app_screen_time ADD COLUMN overrunSeconds INTEGER NOT NULL DEFAULT 0")
+    }
+}

@@ -132,7 +132,9 @@ class TodayViewModel @Inject constructor(
         val timeFlow = combine(
             policyRepository.dailyLimits,
             usageRepository.screenTimeSeconds(today),
-            usageRepository.appScreenTimeByPackage(today),
+            // Карточке «Сегодня» нужно ФАКТИЧЕСКОЕ время в приложениях (с перерасходом), кольцу
+            // остатка — только то, что израсходовало бюджет.
+            usageRepository.appTotalScreenTimeByPackage(today),
             bonusRepository.phoneBonusMinutes(today)
         ) { limits, limitedSeconds, appSeconds, bonusMinutes ->
             // Кольцо остатка считаем по времени, расходующему лимит, а карточку «Сегодня» —

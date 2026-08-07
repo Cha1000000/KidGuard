@@ -71,14 +71,16 @@ class ChildTodayStatsViewModel @Inject constructor(
         // Набор использованных пакетов известен только по факту чтения appScreenTimeByPackage —
         // берём его первый снимок и грузим имена/иконки один раз по нему (extraPackages
         // обязателен, иначе системные приложения без launcher-иконки останутся без названия).
-        val firstUsedPackages = usageRepository.appScreenTimeByPackage(today).first().keys
+        val firstUsedPackages = usageRepository.appTotalScreenTimeByPackage(today).first().keys
         val knownApps = childLocalAppsProvider.loadByPackage(firstUsedPackages)
 
         emitAll(
             combine(
                 policyRepository.dailyLimits,
                 usageRepository.screenTimeSeconds(today),
-                usageRepository.appScreenTimeByPackage(today),
+                // Крупная цифра и список — фактическое время (с перерасходом); с лимитом ниже
+                // сравнивается только израсходованный бюджет.
+                usageRepository.appTotalScreenTimeByPackage(today),
                 bonusRepository.phoneBonusMinutes(today)
             ) { limits, limitedSeconds, appSeconds, phoneBonus ->
                 // Крупная цифра и доли — по всему экранному времени (сумма пер-app), а лимит

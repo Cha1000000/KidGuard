@@ -25,6 +25,17 @@ interface UsageDao {
     )
     suspend fun setSeconds(date: String, seconds: Int)
 
+    /** Время сверх исчерпанного дневного бюджета за день. */
+    @Query("SELECT overrunSeconds FROM screen_time WHERE date = :date")
+    fun overrunForDate(date: String): Flow<Int?>
+
+    /** Прибавить секунды к перерасходу дня (создать запись, если её ещё нет). */
+    @Query(
+        "INSERT INTO screen_time(date, seconds, overrunSeconds) VALUES(:date, 0, :seconds) " +
+            "ON CONFLICT(date) DO UPDATE SET overrunSeconds = overrunSeconds + :seconds"
+    )
+    suspend fun addOverrunSeconds(date: String, seconds: Int)
+
     @Query("SELECT seconds FROM app_screen_time WHERE date = :date AND packageName = :packageName")
     fun appSecondsForDate(date: String, packageName: String): Flow<Int?>
 
@@ -38,6 +49,14 @@ interface UsageDao {
             "ON CONFLICT(date, packageName) DO UPDATE SET seconds = seconds + :seconds"
     )
     suspend fun addAppSeconds(date: String, packageName: String, seconds: Int)
+
+    /** Прибавить секунды к перерасходу приложения за день (создать запись, если её ещё нет). */
+    @Query(
+        "INSERT INTO app_screen_time(date, packageName, seconds, overrunSeconds) " +
+            "VALUES(:date, :packageName, 0, :seconds) " +
+            "ON CONFLICT(date, packageName) DO UPDATE SET overrunSeconds = overrunSeconds + :seconds"
+    )
+    suspend fun addAppOverrunSeconds(date: String, packageName: String, seconds: Int)
 
     /** Обнулить общий экранный расход за день (сброс сегодняшнего лимита). */
     @Query("DELETE FROM screen_time WHERE date = :date")

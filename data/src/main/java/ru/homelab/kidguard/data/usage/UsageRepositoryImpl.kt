@@ -22,6 +22,13 @@ class UsageRepositoryImpl @Inject constructor(
         usageDao.setSeconds(date.toString(), seconds)
     }
 
+    override fun overrunSeconds(date: LocalDate): Flow<Int> =
+        usageDao.overrunForDate(date.toString()).map { it ?: 0 }
+
+    override suspend fun addOverrunTime(date: LocalDate, seconds: Int) {
+        usageDao.addOverrunSeconds(date.toString(), seconds)
+    }
+
     override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> =
         usageDao.appSecondsForDate(date.toString(), packageName).map { it ?: 0 }
 
@@ -30,8 +37,22 @@ class UsageRepositoryImpl @Inject constructor(
             rows.associate { it.packageName to it.seconds }
         }
 
+    override fun appOverrunByPackage(date: LocalDate): Flow<Map<String, Int>> =
+        usageDao.appSecondsForDate(date.toString()).map { rows ->
+            rows.associate { it.packageName to it.overrunSeconds }
+        }
+
+    override fun appTotalScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> =
+        usageDao.appSecondsForDate(date.toString()).map { rows ->
+            rows.associate { it.packageName to (it.seconds + it.overrunSeconds) }
+        }
+
     override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) {
         usageDao.addAppSeconds(date.toString(), packageName, seconds)
+    }
+
+    override suspend fun addAppOverrunTime(date: LocalDate, packageName: String, seconds: Int) {
+        usageDao.addAppOverrunSeconds(date.toString(), packageName, seconds)
     }
 
     override suspend fun resetScreenTime(date: LocalDate) {

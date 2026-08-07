@@ -27,6 +27,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
+import ru.homelab.kidguard.core.domain.model.OVERRUN_PACKAGE
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.TimeWindow
@@ -286,7 +287,9 @@ class SyncRepositoryImpl @Inject constructor(
         val today = currentDateProvider.today()
         val usedPackages = buildSet {
             for (date in listOf(today.minusDays(1), today)) {
-                usageRepository.appScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
+                // Фактическое время: приложение, чьё время целиком ушло в перерасход, тоже
+                // «использовалось» — иначе оно выпало бы из публикуемого списка.
+                usageRepository.appTotalScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
                     if (seconds > 0) add(pkg)
                 }
             }
@@ -306,6 +309,11 @@ class SyncRepositoryImpl @Inject constructor(
     /**
      * Отправляет статистику за сегодня и вчера (вчера — дослать хвост дня после полуночи).
      * Значения АБСОЛЮТНЫЕ (накопленные за день из Room) — сервер перезаписывает, повтор безопасен.
+     *
+     * Расход бюджета и перерасход уезжают разными записями (вторая — под маркером
+     * [OVERRUN_PACKAGE]): родителю нужно и то, сколько бюджета израсходовано, и сколько ребёнок
+     * пробыл в телефоне сверх него. По приложениям, наоборот, отправляется сумма — там интересно
+     * фактическое время в приложении, а не бюджетная его часть.
      */
     private suspend fun pushUsage(childId: Int) {
         val today = currentDateProvider.today()
@@ -313,7 +321,11 @@ class SyncRepositoryImpl @Inject constructor(
             for (date in listOf(today.minusDays(1), today)) {
                 val total = usageRepository.screenTimeSeconds(date).first()
                 if (total > 0) add(UsageEntryDto(date.toString(), packageName = "", seconds = total))
-                usageRepository.appScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
+                val overrun = usageRepository.overrunSeconds(date).first()
+                if (overrun > 0) {
+                    add(UsageEntryDto(date.toString(), packageName = OVERRUN_PACKAGE, seconds = overrun))
+                }
+                usageRepository.appTotalScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
                     if (seconds > 0) add(UsageEntryDto(date.toString(), packageName = pkg, seconds = seconds))
                 }
             }

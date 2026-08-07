@@ -141,6 +141,11 @@ class ObserveLimitStateUseCaseTest {
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(0)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+        override fun overrunSeconds(date: LocalDate): Flow<Int> = flowOf(0)
+        override suspend fun addOverrunTime(date: LocalDate, seconds: Int) = Unit
+        override fun appOverrunByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override fun appTotalScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppOverrunTime(date: LocalDate, packageName: String, seconds: Int) = Unit
         override suspend fun resetScreenTime(date: LocalDate) = Unit
         override suspend fun resetAppScreenTime(date: LocalDate) = Unit
     }
@@ -152,6 +157,11 @@ class ObserveLimitStateUseCaseTest {
         override fun appScreenTimeSeconds(date: LocalDate, packageName: String): Flow<Int> = flowOf(0)
         override fun appScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
         override suspend fun addAppScreenTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+        override fun overrunSeconds(date: LocalDate): Flow<Int> = flowOf(0)
+        override suspend fun addOverrunTime(date: LocalDate, seconds: Int) = Unit
+        override fun appOverrunByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override fun appTotalScreenTimeByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppOverrunTime(date: LocalDate, packageName: String, seconds: Int) = Unit
         override suspend fun resetScreenTime(date: LocalDate) = Unit
         override suspend fun resetAppScreenTime(date: LocalDate) = Unit
     }

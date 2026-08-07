@@ -102,7 +102,14 @@ class StatisticsViewModel @Inject constructor(
             }
 
             val today = LocalDate.now()
-            val totalsByDate = entries.filter { it.isTotal }.associate { it.date to it.seconds }
+            // «Время под лимитом» = израсходованный бюджет + перерасход: ребёнок присылает их
+            // разными записями (бюджетный счётчик не растёт после блокировки, чтобы бонус не
+            // гасил накрученное время), а родителю нужна их сумма — от неё и считается
+            // перерасход относительно бюджета дня, как и раньше.
+            val totalsByDate = entries
+                .filter { it.isTotal || it.isOverrun }
+                .groupBy { it.date }
+                .mapValues { (_, dayEntries) -> dayEntries.sumOf { it.seconds } }
             val limits = policyRepository.dailyLimits.first()
             // Бонусы телефона за все дни разом: отдельного метода «бонусы за период» в репозитории
             // нет, а observeAll() уже отдаёт всё с датами — по дню тянуть 7 потоков избыточно.
@@ -120,7 +127,9 @@ class StatisticsViewModel @Inject constructor(
             }
 
             val todaySeconds = totalsByDate[today] ?: 0
-            val todayAppEntries = entries.filter { !it.isTotal && it.date == today && it.seconds > 0 }
+            // isApp отсекает служебные маркеры дня (итог и перерасход) — иначе перерасход попал бы
+            // в список «По приложениям» отдельной строкой с именем-маркером.
+            val todayAppEntries = entries.filter { it.isApp && it.date == today && it.seconds > 0 }
             // Всё экранное время = сумма по приложениям: общий счётчик с приходом «вне лимита»
             // («Всегда доступные», лаунчер, само KidGuard) больше не совпадает с фактическим
             // временем на экране, а пер-app счётчик по-прежнему учитывает всё.
