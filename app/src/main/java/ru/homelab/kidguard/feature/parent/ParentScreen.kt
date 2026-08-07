@@ -6,8 +6,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -64,6 +72,8 @@ fun ParentScreen(
     // Поднимает петлю синхронизации политики (веха 4.3) на время жизни родительского режима.
     @Suppress("UNUSED_PARAMETER") syncViewModel: ParentSyncViewModel = hiltViewModel()
 ) {
+    RequestNotificationPermission()
+
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -186,5 +196,24 @@ fun ParentScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Разрешение на уведомления у родителя (Android 13+). Без него сообщения «контроль на телефоне
+ * ребёнка сломан» не показываются вовсе — а это единственный способ узнать о поломке, не открывая
+ * приложение. Спрашиваем один раз при входе в родительский режим: системный диалог сам больше не
+ * появится, если родитель уже ответил.
+ */
+@Composable
+private fun RequestNotificationPermission() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(Unit) {
+        val granted = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }

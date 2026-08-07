@@ -29,6 +29,9 @@ sealed interface WsEvent {
 
     /** Детское устройство ввело pairing-код — у ребёнка сменился статус привязки. */
     data class ChildPaired(val childId: Int) : WsEvent
+
+    /** Отчёт детского устройства о здоровье изменился — родителю пора перепроверить контроль. */
+    data class ChildHealthChanged(val childId: Int) : WsEvent
 }
 
 /**
@@ -101,6 +104,7 @@ class PolicySocket @Inject constructor(
         when (obj["type"]?.jsonPrimitive?.content) {
             "policy-changed" -> WsEvent.PolicyChanged(childId)
             "child-paired" -> WsEvent.ChildPaired(childId)
+            "child-health-changed" -> WsEvent.ChildHealthChanged(childId)
             else -> null
         }
     }.getOrNull()

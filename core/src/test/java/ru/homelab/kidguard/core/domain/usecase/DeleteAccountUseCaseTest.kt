@@ -9,9 +9,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.FakePolicyRepository
 import ru.homelab.kidguard.core.domain.model.AuthUser
+import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.PairedChild
 import ru.homelab.kidguard.core.domain.model.Role
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
+import ru.homelab.kidguard.core.domain.repository.ChildAlertStore
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 
@@ -64,7 +66,7 @@ class DeleteAccountUseCaseTest {
         val sync = FakeSyncRepository()
         val settings = FakeSettingsRepository()
 
-        SignOutUseCase(auth, sync, FakePolicyRepository(), settings).invoke()
+        SignOutUseCase(auth, sync, FakePolicyRepository(), settings, FakeChildAlertStore()).invoke()
 
         assertFalse("выход не должен удалять аккаунт на сервере", auth.deleteCalled)
         assertTrue(auth.sessionCleared)
@@ -77,7 +79,7 @@ class DeleteAccountUseCaseTest {
         sync: SyncRepository,
         settings: SettingsRepository,
         policy: FakePolicyRepository
-    ) = DeleteAccountUseCase(auth, SignOutUseCase(auth, sync, policy, settings))
+    ) = DeleteAccountUseCase(auth, SignOutUseCase(auth, sync, policy, settings, FakeChildAlertStore()))
 
     private class FakeAuthRepository(
         private val deleteResult: Result<Unit>
@@ -119,6 +121,7 @@ class DeleteAccountUseCaseTest {
 
         override val activeChildId: Flow<Int?> = flowOf(null)
         override val childPaired: Flow<Int> = flowOf(0)
+        override val childHealthChanged: Flow<Int> = flowOf(0)
 
         override suspend fun parentSyncLoop() = Unit
         override suspend fun childSyncLoop() = Unit
@@ -127,6 +130,12 @@ class DeleteAccountUseCaseTest {
         override suspend fun clearLocalSyncState() {
             cleared = true
         }
+    }
+
+    private class FakeChildAlertStore : ChildAlertStore {
+        override suspend fun previous(): Map<Int, Child> = emptyMap()
+        override suspend fun save(children: List<Child>) = Unit
+        override suspend fun clear() = Unit
     }
 
     private class FakeSettingsRepository : SettingsRepository {

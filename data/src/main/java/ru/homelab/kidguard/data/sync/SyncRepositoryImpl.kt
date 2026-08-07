@@ -139,6 +139,8 @@ class SyncRepositoryImpl @Inject constructor(
                     }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
 
                     is WsEvent.ChildPaired -> childPairedEvents.tryEmit(event.childId)
+
+                    is WsEvent.ChildHealthChanged -> childHealthEvents.tryEmit(event.childId)
                 }
             }
         }
@@ -181,6 +183,12 @@ class SyncRepositoryImpl @Inject constructor(
     private val childPairedEvents = MutableSharedFlow<Int>(extraBufferCapacity = 8)
 
     override val childPaired: Flow<Int> = childPairedEvents
+
+    // replay=0 по той же причине, что и у childPaired: событие интересно только тем, кто слушает
+    // прямо сейчас (открытое родительское приложение).
+    private val childHealthEvents = MutableSharedFlow<Int>(extraBufferCapacity = 8)
+
+    override val childHealthChanged: Flow<Int> = childHealthEvents
 
     /**
      * Переключение активного ребёнка. Порядок важен: сперва тянем и применяем политику нового

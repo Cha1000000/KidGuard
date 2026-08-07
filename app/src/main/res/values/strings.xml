@@ -683,6 +683,12 @@
     <string name="child_pin_blocked">Слишком много попыток. Повторите через %1$s</string>
     <string name="child_menu_permissions">Разрешения</string>
     <string name="child_menu_open_cd">Меню</string>
+    <!-- Уведомления родителю: контроль на телефоне ребёнка сломался (watchdog) -->
+    <string name="parent_alert_channel_name">Проблемы с контролем</string>
+    <string name="parent_alert_title">%1$s — контроль не работает</string>
+    <string name="parent_alert_broken">Отключено: %1$s. Откройте KidGuard, чтобы починить.</string>
+    <string name="parent_alert_silent">Телефон давно не выходит на связь: приложение остановлено, удалено или телефон выключен.</string>
+
     <string name="permission_accessibility_title">Специальные возможности</string>
     <string name="permission_accessibility_desc">Определяет активное приложение и блокирует нежелательные.</string>
     <string name="permission_overlay_title">Поверх других приложений</string>
