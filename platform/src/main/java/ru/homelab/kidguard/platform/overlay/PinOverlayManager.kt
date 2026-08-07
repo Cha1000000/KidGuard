@@ -11,6 +11,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -46,11 +47,33 @@ class PinOverlayManager @Inject constructor(
     // ПОВЕРХ защищённых системных экранов (VPN, спец. возможности, удаление) — обычный
     // SYSTEM_ALERT_WINDOW там принудительно скрывается (HIDE_NON_SYSTEM_OVERLAY_WINDOWS).
     private var windowManager: WindowManager? = null
+
+    /**
+     * Запасной WindowManager приложения — на случай, когда accessibility-сервиса нет вовсе
+     * (замок «контроль отключён», [ru.homelab.kidguard.platform.permissions.AccessibilityGuardController]).
+     * Окно тогда обычное, `TYPE_APPLICATION_OVERLAY`: поверх защищённых экранов настроек система
+     * его скроет — и это как раз кстати, ребёнку нужно дойти там до тумблера и вернуть разрешение.
+     */
+    private val appWindowManager = context.getSystemService<WindowManager>()
+
+    /** Каким менеджером окно добавили — тем же его и убираем. */
+    private var activeWindowManager: WindowManager? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /** Сервис отдаёт свой WindowManager при подключении — от него зависит показ поверх настроек. */
     fun attach(serviceWindowManager: WindowManager) {
         windowManager = serviceWindowManager
+    }
+
+    /**
+     * Сервис отключился (в том числе когда ребёнок снял разрешение) — забываем его WindowManager.
+     * Без этого ссылка на окно мёртвого сервиса переживает его смерть, и следующий показ падает с
+     * `BadTokenException: token null is not valid`: замок «контроль отключён» тогда не появляется
+     * вовсе — а нужен он именно в этот момент. Дальше оверлей рисуется окном приложения.
+     */
+    fun detach() {
+        hide()
+        windowManager = null
     }
 
     // PBKDF2-проверка (120k итераций) — не на главном потоке, поэтому отдельный scope.
@@ -71,23 +94,57 @@ class PinOverlayManager @Inject constructor(
      * @param onUnlocked вызывается после верного PIN — оверлей уже скрыт к этому моменту.
      * @param onCancel вызывается по ссылке «Назад» — оверлей уже скрыт к этому моменту;
      *   вызывающая сторона решает, как увести с защищённого экрана (например, GLOBAL_ACTION_BACK).
+     *   `null` — ссылки «Назад» нет: уйти можно только верным PIN (замок «контроль отключён»).
+     * @param titleRes, subtitleRes заголовок и подпись — у перехвата настроек и у замка они разные.
+     * @param action необязательная вторая ссылка-действие (у замка — «Включить», уводит в
+     *   системные настройки).
      */
     fun show(
         verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
-        onCancel: () -> Unit
+        onCancel: (() -> Unit)? = null,
+        @StringRes titleRes: Int = R.string.pin_overlay_title,
+        @StringRes subtitleRes: Int = R.string.pin_overlay_subtitle,
+        action: OverlayAction? = null
     ) = mainHandler.post {
         if (overlayView != null) return@post
         enteredDigits.clear()
-        val view = createOverlayView(verifyPin, onUnlocked, onCancel)
-        try {
-            windowManager?.addView(view, buildLayoutParams())
+        val view = createOverlayView(verifyPin, onUnlocked, onCancel, titleRes, subtitleRes, action)
+        // Своё окно у accessibility-сервиса, если он есть; иначе обычное окно приложения.
+        val serviceManager = windowManager
+        val added = tryAddView(view, serviceManager, fromAccessibilityService = true) ||
+            // Окно сервиса может быть уже недействительным: сервис умер, а ссылка на его
+            // WindowManager осталась (`BadTokenException: token null is not valid`). Отключение
+            // сервиса не всегда доходит до нас колбэком, поэтому не полагаемся на detach() —
+            // просто пробуем окно приложения. Именно этот путь и нужен замку «контроль отключён».
+            tryAddView(view, appWindowManager, fromAccessibilityService = false)
+        if (added) {
             overlayView = view
-            Timber.d("PIN-оверлей добавлен в WindowManager")
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка добавления оверлея")
+        } else {
+            Timber.e("Оверлей показать нечем: ни окно сервиса, ни окно приложения не приняли view")
         }
     }
+
+    /** Пытается добавить окно указанным менеджером; false — менеджера нет или система отказала. */
+    private fun tryAddView(view: View, manager: WindowManager?, fromAccessibilityService: Boolean): Boolean {
+        if (manager == null) return false
+        return runCatching {
+            manager.addView(view, buildLayoutParams(fromAccessibilityService))
+            activeWindowManager = manager
+            Timber.d("PIN-оверлей добавлен (окно %s)", if (fromAccessibilityService) "сервиса" else "приложения")
+        }.onFailure {
+            if (fromAccessibilityService) {
+                // Окно сервиса больше не годится — забываем его, чтобы не пытаться снова.
+                windowManager = null
+                Timber.w(it, "Окно accessibility-сервиса недействительно, пробую окно приложения")
+            } else {
+                Timber.e(it, "Ошибка добавления оверлея окном приложения")
+            }
+        }.isSuccess
+    }
+
+    /** Дополнительная ссылка-действие внизу оверлея. */
+    data class OverlayAction(@param:StringRes val labelRes: Int, val onClick: () -> Unit)
 
     /**
      * Скрыть оверлей без вызова коллбэков — на случай, если ребёнок ушёл с защищённого экрана
@@ -104,14 +161,18 @@ class PinOverlayManager @Inject constructor(
         if (overlayView !== view) return
         verifyJob?.cancel()
         verifyJob = null
-        windowManager?.removeView(view)
+        activeWindowManager?.removeView(view)
+        activeWindowManager = null
         overlayView = null
     }
 
     private fun createOverlayView(
         verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
-        onCancel: () -> Unit
+        onCancel: (() -> Unit)?,
+        @StringRes titleRes: Int,
+        @StringRes subtitleRes: Int,
+        action: OverlayAction?
     ): View {
         // Объявляем контейнер заранее (пустым) — коллбэки клавиатуры замыкают именно эту
         // ссылку на dismiss(container), а наполняем контейнер уже в конце функции.
@@ -122,20 +183,20 @@ class PinOverlayManager @Inject constructor(
         }
 
         val title = TextView(context).apply {
-            text = context.getString(R.string.pin_overlay_title)
+            text = context.getString(titleRes)
             setTextColor(Color.WHITE)
             textSize = 22f
             gravity = Gravity.CENTER
         }
         val subtitle = TextView(context).apply {
-            text = context.getString(R.string.pin_overlay_subtitle)
+            text = context.getString(subtitleRes)
             setTextColor(Color.LTGRAY)
             textSize = 14f
             gravity = Gravity.CENTER
             setPadding(dp(24), dp(8), dp(24), dp(28))
         }
         fun resetSubtitle() {
-            subtitle.text = context.getString(R.string.pin_overlay_subtitle)
+            subtitle.text = context.getString(subtitleRes)
             subtitle.setTextColor(Color.LTGRAY)
         }
 
@@ -146,7 +207,10 @@ class PinOverlayManager @Inject constructor(
             dots.forEach { dot ->
                 addView(
                     dot,
-                    LinearLayout.LayoutParams(dp(DOT_SIZE_DP), dp(DOT_SIZE_DP)).apply {
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
                         marginStart = dp(DOT_MARGIN_DP)
                         marginEnd = dp(DOT_MARGIN_DP)
                         bottomMargin = dp(28)
@@ -202,16 +266,54 @@ class PinOverlayManager @Inject constructor(
 
         val keypad = buildKeypad(onDigit = ::handleDigit, onBackspace = ::handleBackspace)
 
-        val back = TextView(context).apply {
-            text = context.getString(R.string.pin_overlay_back)
+        // «Включить» (замок) стоит выше «Назад»: это основной способ выйти из ситуации, PIN —
+        // родительский обход, а «Назад» есть только у перехвата настроек.
+        val actionLink = action?.let { spec ->
+            buildLinkView(spec.labelRes) {
+                dismiss(container)
+                spec.onClick()
+            }
+        }
+        val back = onCancel?.let { cancel ->
+            buildLinkView(R.string.pin_overlay_back) {
+                dismiss(container)
+                cancel()
+            }
+        }
+
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            addView(title, wrapContent())
+            addView(subtitle, wrapContent())
+            addView(dotsRow, wrapContent())
+            addView(keypad, wrapContent())
+            actionLink?.let { addView(it, wrapContent()) }
+            back?.let { addView(it, wrapContent()) }
+        }
+        container.addView(
+            content,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+        )
+        return container
+    }
+
+    private fun wrapContent() =
+        LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+
+    /** Текстовая ссылка внизу оверлея с подсветкой нажатия (кнопок как таковых тут нет). */
+    private fun buildLinkView(@StringRes labelRes: Int, onClick: () -> Unit): TextView =
+        TextView(context).apply {
+            text = context.getString(labelRes)
             setTextColor(Color.parseColor(LINK_COLOR))
             textSize = 15f
             gravity = Gravity.CENTER
             setPadding(dp(16), dp(24), dp(16), dp(8))
-            setOnClickListener {
-                dismiss(container)
-                onCancel()
-            }
+            setOnClickListener { onClick() }
             setOnTouchListener { v, event ->
                 when (event.action) {
                     android.view.MotionEvent.ACTION_DOWN -> {
@@ -227,29 +329,6 @@ class PinOverlayManager @Inject constructor(
                 }
             }
         }
-
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            addView(title, wrapContent())
-            addView(subtitle, wrapContent())
-            addView(dotsRow, wrapContent())
-            addView(keypad, wrapContent())
-            addView(back, wrapContent())
-        }
-        container.addView(
-            content,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-            )
-        )
-        return container
-    }
-
-    private fun wrapContent() =
-        LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 
     private fun buildKeypad(onDigit: (Int) -> Unit, onBackspace: () -> Unit): View {
         val keypad = LinearLayout(context).apply {
@@ -310,16 +389,24 @@ class PinOverlayManager @Inject constructor(
         }
     }
 
-    private fun buildDotView(): View = View(context).apply {
-        background = circleDrawable(Color.parseColor(DOT_EMPTY_COLOR))
+    /**
+     * Точка-индикатор введённой цифры. Именно TextView с символом, а не View с круглым фоном:
+     * фон у View нулевого размера не рисуется, и индикатор ввода не отображался вовсе — ребёнок
+     * набирал PIN вслепую.
+     */
+    private fun buildDotView(): TextView = TextView(context).apply {
+        text = context.getString(R.string.pin_overlay_dot_glyph)
+        textSize = DOT_TEXT_SIZE_SP
+        gravity = Gravity.CENTER
+        setTextColor(Color.parseColor(DOT_EMPTY_COLOR))
     }
 
-    private fun updateDots(dots: List<View>, filledCount: Int, isError: Boolean) {
+    private fun updateDots(dots: List<TextView>, filledCount: Int, isError: Boolean) {
         val filledColor = if (isError) Color.parseColor(ERROR_COLOR) else Color.WHITE
         val emptyColor = if (isError) Color.parseColor(ERROR_COLOR) else Color.parseColor(DOT_EMPTY_COLOR)
         dots.forEachIndexed { index, dot ->
             val filled = isError || index < filledCount
-            dot.background = circleDrawable(if (filled) filledColor else emptyColor)
+            dot.setTextColor(if (filled) filledColor else emptyColor)
         }
     }
 
@@ -330,17 +417,25 @@ class PinOverlayManager @Inject constructor(
 
     private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
-    private fun buildLayoutParams() = WindowManager.LayoutParams(
+    /**
+     * Тип окна зависит от того, чьим менеджером его добавляют: `TYPE_ACCESSIBILITY_OVERLAY`
+     * разрешён только сервису, приложению система такое окно добавить не даст.
+     */
+    private fun buildLayoutParams(fromAccessibilityService: Boolean) = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.MATCH_PARENT,
-        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        if (fromAccessibilityService) {
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        },
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         android.graphics.PixelFormat.TRANSLUCENT
     )
 
     private companion object {
         const val PIN_LENGTH = 4
-        const val DOT_SIZE_DP = 14
+        const val DOT_TEXT_SIZE_SP = 26f
         const val DOT_MARGIN_DP = 7
         const val KEY_SIZE_DP = 64
         const val KEY_MARGIN_DP = 10

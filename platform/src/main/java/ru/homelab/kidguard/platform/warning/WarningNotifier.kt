@@ -63,6 +63,28 @@ class WarningNotifier @Inject constructor(
         notificationManager?.cancel(NotificationIds.SLEEP_WARNING)
     }
 
+    /**
+     * Контроль потерял разрешение «Специальные возможности» — предупреждение перед замком
+     * (см. `AccessibilityGuardController`). Уведомление настойчивое: `ongoing` — чтобы его нельзя
+     * было просто смахнуть и забыть, пока разрешение не вернули.
+     */
+    fun showControlLostWarning(minutesLeft: Int) {
+        val manager = notificationManager ?: return
+        ensureChannel(manager)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.warning_control_lost_title))
+            .setContentText(context.getString(R.string.warning_control_lost_text, minutesLeft))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        manager.notify(NotificationIds.CONTROL_LOST, notification)
+    }
+
+    fun clearControlLostWarning() {
+        notificationManager?.cancel(NotificationIds.CONTROL_LOST)
+    }
+
     private fun ensureChannel(manager: NotificationManager) {
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
             manager.createNotificationChannel(

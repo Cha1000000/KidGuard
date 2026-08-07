@@ -97,14 +97,71 @@ class PermissionsManager @Inject constructor(
             .firstOrNull { context.packageManager.resolveActivity(it, 0) != null }
             ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri())
 
+    /**
+     * Можем ли вернуть accessibility сами. Обычному приложению система `WRITE_SECURE_SETTINGS` не
+     * выдаёт — оно появляется, только если разрешение выдали с компьютера:
+     *
+     * ```
+     * adb shell pm grant ru.homelab.kidguard android.permission.WRITE_SECURE_SETTINGS
+     * ```
+     *
+     * Разрешение переживает обновления приложения (и force-stop), слетает при полной переустановке.
+     * Если его нет — работает обычный путь: предупреждение, а затем замок.
+     */
+    fun canRestoreAccessibility(): Boolean = ContextCompat.checkSelfPermission(
+        context, android.Manifest.permission.WRITE_SECURE_SETTINGS
+    ) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Возвращает accessibility-разрешение себе. Наш компонент ДОПИСЫВАЕТСЯ к списку, а не заменяет
+     * его: в списке могут быть чужие сервисы (тот же TalkBack), и затирать их нельзя.
+     *
+     * @return удалось ли; `false` — разрешения на запись нет либо система запись отклонила.
+     */
+    fun restoreAccessibility(): Boolean {
+        if (!canRestoreAccessibility()) return false
+        val expected = ComponentName(context, KidGuardAccessibilityService::class.java)
+        val current = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ).orEmpty()
+        val others = current.split(':').filter { it.isNotBlank() && !it.matchesService(expected) }
+        val updated = (others + expected.flattenToString()).joinToString(":")
+        return runCatching {
+            Settings.Secure.putString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                updated
+            )
+            // Без общего тумблера список игнорируется — система не забиндит ни один сервис.
+            Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+        }.isSuccess
+    }
+
+    /**
+     * Разрешение действует, только если наш сервис в списке включённых И поднят общий тумблер
+     * специальных возможностей. Одного списка мало: при `ACCESSIBILITY_ENABLED = 0` система не
+     * биндит ни один сервис, а список остаётся заполненным — контроль мёртв, а проверка по
+     * старому коду рапортовала бы «разрешение на месте».
+     */
     private fun isAccessibilityEnabled(): Boolean {
+        val masterSwitchOn = Settings.Secure.getInt(
+            context.contentResolver,
+            Settings.Secure.ACCESSIBILITY_ENABLED,
+            0
+        ) == 1
+        if (!masterSwitchOn) return false
         val expected = ComponentName(context, KidGuardAccessibilityService::class.java)
         val enabled = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
-        return enabled.split(':').any { ComponentName.unflattenFromString(it) == expected }
+        return enabled.split(':').any { it.matchesService(expected) }
     }
+
+    /** Строка списка описывает наш сервис (сравниваем компонентами, а не текстом). */
+    private fun String.matchesService(expected: ComponentName): Boolean =
+        ComponentName.unflattenFromString(this) == expected
 
     private fun isDeviceAdminActive(): Boolean {
         val dpm = context.getSystemService(DevicePolicyManager::class.java) ?: return false

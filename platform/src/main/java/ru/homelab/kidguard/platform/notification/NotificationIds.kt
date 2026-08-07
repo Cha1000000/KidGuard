@@ -23,4 +23,7 @@ object NotificationIds {
 
     /** Предупреждение «через N минут — Время сна». */
     const val SLEEP_WARNING = 4
+
+    /** «Контроль отключён» — разрешение «Специальные возможности» пропало. */
+    const val CONTROL_LOST = 5
 }

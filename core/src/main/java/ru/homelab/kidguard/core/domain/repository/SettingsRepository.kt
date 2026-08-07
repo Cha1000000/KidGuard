@@ -22,6 +22,17 @@ interface SettingsRepository {
     /** Отметить первичную настройку завершённой. */
     suspend fun setSetupCompleted(completed: Boolean)
 
+    /**
+     * Видели ли на этом устройстве выданное accessibility-разрешение хотя бы раз, то есть
+     * настроен ли контроль вообще. Отличает «ребёнок выключил разрешение» от «мастер разрешений
+     * ещё идёт»: `setupCompleted` для этого не годится — он ставится уже при выборе роли, задолго
+     * до выдачи разрешений.
+     */
+    val controlEverConfigured: Flow<Boolean>
+
+    /** Запомнить, что контроль был настроен (accessibility увидели включённым). */
+    suspend fun markControlConfigured()
+
     /** Сбросить первичную настройку: роль и признак завершённости. Приложение вернётся к выбору роли. */
     suspend fun resetSetup()
 }

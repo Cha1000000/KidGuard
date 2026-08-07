@@ -22,6 +22,7 @@ import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.overlay.BlockingController
+import ru.homelab.kidguard.platform.permissions.AccessibilityGuardController
 import ru.homelab.kidguard.platform.schedule.FullScreenLockController
 import ru.homelab.kidguard.platform.tracking.ScreenTimeTracker
 import ru.homelab.kidguard.platform.tracking.StickinessTracker
@@ -54,6 +55,9 @@ class KidGuardForegroundService : Service() {
     lateinit var stickinessTracker: StickinessTracker
 
     @Inject
+    lateinit var accessibilityGuardController: AccessibilityGuardController
+
+    @Inject
     lateinit var policyRepository: PolicyRepository
 
     @Inject
@@ -68,6 +72,7 @@ class KidGuardForegroundService : Service() {
     private var warningJob: Job? = null
     private var fullScreenLockJob: Job? = null
     private var stickinessJob: Job? = null
+    private var accessibilityGuardJob: Job? = null
 
     /** Порог сброса счётчика залипания (сек) — длительность перерыва, заданная родителем. */
     @Volatile
@@ -107,6 +112,11 @@ class KidGuardForegroundService : Service() {
                 }
                 stickinessTracker.run { breakResetSeconds }
             }
+        }
+        if (accessibilityGuardJob == null) {
+            // Сторож самого контроля: без accessibility-разрешения всё остальное не работает
+            // вовсе, а слетает оно от любой принудительной остановки приложения.
+            accessibilityGuardJob = scope.launch { accessibilityGuardController.run() }
         }
         if (vpnJob == null) {
             // Веха 5: blackhole-VPN — блокирует интернет всем, кроме KidGuard и белого списка,

@@ -76,6 +76,12 @@ class FullScreenLockOverlayManager @Inject constructor(
         windowManager = serviceWindowManager
     }
 
+    /** Сервис отключился — ссылка на его окно больше не действительна (см. `PinOverlayManager.detach`). */
+    fun detach() {
+        hide()
+        windowManager = null
+    }
+
     fun isShowing(): Boolean = overlayView != null
 
     /**

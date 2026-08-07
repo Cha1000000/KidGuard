@@ -4,6 +4,16 @@
 
     <!-- Разрешения платформенных функций (специальные — выдаются через системные экраны). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!--
+        Самовосстановление accessibility (см. PermissionsManager.restoreAccessibility). Система
+        обычному приложению это разрешение НЕ выдаёт — объявление нужно лишь затем, чтобы его можно
+        было выдать разово с компьютера:
+        adb shell pm grant ru.homelab.kidguard android.permission.WRITE_SECURE_SETTINGS
+        Без него всё работает по-прежнему, просто разрешение придётся возвращать руками.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />

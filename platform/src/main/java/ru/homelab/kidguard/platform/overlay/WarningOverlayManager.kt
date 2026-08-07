@@ -45,6 +45,12 @@ class WarningOverlayManager @Inject constructor(
         windowManager = serviceWindowManager
     }
 
+    /** Сервис отключился — ссылка на его окно больше не действительна (см. `PinOverlayManager.detach`). */
+    fun detach() {
+        hide()
+        windowManager = null
+    }
+
     /** Показан ли оверлей сейчас (сервис использует, чтобы решить, нужно ли его убирать). */
     fun isShowing(): Boolean = overlayView != null
 

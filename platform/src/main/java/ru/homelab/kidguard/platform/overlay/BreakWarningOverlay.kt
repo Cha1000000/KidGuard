@@ -44,6 +44,12 @@ class BreakWarningOverlay @Inject constructor(
         windowManager = serviceWindowManager
     }
 
+    /** Сервис отключился — ссылка на его окно больше не действительна (см. `PinOverlayManager.detach`). */
+    fun detach() = mainHandler.post {
+        overlayView?.let { remove(it) }
+        windowManager = null
+    }
+
     /**
      * Показать плашку. Повторный вызов, пока она висит, ничего не делает — иначе тик контроллера
      * каждые 15 секунд перезапускал бы её и она мигала бы весь оставшийся до перерыва отрезок.

@@ -428,12 +428,26 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         scope.cancel()
+        detachOverlays()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         scope.cancel()
+        detachOverlays()
         super.onDestroy()
+    }
+
+    /**
+     * Отдаём оверлеям обратно «ничего»: окна сервиса больше нет. Ссылка на мёртвый WindowManager
+     * переживала отключение сервиса, и попытка показать оверлей падала с `BadTokenException` —
+     * а именно в этот момент нужен замок «контроль отключён» (он умеет рисоваться окном приложения).
+     */
+    private fun detachOverlays() {
+        pinOverlayManager.detach()
+        warningOverlayManager.detach()
+        fullScreenLockOverlayManager.detach()
+        breakWarningOverlay.detach()
     }
 
     private enum class CriticalScreen {
