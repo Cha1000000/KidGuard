@@ -23,6 +23,9 @@
     <string name="overlay_study_text_until">Телефон будет доступен в %1$s</string>
     <string name="overlay_study_text">Телефон будет доступен после окончания времени учёбы</string>
 
+    <!-- Ссылка обхода PIN'ом на любом блокирующем оверлее (лимит/учёба/запрет) -->
+    <string name="overlay_pin_bypass_action">Открыть с PIN родителя</string>
+
     <!-- Предупреждение перед истечением лимита -->
     <string name="warning_channel_name">Предупреждения о времени</string>
     <string name="warning_title">Скоро конец времени</string>
@@ -40,6 +43,8 @@
     <!-- PIN-оверлей на критичных системных экранах (веха 6, шаг 6.2) -->
     <string name="pin_overlay_title">Введите PIN</string>
     <string name="pin_overlay_subtitle">Эту настройку защитил родитель</string>
+    <!-- Тот же PIN-оверлей, но для обхода блокирующего экрана (лимит/учёба/запрет) -->
+    <string name="pin_overlay_bypass_subtitle">PIN родителя снимет это ограничение</string>
     <string name="pin_overlay_wrong">Неверный PIN</string>
     <string name="pin_overlay_blocked">Слишком много попыток. Повторите через %1$d с</string>
     <string name="pin_overlay_back">Назад</string>

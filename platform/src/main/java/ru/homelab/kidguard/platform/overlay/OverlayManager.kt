@@ -51,10 +51,17 @@ class OverlayManager @Inject constructor(
      * @param untilText готовое (уже отформатированное) время окончания блокировки — используется
      * только для [BlockReason.STUDY_TIME] («Телефон будет доступен в 14:00»). Null — подзаголовок
      * без конкретного времени (расписание есть, но конец окна вызывающей стороне не важен/неизвестен).
+     * @param onPinRequested если не `null` — на оверлее показывается ссылка «Открыть с PIN
+     * родителя»; клик сначала скрывает этот оверлей, потом зовёт колбэк. Что показывать по PIN
+     * (когда он вообще задан) — решает вызывающая сторона, [OverlayManager] сам этого не знает.
      */
-    fun show(reason: BlockReason = BlockReason.LIMIT_EXPIRED, untilText: String? = null) = mainHandler.post {
+    fun show(
+        reason: BlockReason = BlockReason.LIMIT_EXPIRED,
+        untilText: String? = null,
+        onPinRequested: (() -> Unit)? = null
+    ) = mainHandler.post {
         if (overlayView != null) return@post
-        val view = createOverlayView(reason, untilText)
+        val view = createOverlayView(reason, untilText, onPinRequested)
         windowManager?.addView(view, buildLayoutParams())
         overlayView = view
         // Оверлей уходит сам через AUTO_DISMISS_MS — иначе он висел бы поверх лаунчера до свайпа,
@@ -73,7 +80,7 @@ class OverlayManager @Inject constructor(
         overlayView = null
     }
 
-    private fun createOverlayView(reason: BlockReason, untilText: String?): View {
+    private fun createOverlayView(reason: BlockReason, untilText: String?, onPinRequested: (() -> Unit)?): View {
         val titleRes = when (reason) {
             BlockReason.LIMIT_EXPIRED -> R.string.overlay_blocked_title
             BlockReason.BLOCKED_BY_PARENT -> R.string.overlay_prohibited_title
@@ -114,10 +121,29 @@ class OverlayManager @Inject constructor(
             // ширину MATCH_PARENT, из-за чего внутренний gravity текста визуально не центрируется.
             addView(title, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
             addView(subtitle, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+            // Ссылка обхода PIN'ом — только если вызывающая сторона её предложила (решает не
+            // OverlayManager, а BlockingController: есть ли вообще заданный PIN). Клик сперва
+            // скрывает этот оверлей (dismiss(this) — тот же экземпляр, что станет overlayView),
+            // потом зовёт колбэк, который откроет PinOverlayManager.
+            if (onPinRequested != null) {
+                addView(buildPinLinkView { dismiss(this); onPinRequested() }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+            }
         }
         attachSwipeToDismiss(container)
         return container
     }
+
+    /** Текстовая ссылка «Открыть с PIN родителя» — стиль как у ссылок в [PinOverlayManager]. */
+    private fun buildPinLinkView(onClick: () -> Unit): TextView = TextView(context).apply {
+        text = context.getString(R.string.overlay_pin_bypass_action)
+        setTextColor(Color.parseColor(PIN_LINK_COLOR))
+        textSize = 15f
+        gravity = Gravity.CENTER
+        setPadding(0, dp(24), 0, 0)
+        setOnClickListener { onClick() }
+    }
+
+    private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
     /** Свайп (fling) в любую сторону на достаточное расстояние закрывает оверлей. */
     private fun attachSwipeToDismiss(view: View) {
@@ -157,5 +183,8 @@ class OverlayManager @Inject constructor(
 
         /** Сколько оверлей висит до автоскрытия — успеть прочитать, но не залипнуть на лаунчере. */
         const val AUTO_DISMISS_MS = 6_000L
+
+        /** Тот же акцентный цвет ссылок, что и у [PinOverlayManager]. */
+        const val PIN_LINK_COLOR = "#8AB4F8"
     }
 }
