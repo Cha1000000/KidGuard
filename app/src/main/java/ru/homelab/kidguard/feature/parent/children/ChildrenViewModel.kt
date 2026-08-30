@@ -21,6 +21,8 @@ private const val TAG = "ChildrenViewModel"
 
 data class ChildrenUiState(
     val loading: Boolean = true,
+    /** Обновление свайпом (список уже показан) — в отличие от [loading], контент не прячем. */
+    val refreshing: Boolean = false,
     val children: List<Child> = emptyList(),
     val loadError: Boolean = false
 )
@@ -48,11 +50,16 @@ class ChildrenViewModel @Inject constructor(
     }
 
     fun refresh() {
-        _uiState.update { it.copy(loading = true, loadError = false) }
+        // Первая загрузка — крупный центральный спиннер (loading); повторная (свайпом или после
+        // мутации) — список уже на экране, прячем его не нужно, крутится только refreshing.
+        val firstLoad = _uiState.value.loading
+        _uiState.update { it.copy(loading = firstLoad, refreshing = !firstLoad, loadError = false) }
         viewModelScope.launch {
             childRepository.listChildren().fold(
-                onSuccess = { list -> _uiState.update { it.copy(loading = false, children = list) } },
-                onFailure = { _uiState.update { it.copy(loading = false, loadError = true) } }
+                onSuccess = { list ->
+                    _uiState.update { it.copy(loading = false, refreshing = false, children = list) }
+                },
+                onFailure = { _uiState.update { it.copy(loading = false, refreshing = false, loadError = true) } }
             )
         }
     }

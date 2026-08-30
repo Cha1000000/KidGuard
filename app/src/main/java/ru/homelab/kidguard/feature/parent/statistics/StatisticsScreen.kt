@@ -21,10 +21,14 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,6 +65,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Вкладка «Статистика» родителя (веха 4.4): экранное время ребёнка с сервера. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     onOpenAbout: () -> Unit = {},
@@ -81,26 +86,44 @@ fun StatisticsScreen(
         )
         if (!uiState.noChildren) ChildSelectorChip()
 
-        when {
-            uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        val pullToRefreshState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = uiState.refreshing,
+            onRefresh = viewModel::refresh,
+            state = pullToRefreshState,
+            // Дефолтный индикатор красится в onSurfaceVariant (серый) — не совпадает с бирюзовым
+            // акцентом приложения, которым красится обычный CircularProgressIndicator() без tint.
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.refreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) {
+            when {
+                uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+
+                uiState.noChildren -> EmptyState(
+                    icon = Icons.Filled.Person,
+                    title = stringResource(R.string.statistics_no_children),
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                uiState.error -> EmptyState(
+                    icon = Icons.Filled.Warning,
+                    title = stringResource(R.string.statistics_load_error),
+                    actionLabel = stringResource(R.string.common_retry),
+                    onAction = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                else -> StatisticsContent(uiState)
             }
-
-            uiState.noChildren -> EmptyState(
-                icon = Icons.Filled.Person,
-                title = stringResource(R.string.statistics_no_children),
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            )
-
-            uiState.error -> EmptyState(
-                icon = Icons.Filled.Warning,
-                title = stringResource(R.string.statistics_load_error),
-                actionLabel = stringResource(R.string.common_retry),
-                onAction = viewModel::refresh,
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            )
-
-            else -> StatisticsContent(uiState)
         }
     }
 }

@@ -14,6 +14,10 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,43 +71,61 @@ fun ChildrenScreen(
             actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
         )
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            // Резерв снизу — плавающий GlassDockBar лежит поверх этого экрана, не должен
-            // закрывать кнопку «Добавить ребёнка».
-            contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight)
-        ) {
-            items(uiState.children, key = { it.id }) { child ->
-                ChildCard(
-                    child = child,
-                    onClick = { sheet = ChildrenSheet.Actions(child) },
-                    onHealthClick = { sheet = ChildrenSheet.Health(child) }
+        val pullToRefreshState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = uiState.refreshing,
+            onRefresh = viewModel::refresh,
+            state = pullToRefreshState,
+            // Дефолтный индикатор красится в onSurfaceVariant (серый) — не совпадает с бирюзовым
+            // акцентом приложения, которым красится обычный CircularProgressIndicator() без tint.
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.refreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary
                 )
-            }
-            item {
-                AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
-            }
-            if (uiState.loading) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            } else if (uiState.children.isEmpty()) {
-                item {
-                    EmptyState(
-                        icon = if (uiState.loadError) Icons.Filled.Warning else Icons.Filled.Person,
-                        title = stringResource(
-                            if (uiState.loadError) R.string.children_load_error else R.string.children_empty
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+            },
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                // Резерв снизу — плавающий GlassDockBar лежит поверх этого экрана, не должен
+                // закрывать кнопку «Добавить ребёнка».
+                contentPadding = PaddingValues(bottom = GlassDockBarReservedHeight)
+            ) {
+                items(uiState.children, key = { it.id }) { child ->
+                    ChildCard(
+                        child = child,
+                        onClick = { sheet = ChildrenSheet.Actions(child) },
+                        onHealthClick = { sheet = ChildrenSheet.Health(child) }
                     )
+                }
+                item {
+                    AddChildButton(onClick = { sheet = ChildrenSheet.AddChild })
+                }
+                if (uiState.loading) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (uiState.children.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = if (uiState.loadError) Icons.Filled.Warning else Icons.Filled.Person,
+                            title = stringResource(
+                                if (uiState.loadError) R.string.children_load_error else R.string.children_empty
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

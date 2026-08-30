@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.update
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
@@ -34,6 +35,8 @@ data class AppUsage(val packageName: String, val seconds: Int, val share: Float,
 
 data class StatisticsUiState(
     val loading: Boolean = true,
+    /** Обновление свайпом (данные уже показаны) — в отличие от [loading], контент не прячем. */
+    val refreshing: Boolean = false,
     val child: Child? = null,
     /**
      * Всё экранное время за сегодня (сумма по приложениям). Именно оно показывается крупной
@@ -83,6 +86,11 @@ class StatisticsViewModel @Inject constructor(
     }
 
     fun refresh() {
+        // Первая загрузка — крупный центральный спиннер (loading, дефолт true); повторная
+        // (свайпом, смена ребёнка) — данные уже на экране, прячем не нужно, крутится refreshing.
+        // Все точки выхода ниже полностью заменяют _uiState.value новым StatisticsUiState(...),
+        // где refreshing по умолчанию false — отдельно сбрасывать его не нужно.
+        if (!_uiState.value.loading) _uiState.update { it.copy(refreshing = true) }
         viewModelScope.launch {
             val children = childRepository.listChildren().getOrNull()
             if (children != null && children.isEmpty()) {
