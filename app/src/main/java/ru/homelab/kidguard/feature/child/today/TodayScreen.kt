@@ -125,6 +125,12 @@ fun TodayScreen(
                     TodayTimeState.NoLimit -> NoLimitCard()
                 }
 
+                // Отдельно от кольца: штраф важно показать и когда время из-за него как раз и
+                // закончилось — иначе для ребёнка время просто пропало, и это выглядит багом.
+                if (ui.penaltyMinutes > 0) {
+                    PenaltyNotice(minutes = ui.penaltyMinutes, comment = ui.penaltyComment)
+                }
+
                 GuardStatus()
 
                 Text(
@@ -255,6 +261,37 @@ private fun RingIndicator(minutesLeft: Int, totalMinutes: Int) {
         valueText = formatDurationMinutes(minutesLeft),
         subtitleText = stringResource(R.string.child_time_remaining_of, formatDurationMinutes(totalMinutes))
     )
+}
+
+/** Сколько времени снял родитель и (если написал) за что. */
+@Composable
+private fun PenaltyNotice(minutes: Int, comment: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
+            Text(
+                text = stringResource(R.string.child_penalty_chip, formatDurationMinutes(minutes)),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+            )
+        }
+        // Пустой комментарий ничем не подменяем: родитель вправе не объясняться.
+        if (comment.isNotBlank()) {
+            Text(
+                text = comment,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
 }
 
 @Composable

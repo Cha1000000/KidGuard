@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import ru.homelab.kidguard.core.domain.model.dayBudgetMinutes
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
@@ -58,6 +60,7 @@ class ChildTodayStatsViewModel @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
     private val bonusRepository: BonusRepository,
+    private val penaltyRepository: PenaltyRepository,
     private val currentDateProvider: CurrentDateProvider,
     private val childLocalAppsProvider: ChildLocalAppsProvider
 ) : ViewModel() {
@@ -81,15 +84,17 @@ class ChildTodayStatsViewModel @Inject constructor(
                 // Крупная цифра и список — фактическое время (с перерасходом); с лимитом ниже
                 // сравнивается только израсходованный бюджет.
                 usageRepository.appTotalScreenTimeByPackage(today),
-                bonusRepository.phoneBonusMinutes(today)
-            ) { limits, limitedSeconds, appSeconds, phoneBonus ->
+                bonusRepository.phoneBonusMinutes(today),
+                penaltyRepository.phonePenalty(today)
+            ) { limits, limitedSeconds, appSeconds, phoneBonus, phonePenalty ->
                 // Крупная цифра и доли — по всему экранному времени (сумма пер-app), а лимит
                 // сравнивается только с той частью, которую он реально закрывает.
                 val totalMinutes = appSeconds.values.sum() / 60
                 val limitedMinutes = limitedSeconds / 60
-                // Лимит + бонус — та же формула, что в TodayViewModel.computeTime, чтобы цифра
+                // Та же формула бюджета, что в TodayViewModel.computeTime, чтобы цифра
                 // совпадала с кольцом на экране «Сегодня».
-                val limitMinutes = limits.limitFor(today.dayOfWeek)?.plus(phoneBonus)
+                val limitMinutes = limits.limitFor(today.dayOfWeek)
+                    ?.let { dayBudgetMinutes(it, phoneBonus, phonePenalty?.minutes ?: 0) }
                 val apps = appSeconds.entries
                     .mapNotNull { (packageName, seconds) ->
                         val minutes = seconds / 60

@@ -16,8 +16,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.PenaltyGrant
+import ru.homelab.kidguard.core.domain.model.dayBudgetMinutes
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -66,6 +69,10 @@ data class TodayUiState(
     val childAvatar: Int,
     val time: TodayTimeState,
     val bonusMinutes: Int,
+    /** Снятое родителем время за сегодня (минут); 0 — штрафа не было. */
+    val penaltyMinutes: Int,
+    /** Пояснение родителя «за что»; пустая строка — пояснения нет, показывать нечего. */
+    val penaltyComment: String,
     /** Всё экранное время за сегодня (не только то, что расходует лимит) — карточка «Сегодня». */
     val usedMinutes: Int,
     val alwaysAllowed: RuleGroup,
@@ -100,11 +107,17 @@ class TodayViewModel @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
     private val bonusRepository: BonusRepository,
+    private val penaltyRepository: PenaltyRepository,
     private val currentDateProvider: CurrentDateProvider,
     private val installedAppsSource: InstalledAppsSource
 ) : ViewModel() {
 
-    private data class TimeAndBonus(val state: TodayTimeState, val bonusMinutes: Int, val usedMinutes: Int)
+    private data class TimeAndBonus(
+        val state: TodayTimeState,
+        val bonusMinutes: Int,
+        val usedMinutes: Int,
+        val penalty: PenaltyGrant? = null
+    )
 
     private data class RulesData(
         val alwaysAllowed: RuleGroup,
@@ -135,11 +148,12 @@ class TodayViewModel @Inject constructor(
             // Карточке «Сегодня» нужно ФАКТИЧЕСКОЕ время в приложениях (с перерасходом), кольцу
             // остатка — только то, что израсходовало бюджет.
             usageRepository.appTotalScreenTimeByPackage(today),
-            bonusRepository.phoneBonusMinutes(today)
-        ) { limits, limitedSeconds, appSeconds, bonusMinutes ->
+            bonusRepository.phoneBonusMinutes(today),
+            penaltyRepository.phonePenalty(today)
+        ) { limits, limitedSeconds, appSeconds, bonusMinutes, penalty ->
             // Кольцо остатка считаем по времени, расходующему лимит, а карточку «Сегодня» —
             // по всему экранному времени: она ведёт на экран статистики, где показано всё.
-            computeTime(limits, today, limitedSeconds, appSeconds.values.sum(), bonusMinutes)
+            computeTime(limits, today, limitedSeconds, appSeconds.values.sum(), bonusMinutes, penalty)
         }
 
         val rulesFlow = combine(
@@ -162,6 +176,8 @@ class TodayViewModel @Inject constructor(
                 childAvatar = profile?.avatar ?: 0,
                 time = time.state,
                 bonusMinutes = time.bonusMinutes,
+                penaltyMinutes = time.penalty?.minutes ?: 0,
+                penaltyComment = time.penalty?.comment.orEmpty(),
                 usedMinutes = time.usedMinutes,
                 alwaysAllowed = rules.alwaysAllowed,
                 limited = rules.limited,
@@ -186,21 +202,23 @@ class TodayViewModel @Inject constructor(
         today: LocalDate,
         limitedSeconds: Int,
         allScreenSeconds: Int,
-        bonusMinutes: Int
+        bonusMinutes: Int,
+        penalty: PenaltyGrant?
     ): TimeAndBonus {
         val limitedMinutes = limitedSeconds / 60
         val screenMinutes = allScreenSeconds / 60
         val limitMinutes = limits.limitFor(today.dayOfWeek)
             ?: return TimeAndBonus(TodayTimeState.NoLimit, bonusMinutes = 0, usedMinutes = screenMinutes)
-        // Бонус на сегодня прибавляется к бюджету дня — как в ObserveLimitStateUseCase.
-        val totalMinutes = limitMinutes + bonusMinutes
+        // Та же формула бюджета, что в ObserveLimitStateUseCase: бонус прибавляется, штраф
+        // вычитается — иначе кольцо остатка разойдётся с моментом блокировки.
+        val totalMinutes = dayBudgetMinutes(limitMinutes, bonusMinutes, penalty?.minutes ?: 0)
         val minutesLeft = totalMinutes - limitedMinutes
         val state = if (minutesLeft <= 0) {
             TodayTimeState.Expired(totalMinutes)
         } else {
             TodayTimeState.Remaining(minutesLeft, totalMinutes)
         }
-        return TimeAndBonus(state, bonusMinutes, usedMinutes = screenMinutes)
+        return TimeAndBonus(state, bonusMinutes, usedMinutes = screenMinutes, penalty = penalty)
     }
 
     private fun computeRules(

@@ -178,3 +178,25 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         db.execSQL("ALTER TABLE app_screen_time ADD COLUMN overrunSeconds INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * v12 → v13 (план `daily-limit-penalty.md`): штрафы — время, снятое родителем с дневного
+ * лимита. Отдельная таблица, а не отрицательные минуты в `bonus_grants`: так видно и сколько
+ * выдано, и сколько снято, и отменять их можно независимо друг от друга.
+ *
+ * Структура зеркалит `bonus_grants` (составной ключ дата + цель, "" — телефон) плюс
+ * `comment` — пояснение родителя «за что», которое ребёнок видит на экране «Сегодня».
+ * `NOT NULL DEFAULT ''`: пустой комментарий и есть «пояснения не было».
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `penalty_grants` (" +
+                "`date` TEXT NOT NULL, " +
+                "`packageName` TEXT NOT NULL, " +
+                "`minutes` INTEGER NOT NULL, " +
+                "`comment` TEXT NOT NULL DEFAULT '', " +
+                "PRIMARY KEY(`date`, `packageName`))"
+        )
+    }
+}

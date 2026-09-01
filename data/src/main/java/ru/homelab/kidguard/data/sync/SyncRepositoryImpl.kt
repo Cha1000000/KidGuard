@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import ru.homelab.kidguard.core.domain.model.BlockedSite
 import ru.homelab.kidguard.core.domain.model.BonusGrant
+import ru.homelab.kidguard.core.domain.model.PenaltyGrant
+import ru.homelab.kidguard.core.domain.model.dayBudgetMinutes
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
@@ -34,6 +36,7 @@ import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.model.shouldApplyBlock
 import ru.homelab.kidguard.core.domain.model.shouldApplyReset
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
 import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
@@ -45,6 +48,7 @@ import ru.homelab.kidguard.data.auth.AuthLocalStore
 import ru.homelab.kidguard.data.network.AppsApi
 import ru.homelab.kidguard.data.network.BlockedSiteDto
 import ru.homelab.kidguard.data.network.BonusEntryDto
+import ru.homelab.kidguard.data.network.PenaltyEntryDto
 import ru.homelab.kidguard.data.network.BreakRulesDto
 import ru.homelab.kidguard.data.network.ChildAppDto
 import ru.homelab.kidguard.data.network.ChildrenApi
@@ -82,6 +86,7 @@ class SyncRepositoryImpl @Inject constructor(
     private val deviceHealthSource: DeviceHealthSource,
     private val policyRepository: PolicyRepository,
     private val bonusRepository: BonusRepository,
+    private val penaltyRepository: PenaltyRepository,
     private val usageRepository: UsageRepository,
     private val currentDateProvider: CurrentDateProvider,
     private val authLocalStore: AuthLocalStore,
@@ -123,8 +128,11 @@ class SyncRepositoryImpl @Inject constructor(
     override suspend fun parentSyncLoop() = coroutineScope {
         // Отработавшая история бонусов: держим ровно тот период, который возим в документе.
         // Чистим до первого push, чтобы старые записи не уехали на сервер.
-        runCatching { bonusRepository.deleteOlderThan(bonusHistoryCutoff()) }
-            .onFailure { Timber.tag(TAG).w(it, "Не удалось почистить старые бонусы") }
+        runCatching {
+            val cutoff = bonusHistoryCutoff()
+            bonusRepository.deleteOlderThan(cutoff)
+            penaltyRepository.deleteOlderThan(cutoff)
+        }.onFailure { Timber.tag(TAG).w(it, "Не удалось почистить старые бонусы и штрафы") }
 
         // Разовый pull при входе: подхватить правки второго родителя (LWW — сервер прав).
         runCatching { pullAndApply(resolveParentChildId() ?: return@runCatching) }
@@ -158,6 +166,7 @@ class SyncRepositoryImpl @Inject constructor(
             policyRepository.pinProtection
         ) { _, _, _, _, _ -> Unit }
             .combine(bonusRepository.observeAll()) { _, _ -> Unit }
+            .combine(penaltyRepository.observeAll()) { _, _ -> Unit }
             .combine(policyRepository.blockedSites) { _, _ -> Unit }
             .combine(policyRepository.blockGoogleSearch) { _, _ -> Unit }
             .combine(policyRepository.studySchedule) { _, _ -> Unit }
@@ -406,7 +415,9 @@ class SyncRepositoryImpl @Inject constructor(
             val limitMinutes = policyRepository.dailyLimits.first().limitFor(today.dayOfWeek)
             if (limitMinutes != null) {
                 val bonusMinutes = bonusRepository.phoneBonusMinutes(today).first()
-                usageRepository.setScreenTime(today, (limitMinutes + bonusMinutes) * 60)
+                val penaltyMinutes = penaltyRepository.phonePenalty(today).first()?.minutes ?: 0
+                val budgetMinutes = dayBudgetMinutes(limitMinutes, bonusMinutes, penaltyMinutes)
+                usageRepository.setScreenTime(today, budgetMinutes * 60)
             }
             context.syncDataStore.edit { it[Keys.LAST_USAGE_BLOCK_AT] = marker!!.issuedAt }
             Timber.tag(TAG).d("Заблокировано на сегодня родителем (issuedAt=%d)", marker!!.issuedAt)
@@ -445,6 +456,13 @@ class SyncRepositoryImpl @Inject constructor(
                     .getOrNull()
             }
         )
+        penaltyRepository.replaceAll(
+            data.penalties.mapNotNull { dto ->
+                runCatching {
+                    PenaltyGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes, dto.comment)
+                }.getOrNull()
+            }
+        )
     }
 
     /** Пушит локальную политику, только если она отличается от последнего синхронизированного снапшота. */
@@ -476,7 +494,7 @@ class SyncRepositoryImpl @Inject constructor(
         return fallbackId
     }
 
-    /** Самый ранний день, бонусы за который ещё храним и синхронизируем. */
+    /** Самый ранний день, бонусы и штрафы за который ещё храним и синхронизируем. */
     private suspend fun bonusHistoryCutoff(): LocalDate =
         currentDateProvider.today().minusDays((BonusRepository.HISTORY_DAYS - 1).toLong())
 
@@ -496,6 +514,11 @@ class SyncRepositoryImpl @Inject constructor(
             bonuses = bonusRepository.observeAll().first()
                 .filter { it.date >= bonusHistoryCutoff() }
                 .map { BonusEntryDto(it.date.toString(), it.packageName, it.minutes) },
+            // Штрафы возим тем же периодом и тем же отсечением, что бонусы: они складываются в
+            // один бюджет дня, и разъехавшаяся глубина истории рисовала бы кривые риски в графике.
+            penalties = penaltyRepository.observeAll().first()
+                .filter { it.date >= bonusHistoryCutoff() }
+                .map { PenaltyEntryDto(it.date.toString(), it.packageName, it.minutes, it.comment) },
             pinHash = pin?.hash,
             pinSalt = pin?.salt,
             blockedSites = policyRepository.blockedSites.first().map { BlockedSiteDto(it.domain, it.enabled) },
@@ -562,6 +585,7 @@ class SyncRepositoryImpl @Inject constructor(
             whitelist = document.whitelist.sorted(),
             blockedApps = document.blockedApps.sorted(),
             bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName })),
+            penalties = document.penalties.sortedWith(compareBy({ it.date }, { it.packageName })),
             // Скаляры — сортировать нечего, но включаем как есть, иначе разница в PIN не попадёт
             // в снапшот сравнения и push/pull будут пинг-понговать.
             pinHash = document.pinHash,

@@ -13,9 +13,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.FakePolicyRepository
 import ru.homelab.kidguard.core.domain.model.BonusGrant
+import ru.homelab.kidguard.core.domain.model.PenaltyGrant
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 
@@ -51,6 +53,37 @@ class ObserveLimitStateUseCaseTest {
         val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 30))
         val state = useCase(limits = limits, usedSeconds = 5000).invoke().first()
         assertEquals(LimitState.Expired, state)
+    }
+
+    @Test
+    fun `штраф уменьшает остаток`() = runTest {
+        // Лимит 60 мин, использовано 20 -> было бы 40; штраф 15 -> осталось 25.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 60))
+        val state = useCase(limits = limits, usedSeconds = 1200, penaltyMinutes = 15).invoke().first()
+        assertEquals(LimitState.Remaining(25), state)
+    }
+
+    @Test
+    fun `штраф больше остатка - Expired`() = runTest {
+        // Лимит 60, использовано 20, штраф 50: бюджет 10 при расходе 20 -> время вышло.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 60))
+        val state = useCase(limits = limits, usedSeconds = 1200, penaltyMinutes = 50).invoke().first()
+        assertEquals(LimitState.Expired, state)
+    }
+
+    @Test
+    fun `штраф больше лимита не уводит бюджет в минус - выданный следом бонус работает`() = runTest {
+        // Лимит 60, штраф 200 (бюджет обрезан до 0), бонус +15 при расходе 0 -> осталось 15.
+        // Без обрезки в dayBudgetMinutes бонус гасил бы накопленный минус, и ребёнок остался
+        // бы заблокированным при выданном родителем времени.
+        val limits = DailyLimits(mapOf(DayOfWeek.MONDAY to 60))
+        val state = useCase(
+            limits = limits,
+            usedSeconds = 0,
+            bonusMinutes = 15,
+            penaltyMinutes = 200
+        ).invoke().first()
+        assertEquals(LimitState.Remaining(15), state)
     }
 
     @Test
@@ -102,6 +135,7 @@ class ObserveLimitStateUseCaseTest {
             policyRepository = FakePolicyRepository(limits),
             usageRepository = usage,
             bonusRepository = FakeBonusRepository(0),
+            penaltyRepository = FakePenaltyRepository(0),
             currentDateProvider = dateProvider
         )
 
@@ -120,13 +154,18 @@ class ObserveLimitStateUseCaseTest {
         job.cancel()
     }
 
-    private fun useCase(limits: DailyLimits, usedSeconds: Int, bonusMinutes: Int = 0) =
-        ObserveLimitStateUseCase(
-            policyRepository = FakePolicyRepository(limits),
-            usageRepository = FakeUsageRepository(usedSeconds),
-            bonusRepository = FakeBonusRepository(bonusMinutes),
-            currentDateProvider = FakeDateProvider(monday)
-        )
+    private fun useCase(
+        limits: DailyLimits,
+        usedSeconds: Int,
+        bonusMinutes: Int = 0,
+        penaltyMinutes: Int = 0
+    ) = ObserveLimitStateUseCase(
+        policyRepository = FakePolicyRepository(limits),
+        usageRepository = FakeUsageRepository(usedSeconds),
+        bonusRepository = FakeBonusRepository(bonusMinutes),
+        penaltyRepository = FakePenaltyRepository(penaltyMinutes),
+        currentDateProvider = FakeDateProvider(monday)
+    )
 
     /** Дата, которую тест двигает вручную, — имитация перехода через полночь. */
     private class MutableDateProvider(@Volatile var date: LocalDate) : CurrentDateProvider {
@@ -173,6 +212,25 @@ class ObserveLimitStateUseCaseTest {
         override suspend fun clearBonus(date: LocalDate, packageName: String?) = Unit
         override fun observeAll(): Flow<List<BonusGrant>> = flowOf(emptyList())
         override suspend fun replaceAll(grants: List<BonusGrant>) = Unit
+        override suspend fun deleteOlderThan(date: LocalDate) = Unit
+    }
+
+    private class FakePenaltyRepository(private val phoneMinutes: Int) : PenaltyRepository {
+        override fun phonePenalty(date: LocalDate): Flow<PenaltyGrant?> = flowOf(
+            if (phoneMinutes > 0) PenaltyGrant(date, "", phoneMinutes) else null
+        )
+
+        override suspend fun addPenalty(
+            date: LocalDate,
+            packageName: String?,
+            minutes: Int,
+            comment: String
+        ) = Unit
+
+        override suspend fun setComment(date: LocalDate, packageName: String?, comment: String) = Unit
+        override suspend fun clearPenalty(date: LocalDate, packageName: String?) = Unit
+        override fun observeAll(): Flow<List<PenaltyGrant>> = flowOf(emptyList())
+        override suspend fun replaceAll(grants: List<PenaltyGrant>) = Unit
         override suspend fun deleteOlderThan(date: LocalDate) = Unit
     }
 

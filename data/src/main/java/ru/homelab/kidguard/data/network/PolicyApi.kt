@@ -18,6 +18,9 @@ data class PolicyDocumentDto(
     val whitelist: List<String> = emptyList(),
     val blockedApps: List<String> = emptyList(),
     val bonuses: List<BonusEntryDto> = emptyList(),
+    // Штрафы (снятое родителем время). Дефолт обязателен: на детских устройствах ещё стоят
+    // сборки без этого поля, и их документ должен читаться как «штрафов нет», а не падать.
+    val penalties: List<PenaltyEntryDto> = emptyList(),
     // PIN-защита (веха 6.1): хеш + соль, сырой PIN сюда никогда не попадает. Оба null — PIN не задан.
     // Nullable с дефолтом null — обратная совместимость со старыми документами без PIN.
     val pinHash: String? = null,
@@ -80,6 +83,18 @@ data class BonusEntryDto(
     val date: String,
     val packageName: String,
     val minutes: Int
+)
+
+/**
+ * Штраф за день; `packageName = ""` — штраф на весь телефон. `minutes` — положительное число
+ * снятых минут, `comment` — пояснение родителя «за что» (пустое допустимо).
+ */
+@Serializable
+data class PenaltyEntryDto(
+    val date: String,
+    val packageName: String,
+    val minutes: Int,
+    val comment: String = ""
 )
 
 /**

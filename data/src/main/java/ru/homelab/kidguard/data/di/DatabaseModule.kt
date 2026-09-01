@@ -19,7 +19,9 @@ import ru.homelab.kidguard.data.db.MIGRATION_8_9
 import ru.homelab.kidguard.data.db.MIGRATION_9_10
 import ru.homelab.kidguard.data.db.MIGRATION_10_11
 import ru.homelab.kidguard.data.db.MIGRATION_11_12
+import ru.homelab.kidguard.data.db.MIGRATION_12_13
 import ru.homelab.kidguard.data.db.dao.BonusDao
+import ru.homelab.kidguard.data.db.dao.PenaltyDao
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
 import javax.inject.Singleton
@@ -35,7 +37,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                MIGRATION_10_11, MIGRATION_11_12
+                MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13
             )
             .build()
 
@@ -47,4 +49,7 @@ object DatabaseModule {
 
     @Provides
     fun provideBonusDao(database: KidGuardDatabase): BonusDao = database.bonusDao()
+
+    @Provides
+    fun providePenaltyDao(database: KidGuardDatabase): PenaltyDao = database.penaltyDao()
 }

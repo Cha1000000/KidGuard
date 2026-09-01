@@ -616,6 +616,17 @@
     <!-- Кольцо остатка времени -->
     <string name="child_time_remaining_of">осталось из %1$s</string>
     <string name="child_bonus_chip">+%1$s от родителей</string>
+    <!-- Штраф: родитель снял время с дневного лимита (план daily-limit-penalty) -->
+    <string name="penalty_title">Штраф</string>
+    <string name="penalty_subtitle">Снять время с оставшегося сегодня. Больше остатка снять нельзя.</string>
+    <string name="penalty_quick">−%1$d мин</string>
+    <string name="penalty_other">Другое…</string>
+    <string name="penalty_apply_action">Снять %1$s</string>
+    <string name="penalty_active">Сегодня снято: −%1$s</string>
+    <string name="penalty_cancel">Отменить</string>
+    <string name="penalty_comment_label">За что (необязательно)</string>
+    <string name="penalty_comment_placeholder">Ребёнок увидит это пояснение</string>
+    <string name="child_penalty_chip">−%1$s от родителей</string>
     <string name="child_guard_status">Телефон под присмотром KidGuard</string>
     <!-- Состояние «время вышло» -->
     <string name="child_time_expired_title">Время вышло</string>

@@ -191,11 +191,12 @@ private fun StatisticsContent(state: StatisticsUiState) {
 
 @Composable
 private fun TodayCard(state: StatisticsUiState) {
-    // Бюджет = лимит + бонус: та же формула, что у enforcement (ObserveLimitStateUseCase).
+    // Бюджет = лимит + бонус − штраф: та же формула, что у enforcement (ObserveLimitStateUseCase).
     // Раньше карточка показывала голый лимит и писала «исчерпан» при незаблокированном телефоне.
     val budget = dailyBudgetState(
         limitMinutes = state.todayLimitMinutes,
         bonusMinutes = state.todayBonusMinutes,
+        penaltyMinutes = state.todayPenaltyMinutes,
         usedMinutes = state.todaySeconds / 60
     )
 

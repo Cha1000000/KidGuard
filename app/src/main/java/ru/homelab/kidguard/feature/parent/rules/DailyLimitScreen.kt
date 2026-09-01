@@ -1,6 +1,7 @@
 package ru.homelab.kidguard.feature.parent.rules
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -33,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +72,10 @@ fun DailyLimitScreen(
 ) {
     val limits by viewModel.dailyLimits.collectAsStateWithLifecycle()
     val phoneBonus by viewModel.phoneBonusMinutes.collectAsStateWithLifecycle()
+    val penaltyState by viewModel.penaltyState.collectAsStateWithLifecycle()
+    // Расход ребёнка живёт на сервере: тянем его при каждом входе на экран, иначе остаток
+    // (он же потолок штрафа) был бы вчерашним.
+    LaunchedEffect(Unit) { viewModel.refreshUsage() }
     val today = remember { LocalDate.now().dayOfWeek }
     var editingDay by remember { mutableStateOf<DayOfWeek?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
@@ -107,6 +113,29 @@ fun DailyLimitScreen(
                     onClear = { viewModel.clearPhoneBonus() },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+            // Скелетон, пока едет расход, и плавное исчезновение, когда штрафовать нечего:
+            // блок либо появляется уже готовым, либо пропадает без рывка.
+            AnimatedVisibility(visible = penaltyState != PenaltyUiState.Unavailable) {
+                GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    when (val state = penaltyState) {
+                        PenaltyUiState.Loading -> PenaltySectionSkeleton(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        is PenaltyUiState.Available -> PenaltySection(
+                            remainingMinutes = state.remainingMinutes,
+                            penalty = state.penalty,
+                            onApply = { minutes, comment -> viewModel.addPenalty(minutes, comment) },
+                            onCommentChange = { viewModel.setPenaltyComment(it) },
+                            onClear = { viewModel.clearPenalty() },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Карточка уже свернулась анимацией — рисовать внутри нечего.
+                        PenaltyUiState.Unavailable -> Unit
+                    }
+                }
             }
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {

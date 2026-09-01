@@ -12,10 +12,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import ru.homelab.kidguard.core.domain.model.Child
+import ru.homelab.kidguard.core.domain.model.dayBudgetMinutes
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
+import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
+import ru.homelab.kidguard.feature.parent.ChildUsageProvider
 import ru.homelab.kidguard.feature.parent.rules.ChildAppsProvider
 import java.time.LocalDate
 import javax.inject.Inject
@@ -52,6 +55,8 @@ data class StatisticsUiState(
     val todayLimitMinutes: Int? = null,
     /** Выданное на сегодня «Дополнительное время» (минут); 0 — бонуса не было. */
     val todayBonusMinutes: Int = 0,
+    /** Снятое на сегодня штрафом время (минут); 0 — штрафа не было. */
+    val todayPenaltyMinutes: Int = 0,
     val week: List<DayUsage> = emptyList(),
     val apps: List<AppUsage> = emptyList(),
     val noChildren: Boolean = false,
@@ -68,7 +73,9 @@ class StatisticsViewModel @Inject constructor(
     private val childRepository: ChildRepository,
     private val policyRepository: PolicyRepository,
     private val bonusRepository: BonusRepository,
+    private val penaltyRepository: PenaltyRepository,
     private val syncRepository: SyncRepository,
+    private val childUsageProvider: ChildUsageProvider,
     private val childAppsProvider: ChildAppsProvider
 ) : ViewModel() {
 
@@ -110,18 +117,14 @@ class StatisticsViewModel @Inject constructor(
             }
 
             val today = LocalDate.now()
-            // «Время под лимитом» = израсходованный бюджет + перерасход: ребёнок присылает их
-            // разными записями (бюджетный счётчик не растёт после блокировки, чтобы бонус не
-            // гасил накрученное время), а родителю нужна их сумма — от неё и считается
-            // перерасход относительно бюджета дня, как и раньше.
-            val totalsByDate = entries
-                .filter { it.isTotal || it.isOverrun }
-                .groupBy { it.date }
-                .mapValues { (_, dayEntries) -> dayEntries.sumOf { it.seconds } }
+            val totalsByDate = childUsageProvider.limitedSecondsByDate(entries)
             val limits = policyRepository.dailyLimits.first()
             // Бонусы телефона за все дни разом: отдельного метода «бонусы за период» в репозитории
             // нет, а observeAll() уже отдаёт всё с датами — по дню тянуть 7 потоков избыточно.
             val phoneBonusByDate = bonusRepository.observeAll().first()
+                .filter { it.packageName.isEmpty() }
+                .associate { it.date to it.minutes }
+            val phonePenaltyByDate = penaltyRepository.observeAll().first()
                 .filter { it.packageName.isEmpty() }
                 .associate { it.date to it.minutes }
             val week = (DAYS - 1 downTo 0).map { offset ->
@@ -129,8 +132,11 @@ class StatisticsViewModel @Inject constructor(
                 DayUsage(
                     date = date,
                     seconds = totalsByDate[date] ?: 0,
-                    // Бюджет дня = лимит этого дня недели + бонус, выданный именно в этот день.
-                    budgetMinutes = limits.limitFor(date.dayOfWeek)?.plus(phoneBonusByDate[date] ?: 0)
+                    // Бюджет дня = лимит этого дня недели + бонус − штраф, назначенные именно
+                    // в этот день (dayBudgetMinutes — та же формула, что у enforcement).
+                    budgetMinutes = limits.limitFor(date.dayOfWeek)?.let {
+                        dayBudgetMinutes(it, phoneBonusByDate[date] ?: 0, phonePenaltyByDate[date] ?: 0)
+                    }
                 )
             }
 
@@ -167,6 +173,7 @@ class StatisticsViewModel @Inject constructor(
                 todaySeconds = todaySeconds,
                 todayLimitMinutes = limits.limitFor(today.dayOfWeek),
                 todayBonusMinutes = phoneBonusByDate[today] ?: 0,
+                todayPenaltyMinutes = phonePenaltyByDate[today] ?: 0,
                 week = week,
                 apps = apps
             )
