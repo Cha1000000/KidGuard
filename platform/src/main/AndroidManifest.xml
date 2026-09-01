@@ -82,13 +82,22 @@
             </intent-filter>
         </service>
 
-        <!-- Автозапуск сервиса после перезагрузки (только на детском устройстве). -->
+        <!--
+            Автозапуск сервиса после перезагрузки И после обновления приложения (только на детском
+            устройстве) — см. BootReceiver. Без второго броадкаста контроль лежал бы после каждого
+            обновления из магазина, пока ребёнок сам не откроет приложение.
+
+            android:permission намеренно НЕ ставим: он требует разрешение от ОТПРАВИТЕЛЯ, а оба
+            броадкаста protected — их шлёт только система, подделать их нельзя. Прежний
+            RECEIVE_BOOT_COMPLETED тут ничего не защищал, зато мог молча отсечь MY_PACKAGE_REPLACED,
+            то есть ровно тот случай, ради которого ресивер и правится.
+        -->
         <receiver
             android:name="ru.homelab.kidguard.platform.foreground.BootReceiver"
-            android:exported="true"
-            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
     </application>

@@ -8,14 +8,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.VpnService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import ru.homelab.kidguard.platform.accessibility.AccessibilityLiveness
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService
 import ru.homelab.kidguard.platform.deviceadmin.KidGuardDeviceAdminReceiver
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +29,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PermissionsManager @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val accessibilityLiveness: AccessibilityLiveness
 ) {
 
     /** Выдано ли разрешение сейчас. */
@@ -116,6 +121,13 @@ class PermissionsManager @Inject constructor(
      * Возвращает accessibility-разрешение себе. Наш компонент ДОПИСЫВАЕТСЯ к списку, а не заменяет
      * его: в списке могут быть чужие сервисы (тот же TalkBack), и затирать их нельзя.
      *
+     * Пишем ДВАЖДЫ — сначала список без нас, потом с нами. Одной записи хватает, только когда
+     * компонент из списка пропал (обычное «разрешение слетело»). Во втором сценарии — сервис
+     * числится включённым, но система держит его в `Crashed services` и не перепривязывает
+     * (см. [isAccessibilityEnabled]) — итоговая строка совпала бы с текущей, система не увидела
+     * бы изменения и биндить заново не стала. Пара «убрать → вернуть» равносильна тому, чтобы
+     * руками выключить и включить тумблер; проверено на телефоне Олега 31.08.2026.
+     *
      * @return удалось ли; `false` — разрешения на запись нет либо система запись отклонила.
      */
     fun restoreAccessibility(): Boolean {
@@ -126,12 +138,16 @@ class PermissionsManager @Inject constructor(
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ).orEmpty()
         val others = current.split(':').filter { it.isNotBlank() && !it.matchesService(expected) }
-        val updated = (others + expected.flattenToString()).joinToString(":")
         return runCatching {
             Settings.Secure.putString(
                 context.contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-                updated
+                others.joinToString(":")
+            )
+            Settings.Secure.putString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                (others + expected.flattenToString()).joinToString(":")
             )
             // Без общего тумблера список игнорируется — система не забиндит ни один сервис.
             Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
@@ -139,10 +155,20 @@ class PermissionsManager @Inject constructor(
     }
 
     /**
-     * Разрешение действует, только если наш сервис в списке включённых И поднят общий тумблер
-     * специальных возможностей. Одного списка мало: при `ACCESSIBILITY_ENABLED = 0` система не
-     * биндит ни один сервис, а список остаётся заполненным — контроль мёртв, а проверка по
-     * старому коду рапортовала бы «разрешение на месте».
+     * Контроль жив, только если выполнено ВСЁ: поднят общий тумблер специальных возможностей, наш
+     * сервис в списке включённых И система его действительно ПРИВЯЗАЛА.
+     *
+     * Последнее — не паранойя, а разбор боевого случая (телефон Олега, 31.08.2026): процесс убил
+     * вендорский «оптимизатор», система подняла обратно foreground- и VPN-сервисы, а
+     * accessibility-сервис пометила `Crashed services` и биндить заново не стала. Оба ключа
+     * `Settings.Secure` при этом остались нетронутыми — то есть по ним разрешение «выдано», а
+     * событий не приходит ни одного, и не блокируется вообще ничего. Телефон так прожил ~9 часов:
+     * ни замка ребёнку, ни уведомления родителю, потому что и сторож, и heartbeat ходят сюда.
+     * Force-stop тут ни при чём — он бы вычистил список (см. [restoreAccessibility]).
+     *
+     * Признак привязки берём у самой системы: `getEnabledAccessibilityServiceList` отдаёт
+     * привязанные сервисы (в AOSP — `mBoundServices`), а не строку настроек, поэтому упавший
+     * сервис из неё исчезает.
      */
     private fun isAccessibilityEnabled(): Boolean {
         val masterSwitchOn = Settings.Secure.getInt(
@@ -156,8 +182,42 @@ class PermissionsManager @Inject constructor(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
-        return enabled.split(':').any { it.matchesService(expected) }
+        if (enabled.split(':').none { it.matchesService(expected) }) return false
+        // Два независимых признака живости, потому что ошибиться в эту сторону дорого:
+        // 1. слово самого сервиса — факт, а не догадка, но слепо к «система отвязала молча»;
+        // 2. системный список привязанных — закрывает как раз этот угол.
+        if (!accessibilityLiveness.connected) {
+            Timber.w("Сервис числится включённым, но не подключён в этом процессе — контроль мёртв")
+            return false
+        }
+        return isAccessibilityServiceBound(expected)
     }
+
+    /**
+     * Привязан ли наш сервис системой прямо сейчас.
+     *
+     * Ошибку опроса трактуем как «привязан» (`true`): ошибиться здесь можно только в одну
+     * безопасную сторону — ложное «не привязан» запустит ребёнку замок на ровном месте, а ложное
+     * «всё хорошо» лишь оставит поведение прежним, каким оно было до этой правки.
+     */
+    private fun isAccessibilityServiceBound(expected: ComponentName): Boolean = runCatching {
+        val manager = context.getSystemService(AccessibilityManager::class.java) ?: return true
+        val bound = manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            .any { it.matchesService(expected) }
+        if (!bound) {
+            // Улика для будущих разборов «почему контроль молчал»: снаружи всё выглядит выданным.
+            Timber.w("Сервис есть в списке включённых, но система его не привязала — контроль мёртв")
+        }
+        bound
+    }.getOrDefault(true)
+
+    /**
+     * Сверяем и по `id`, и по `resolveInfo` — заполненность обоих полей зависит от прошивки, а
+     * «не нашли» тут означает замок ребёнку, поэтому лучше перестраховаться двумя источниками.
+     */
+    private fun AccessibilityServiceInfo.matchesService(expected: ComponentName): Boolean =
+        ComponentName.unflattenFromString(id) == expected ||
+            resolveInfo?.serviceInfo?.let { ComponentName(it.packageName, it.name) } == expected
 
     /** Строка списка описывает наш сервис (сравниваем компонентами, а не текстом). */
     private fun String.matchesService(expected: ComponentName): Boolean =

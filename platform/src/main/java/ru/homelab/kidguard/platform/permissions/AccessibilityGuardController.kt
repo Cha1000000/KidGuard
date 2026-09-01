@@ -27,11 +27,16 @@ import javax.inject.Singleton
  * Следит за тем, что родительский контроль вообще жив: без разрешения «Специальные возможности»
  * KidGuard не видит активное приложение, а значит не блокирует ничего.
  *
- * Разрешение слетает при ПРИНУДИТЕЛЬНОЙ ОСТАНОВКЕ приложения — Android сам вычищает сервисы пакета
- * из списка включённых (обновление приложения, вопреки ожиданиям, разрешение переживает: проверено).
- * Останавливает приложение и вендорский «оптимизатор», и кнопка «Остановить» в настройках. Отдельно
- * стоит случай, ради которого всё это и делается: ребёнок выключает сервис тумблером и спокойно
- * пользуется телефоном без лимитов.
+ * Контроль умирает тремя способами, и все три ловятся одной проверкой
+ * [PermissionsManager.isGranted]:
+ * 1. ПРИНУДИТЕЛЬНАЯ ОСТАНОВКА приложения — Android сам вычищает сервисы пакета из списка включённых
+ *    (обновление приложения, вопреки ожиданиям, разрешение переживает: проверено). Останавливает
+ *    приложение и вендорский «оптимизатор», и кнопка «Остановить» в настройках.
+ * 2. Ребёнок выключает сервис тумблером — случай, ради которого всё это и делается.
+ * 3. Сервис УПАЛ, а разрешение осталось выданным: процесс убили, foreground-сервисы система подняла
+ *    обратно, а accessibility оставила в `Crashed services` и не перепривязала. Снаружи выглядит
+ *    полностью здоровым — оба ключа `Settings.Secure` на месте, heartbeat идёт, — но не блокируется
+ *    ничего. Пойман на телефоне Олега 31.08.2026, телефон прожил так ~9 часов.
  *
  * Реакция — [controlIntegrityAction]: сначала пробуем вернуть разрешение сами (если выдано
  * `WRITE_SECURE_SETTINGS`), иначе предупреждаем и через [GRACE_SECONDS] блокируем телефон замком.
@@ -54,6 +59,14 @@ class AccessibilityGuardController @Inject constructor(
     /** Момент (elapsedRealtime), когда заметили пропажу; null — разрешение на месте. */
     private var lostAtMillis: Long? = null
 
+    /**
+     * Сколько тиков подряд контроль выглядит сломанным. Нужен из-за окна на старте процесса:
+     * сервис уже числится включённым, но система ещё не успела его привязать — мгновенная реакция
+     * на первый же тик слала бы родителю ложную тревогу при каждом перезапуске. Цена подтверждения
+     * — [TICK_SECONDS] секунд к реакции против пятиминутной отсрочки замка, то есть незаметна.
+     */
+    private var lostTicks: Int = 0
+
     /** До этого момента замок не показываем — ребёнок ушёл включать разрешение или родитель ввёл PIN. */
     private var snoozeUntilMillis: Long = 0
 
@@ -68,12 +81,17 @@ class AccessibilityGuardController @Inject constructor(
     private suspend fun evaluate() {
         val enabled = permissionsManager.isGranted(DevicePermission.ACCESSIBILITY)
         if (enabled) {
+            lostTicks = 0
             onAccessibilityAlive()
             return
         }
         // Разрешение ещё ни разу не выдавали — идёт первичная настройка, вмешиваться не в чем.
         // `setupCompleted` для этого не подходит: он ставится уже при выборе роли.
         if (!settingsRepository.controlEverConfigured.first()) return
+
+        // Первое наблюдение не считается: см. [lostTicks].
+        lostTicks++
+        if (lostTicks < LOST_CONFIRM_TICKS) return
 
         val now = SystemClock.elapsedRealtime()
         val secondsSinceLost = lostAtMillis?.let { (now - it) / 1000 }
@@ -107,6 +125,7 @@ class AccessibilityGuardController @Inject constructor(
 
         Timber.tag(TAG).i("Разрешение контроля восстановлено")
         lostAtMillis = null
+        lostTicks = 0
         snoozeUntilMillis = 0
         warningNotifier.clearControlLostWarning()
         pinOverlayManager.hide()
@@ -164,6 +183,9 @@ class AccessibilityGuardController @Inject constructor(
     private companion object {
         const val TAG = "KidGuardControlGuard"
         const val TICK_SECONDS = 15
+
+        /** Сколько тиков подряд контроль должен выглядеть сломанным, прежде чем поверим (см. [lostTicks]). */
+        const val LOST_CONFIRM_TICKS = 2
 
         /** Сколько ждём после пропажи разрешения, прежде чем заблокировать телефон. */
         const val GRACE_SECONDS = 5L * 60

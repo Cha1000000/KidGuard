@@ -80,6 +80,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var healthReportTrigger: HealthReportTrigger
 
+    @Inject
+    lateinit var accessibilityLiveness: AccessibilityLiveness
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
@@ -132,6 +135,8 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // Сторож судит о живости контроля в первую очередь по этому флагу — см. [AccessibilityLiveness].
+        accessibilityLiveness.onConnected()
         // Отдаём оверлею WindowManager сервиса — только окно accessibility-типа показывается
         // поверх защищённых системных экранов (см. PinOverlayManager).
         getSystemService(WindowManager::class.java)?.let {
@@ -427,12 +432,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        accessibilityLiveness.onDisconnected()
         scope.cancel()
         detachOverlays()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        accessibilityLiveness.onDisconnected()
         scope.cancel()
         detachOverlays()
         super.onDestroy()
