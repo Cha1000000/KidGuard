@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,27 +63,43 @@ fun GlassDockBar(
             .padding(horizontal = 16.dp)
             .padding(bottom = 20.dp)
     ) {
+        val isDark = isSystemInDarkTheme()
+        // В светлой теме белая граница на светлом фоне не видна вообще, а заливка под 85%
+        // делала бар глухой белой плашкой — «стекла» не читалось. Берём приглушённый primary
+        // для границы, чуть больше прозрачности заливке и мягкую тень, как у GlassCard.
+        val dockBorder = if (isDark) {
+            listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.1f))
+        } else {
+            listOf(Color(0xFF2E6B7E).copy(alpha = 0.28f), Color(0xFF2E6B7E).copy(alpha = 0.12f))
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
+                .then(
+                    if (isDark) {
+                        Modifier
+                    } else {
+                        Modifier.shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(28.dp),
+                            ambientColor = Color(0xFF2E6B7E).copy(alpha = 0.18f),
+                            spotColor = Color(0xFF2E6B7E).copy(alpha = 0.18f)
+                        )
+                    }
+                )
                 .clip(RoundedCornerShape(28.dp))
                 .background(
-                    color = if (isSystemInDarkTheme()) {
+                    color = if (isDark) {
                         Color(0xFF17282E).copy(alpha = 0.85f)
                     } else {
-                        Color.White.copy(alpha = 0.85f)
+                        Color.White.copy(alpha = 0.72f)
                     },
                     shape = RoundedCornerShape(28.dp)
                 )
                 .border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.25f),
-                            Color.White.copy(alpha = 0.1f)
-                        )
-                    ),
+                    brush = Brush.verticalGradient(colors = dockBorder),
                     shape = RoundedCornerShape(28.dp)
                 ),
             contentAlignment = Alignment.Center

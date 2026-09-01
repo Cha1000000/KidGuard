@@ -46,16 +46,23 @@ fun GlassCard(
     val shape = RoundedCornerShape(cornerRadius)
 
     // Цвета для glassmorphism
+    // Светлая тема: заливка белая, а не голубая. Прежний #DCEAEF под 50% давал ровно цвет
+    // фона (замер: карточка #E6EFF0 против фона #E6F3F2 — контраст 1.04, карточки не видно).
+    // Белым карточка хотя бы приподнимается над фоном; вытянуть её одной заливкой всё равно
+    // нельзя — оба цвета у верхней границы яркости, поэтому форму держат граница и тень ниже.
     val glassColor = if (isSystemInDarkTheme()) {
         Color(0xFF17282E).copy(alpha = glassAlpha)
     } else {
-        Color(0xFFDCEAEF).copy(alpha = 0.5f)
+        Color.White.copy(alpha = 0.65f)
     }
 
+    // В светлой теме белая граница невидима на светлом фоне — берём приглушённый primary и
+    // делаем его вдвое заметнее прежних 12%: в светлом glassmorphism именно граница, а не
+    // заливка, очерчивает карточку.
     val borderColor = if (isSystemInDarkTheme()) {
         Color.White.copy(alpha = borderAlpha)
     } else {
-        Color(0xFF2E6B7E).copy(alpha = 0.12f)
+        Color(0xFF2E6B7E).copy(alpha = 0.24f)
     }
 
     // Тень для светлой темы
@@ -63,8 +70,10 @@ fun GlassCard(
         Modifier.shadow(
             elevation = 10.dp,
             shape = shape,
-            ambientColor = Color(0xFF2E6B7E).copy(alpha = 0.08f),
-            spotColor = Color(0xFF2E6B7E).copy(alpha = 0.08f)
+            // Тень — вторая половина того, чем карточка отделяется от фона; прежние 8%
+            // читались только на белом, а на нашем цветном фоне пропадали совсем.
+            ambientColor = Color(0xFF2E6B7E).copy(alpha = 0.16f),
+            spotColor = Color(0xFF2E6B7E).copy(alpha = 0.16f)
         )
     } else {
         Modifier
