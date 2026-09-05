@@ -180,6 +180,9 @@ fun PermissionsWizardScreen(
                     )
                 }
                 item {
+                    RecentsLockCard()
+                }
+                item {
                     AlwaysOnVpnCard(
                         onOpenSettings = { launcher.launch(Intent(Settings.ACTION_VPN_SETTINGS)) }
                     )
@@ -270,6 +273,24 @@ private fun AutostartCard(
         description = stringResource(R.string.autostart_desc),
         actionLabel = stringResource(R.string.autostart_open_settings),
         onAction = onOpenSettings,
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+/**
+ * Замок карточки в списке последних приложений. Кнопки нет намеренно: системного экрана для этого
+ * не существует ни у одного вендора, шаг делается жестом прямо в списке последних.
+ *
+ * Почему шаг вообще появился: разбор смертей контроля на боевом телефоне (05.09.2026) показал, что
+ * все они — «остановлено пользователем», а в системном логе того же момента видно
+ * `cleanType:oneKeyClean`, то есть кнопку «Очистить всё». Автозапуск при этом был давно разрешён —
+ * то есть без этого шага мастер закрывал не ту дверь.
+ */
+@Composable
+private fun RecentsLockCard(modifier: Modifier = Modifier) {
+    InfoActionCard(
+        title = stringResource(R.string.recents_lock_title),
+        description = stringResource(R.string.recents_lock_desc),
         modifier = modifier.fillMaxWidth()
     )
 }

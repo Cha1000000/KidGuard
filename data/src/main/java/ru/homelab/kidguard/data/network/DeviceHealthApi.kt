@@ -15,7 +15,14 @@ data class DeviceHealthDto(
     val overlay: Boolean,
     val deviceAdmin: Boolean,
     val vpn: Boolean,
-    val batteryOptimization: Boolean
+    val batteryOptimization: Boolean,
+    // Причина смерти предыдущего процесса. Все три поля с дефолтами: на телефонах стоят сборки без
+    // них, и старый отчёт должен читаться как «причина неизвестна», а не валить парсинг. Имя вида
+    // TASK_MANAGER_STOP — это ProcessExitKind.name, разбирать его умеет только клиент.
+    val lastExitKind: String? = null,
+    /** ISO-8601, как и lastSeenAt: сервер хранит health непрозрачным JSON и в поля не вникает. */
+    val lastExitAt: String? = null,
+    val lastExitDescription: String? = null
 )
 
 @Serializable

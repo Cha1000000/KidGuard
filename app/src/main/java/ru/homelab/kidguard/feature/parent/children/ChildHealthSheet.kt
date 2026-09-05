@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.parent.children
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import ru.homelab.kidguard.core.domain.model.ProcessExitKind
+import ru.homelab.kidguard.core.domain.model.ProcessExitRecord
 import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 import ru.homelab.kidguard.core.ui.components.healthImpactRes
 import ru.homelab.kidguard.core.ui.components.titleRes
@@ -69,10 +72,68 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
                 broken.forEach { HealthIssueRow(it) }
             }
 
+            // Причина прошлой смерти процесса — главный ответ на вопрос «контроль пропал сам или
+            // его выключили». Раньше его взять было негде: на HiOS логи вытесняются за минуты.
+            child.health?.lastExit
+                ?.takeIf { it.kind.worthReporting }
+                ?.let { LastExitNote(record = it, now = now) }
+
             HowToFix(isSilent = isSilent)
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+/**
+ * Как завершился предыдущий запуск. Показываем только то, что родителю стоит знать
+ * ([ProcessExitKind.worthReporting]): обновление приложения в этот список не входит — после него
+ * контроль поднимается сам, и уведомлять о каждой установке значит приучить не читать плашку.
+ */
+@Composable
+private fun LastExitNote(record: ProcessExitRecord, now: Instant) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(R.string.child_health_last_exit_title),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(record.kind.textRes()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+            Text(
+                text = stringResource(R.string.child_health_last_exit_when, formatAgo(record.at, now)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Текст причины. `PACKAGE_UPDATED`, `OTHER` и `UNKNOWN` сюда не доходят — их отсекает
+ * [ProcessExitKind.worthReporting]; на всякий случай отдаём им нейтральную формулировку.
+ */
+@StringRes
+private fun ProcessExitKind.textRes(): Int = when (this) {
+    ProcessExitKind.FORCE_STOP -> R.string.child_health_exit_force_stop
+    ProcessExitKind.TASK_MANAGER_STOP -> R.string.child_health_exit_task_manager
+    ProcessExitKind.REMOVE_TASK -> R.string.child_health_exit_remove_task
+    ProcessExitKind.CRASH -> R.string.child_health_exit_crash
+    ProcessExitKind.ANR -> R.string.child_health_exit_anr
+    ProcessExitKind.LOW_MEMORY -> R.string.child_health_exit_low_memory
+    ProcessExitKind.FREEZER -> R.string.child_health_exit_freezer
+    ProcessExitKind.PACKAGE_UPDATED,
+    ProcessExitKind.OTHER,
+    ProcessExitKind.UNKNOWN -> R.string.child_health_exit_force_stop
 }
 
 /** Одна отвалившаяся штука: название + чем это грозит. */

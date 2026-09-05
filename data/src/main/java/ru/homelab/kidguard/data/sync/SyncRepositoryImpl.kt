@@ -286,11 +286,18 @@ class SyncRepositoryImpl @Inject constructor(
                     overlay = health.overlay,
                     deviceAdmin = health.deviceAdmin,
                     vpn = health.vpn,
-                    batteryOptimization = health.batteryOptimization
+                    batteryOptimization = health.batteryOptimization,
+                    lastExitKind = health.lastExit?.kind?.name,
+                    lastExitAt = health.lastExit?.at?.toString(),
+                    lastExitDescription = health.lastExit?.description?.takeIf { it.isNotBlank() }
                 )
             )
         )
-        Timber.tag(TAG).d("Heartbeat отправлен, всё в порядке: %s", health.isHealthy)
+        Timber.tag(TAG).d(
+            "Heartbeat отправлен, всё в порядке: %s, прошлая смерть: %s",
+            health.isHealthy,
+            health.lastExit?.kind ?: "нет данных"
+        )
     }
 
     /**

@@ -5,10 +5,12 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
+import ru.homelab.kidguard.core.domain.repository.ProcessExitReader
 import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.StickinessSource
 import ru.homelab.kidguard.platform.apps.PlatformInstalledAppsSource
+import ru.homelab.kidguard.platform.diagnostics.AndroidProcessExitReader
 import ru.homelab.kidguard.platform.permissions.PlatformDeviceHealthSource
 import ru.homelab.kidguard.platform.time.PlatformElapsedTimeSource
 import ru.homelab.kidguard.platform.tracking.StickinessTracker
@@ -26,6 +28,10 @@ abstract class PlatformModule {
     @Binds
     @Singleton
     abstract fun bindDeviceHealthSource(impl: PlatformDeviceHealthSource): DeviceHealthSource
+
+    @Binds
+    @Singleton
+    abstract fun bindProcessExitReader(impl: AndroidProcessExitReader): ProcessExitReader
 
     @Binds
     @Singleton

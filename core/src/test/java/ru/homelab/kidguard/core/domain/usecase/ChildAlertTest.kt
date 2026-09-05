@@ -78,8 +78,11 @@ class ChildAlertTest {
     }
 
     @Test
-    fun `короткое молчание нормой - телефон мог быть выключен ночью`() {
-        val quiet = child(lastSeenAt = now.minusSeconds(3600))
+    fun `короткий разрыв связи не повод для тревоги`() {
+        // 20 минут — меньше порога в 40: один пропущенный heartbeat бывает от сети, а не от
+        // остановленного приложения. Ночной случай сюда больше не относится: с порогом 40 минут
+        // выключенный телефон тревогу даёт, и подавляет её isQuietHours у родителя.
+        val quiet = child(lastSeenAt = now.minusSeconds(20 * 60))
         assertNull(childAlert(previous = child(), current = quiet, now = now))
     }
 

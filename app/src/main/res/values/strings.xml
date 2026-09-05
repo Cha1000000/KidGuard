@@ -698,7 +698,7 @@
     <string name="parent_alert_channel_name">Проблемы с контролем</string>
     <string name="parent_alert_title">%1$s — контроль не работает</string>
     <string name="parent_alert_broken">Отключено: %1$s. Откройте KidGuard, чтобы починить.</string>
-    <string name="parent_alert_silent">Телефон давно не выходит на связь: приложение остановлено, удалено или телефон выключен.</string>
+    <string name="parent_alert_silent">Телефон не выходит на связь больше 40 минут: KidGuard остановлен, удалён или телефон выключен.</string>
 
     <string name="permission_accessibility_title">Специальные возможности</string>
     <string name="permission_accessibility_desc">Определяет активное приложение и блокирует нежелательные.</string>
@@ -727,9 +727,19 @@
     <string name="child_health_last_seen_never">Устройство ещё не выходило на связь</string>
     <string name="child_health_stale_ok_title">На момент последней связи всё работало</string>
     <string name="child_health_stale_ok_note">Данные могли устареть — сейчас проверить нельзя.</string>
+    <!-- Причина прошлой смерти процесса (ApplicationExitInfo) — план control-self-healing -->
+    <string name="child_health_last_exit_title">Как контроль пропал в прошлый раз</string>
+    <string name="child_health_last_exit_when">%1$s назад</string>
+    <string name="child_health_exit_force_stop">Приложение остановили вручную — кнопкой «Остановить» в настройках или очисткой в списке последних приложений.</string>
+    <string name="child_health_exit_task_manager">Приложение закрыли кнопкой «Очистить всё» в списке последних приложений. Чтобы это не повторялось, закрепите KidGuard в списке последних — значком замка на его карточке.</string>
+    <string name="child_health_exit_remove_task">Карточку приложения смахнули из списка последних.</string>
+    <string name="child_health_exit_crash">Приложение аварийно завершилось. Это ошибка в самом KidGuard — сообщите разработчику.</string>
+    <string name="child_health_exit_anr">Приложение перестало отвечать, и система его закрыла.</string>
+    <string name="child_health_exit_low_memory">Системе не хватило памяти, и она выгрузила приложение.</string>
+    <string name="child_health_exit_freezer">Система заморозила и выгрузила приложение в фоне.</string>
     <string name="child_health_howto_label">Что делать:</string>
     <string name="child_health_howto_broken">возьмите телефон ребёнка, откройте KidGuard — мастер разрешений покажет, что выдать. Разрешения могли слететь после очистки данных приложения или его принудительной остановки.</string>
-    <string name="child_health_howto_silent">телефон может быть выключен или без интернета — тогда всё в порядке. Если он включён, KidGuard мог быть выгружен системой: возьмите телефон ребёнка, откройте KidGuard и разрешите автозапуск в настройках телефона.</string>
+    <string name="child_health_howto_silent">телефон может быть выключен или без интернета — тогда всё в порядке. Если он включён, KidGuard, скорее всего, остановили: чаще всего это кнопка «Очистить всё» в списке последних приложений. Возьмите телефон ребёнка, откройте KidGuard — контроль поднимется сам, — и закрепите его карточку в списке последних значком замка, чтобы очистка её не трогала.</string>
     <!-- Чем грозит отсутствие каждого разрешения (в мастере разрешений формулировки «зачем нужно»,
          здесь — «что сломается»: родитель смотрит на уже случившуюся проблему). -->
     <string name="health_impact_accessibility">Не определяется активное приложение: время не считается, блокировки не срабатывают.</string>
@@ -742,6 +752,9 @@
     <string name="duration_hours">%1$d ч</string>
     <string name="duration_days">%1$d дн</string>
 
+    <!-- Замок карточки в списке последних: главный способ, которым останавливают контроль -->
+    <string name="recents_lock_title">Закрепите KidGuard в списке последних</string>
+    <string name="recents_lock_desc">Кнопка «Очистить всё» в списке последних приложений останавливает KidGuard, и контроль выключается до следующего запуска приложения. Откройте список последних, задержите палец на карточке KidGuard и нажмите значок замка — закреплённые карточки очистка не трогает.</string>
     <string name="autostart_title">Автозапуск в фоне</string>
     <string name="autostart_desc">На оболочках вроде HiOS (Tecno), MIUI, EMUI есть свой список автозапуска — помимо обычной оптимизации батареи. Если KidGuard в нём не разрешён, система выгрузит контроль из фона, и он перестанет считать время. Разрешите KidGuard автозапуск и работу в фоне.</string>
     <string name="autostart_open_settings">Открыть настройки автозапуска</string>

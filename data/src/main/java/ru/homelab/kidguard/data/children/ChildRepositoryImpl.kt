@@ -4,6 +4,8 @@ import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
 import ru.homelab.kidguard.core.domain.model.DeviceHealth
+import ru.homelab.kidguard.core.domain.model.ProcessExitKind
+import ru.homelab.kidguard.core.domain.model.ProcessExitRecord
 import ru.homelab.kidguard.core.domain.model.UsageEntry
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.data.network.AppsApi
@@ -113,6 +115,30 @@ class ChildRepositoryImpl @Inject constructor(
         overlay = overlay,
         deviceAdmin = deviceAdmin,
         vpn = vpn,
-        batteryOptimization = batteryOptimization
+        batteryOptimization = batteryOptimization,
+        lastExit = toLastExit()
     )
+
+    /**
+     * Причина смерти нужна целиком или никак: без времени её нечего показать родителю, а незнакомое
+     * имя вида нового ProcessExitKind (ребёнок обновился раньше родителя) не должно ронять список
+     * детей — в этом случае просто считаем, что данных нет.
+     */
+    private fun DeviceHealthDto.toLastExit(): ProcessExitRecord? {
+        val kindName = lastExitKind ?: return null
+        val at = lastExitAt?.let { raw ->
+            runCatching { Instant.parse(raw) }
+                .onFailure { e -> Timber.w(e, "Не разобрал lastExitAt: %s", raw) }
+                .getOrNull()
+        } ?: return null
+        val kind = runCatching { ProcessExitKind.valueOf(kindName) }.getOrNull() ?: return null
+        return ProcessExitRecord(
+            at = at,
+            kind = kind,
+            description = lastExitDescription.orEmpty(),
+            // Сырые коды по сети не возим: родителю они не нужны, а для диагностики есть description.
+            rawReason = 0,
+            rawSubreason = 0
+        )
+    }
 }

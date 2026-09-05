@@ -21,16 +21,20 @@ import ru.homelab.kidguard.ui.theme.KidGuardTheme
  *
  * @param title заголовок карточки
  * @param description поясняющий текст
- * @param actionLabel текст кнопки действия
- * @param onAction обработчик клика по кнопке действия
+ * @param actionLabel текст кнопки действия; null — карточка без кнопки
+ * @param onAction обработчик клика; null — карточка без кнопки
  * @param modifier модификатор для внешнего контейнера
+ *
+ * Кнопка необязательна: часть шагов настройки нельзя открыть интентом вообще (например, замок
+ * карточки в списке последних приложений — системного экрана для него не существует), и такой шаг
+ * остаётся чистой инструкцией. Рисовать кнопку, которая никуда не ведёт, хуже, чем не рисовать.
  */
 @Composable
 fun InfoActionCard(
     title: String,
     description: String,
-    actionLabel: String,
-    onAction: () -> Unit,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     GlassCard(modifier = modifier.fillMaxWidth()) {
@@ -41,13 +45,15 @@ fun InfoActionCard(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)
             )
-            OutlinedButton(
-                onClick = onAction,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 12.dp)
-            ) {
-                Text(actionLabel)
+            if (actionLabel != null && onAction != null) {
+                OutlinedButton(
+                    onClick = onAction,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 12.dp)
+                ) {
+                    Text(actionLabel)
+                }
             }
         }
     }

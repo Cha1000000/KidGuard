@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.withLock
 import ru.homelab.kidguard.core.domain.repository.ChildAlertStore
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.usecase.childAlert
+import ru.homelab.kidguard.core.domain.usecase.isQuietHours
 import timber.log.Timber
 import java.time.Instant
 import javax.inject.Inject
@@ -34,6 +35,12 @@ class ChildHealthChecker @Inject constructor(
 
     /** @return удалось ли получить состояние детей; `false` — сеть или сервер недоступны. */
     suspend fun check(now: Instant): Boolean = mutex.withLock {
+        // Ночью не тревожим и снимок НЕ обновляем: иначе утреннее сравнение «было в порядке →
+        // сломалось» не сработает, и ночная поломка останется незамеченной совсем.
+        if (isQuietHours(now)) {
+            Timber.tag(TAG).d("Ночь — тревоги отложены до утра")
+            return true
+        }
         val children = childRepository.listChildren().getOrElse { return false }
         // Снимок читаем один раз: внутри цикла это было бы чтение DataStore на каждого ребёнка.
         val previous = alertStore.previous()
