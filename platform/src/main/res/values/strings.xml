@@ -43,6 +43,8 @@
     <!-- PIN-оверлей на критичных системных экранах (веха 6, шаг 6.2) -->
     <string name="pin_overlay_title">Введите PIN</string>
     <string name="pin_overlay_subtitle">Эту настройку защитил родитель</string>
+    <string name="pin_overlay_recents_title">Список приложений закрыт</string>
+    <string name="pin_overlay_recents_subtitle">Открыть его может родитель по PIN-коду</string>
     <!-- Тот же PIN-оверлей, но для обхода блокирующего экрана (лимит/учёба/запрет) -->
     <string name="pin_overlay_bypass_subtitle">PIN родителя снимет это ограничение</string>
     <string name="pin_overlay_wrong">Неверный PIN</string>

@@ -19,6 +19,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
@@ -104,6 +105,21 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private val windowPackages = mutableMapOf<Int, String>()
 
     /**
+     * Каким экраном вызван показанный сейчас PIN-оверлей. Нужно ровно для списка последних:
+     * оверлей висит поверх ЛАУНЧЕРА, а общее правило ниже прячет его при уходе на чужое
+     * приложение — и спрятало бы сразу же, приняв лаунчер за уход.
+     */
+    private var pinOverlayScreen: CriticalScreen? = null
+
+    /**
+     * Перехват списка последних уже идёт. Отдельный флаг, а не `pinOverlayManager.isShowing()`:
+     * между сворачиванием списка и появлением оверлея есть пауза, и всё это время `isShowing()`
+     * отвечает «нет». Второе событие о списке (его шлёт лаунчер) успевало в эту щель и сворачивало
+     * экран повторно — уводя ребёнка уже с того приложения, куда он вернулся.
+     */
+    private var recentsInterceptRunning = false
+
+    /**
      * Пакеты, чьи окна мы хотя бы раз видели служебными (шторка, навбар, AOD, клавиатура). Список
      * набирается наблюдением, а не хардкодом: на каждой прошивке оболочка своя, а ошибиться в имени
      * пакета — значит снова начать засчитывать её как приложение. Нужен для событий от окон,
@@ -136,6 +152,15 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     /** Пока активный экран принадлежит настройкам/инсталлеру, PIN-оверлей держим (см. [onAccessibilityEvent]). */
     private val overlayHostPackages: Set<String> by lazy { settingsPackages + installerPackages }
+
+    /**
+     * Пакет домашнего лаунчера — им владеет и список последних приложений. Нужен, чтобы отличить
+     * его от чужих экранов со словом «недавние» в заголовке (такое встречается в настройках).
+     */
+    private val launcherPackages: Set<String> by lazy {
+        resolvePackageFor(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
+            .also { Timber.tag(TAG).d("Пакеты лаунчера: %s", it) }
+    }
 
     /**
      * Пакет активности, которая обработает [intent], или пустое множество. Отсеиваем системный
@@ -219,8 +244,13 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // (лаунчер и т.п.). НЕ реагируем на: события самого оверлея (наш пакет — иначе оверлей
         // скрыл бы себя своим же window-событием) и под-окна того же хоста настроек/инсталлера
         // (например, всплывающие «значок приложения»), где родитель ещё должен ввести PIN.
-        if (packageName != applicationContext.packageName && packageName !in overlayHostPackages) {
-            if (pinOverlayManager.isShowing()) pinOverlayManager.hide()
+        val overlayHosts = if (pinOverlayScreen == CriticalScreen.RECENTS) launcherPackages else overlayHostPackages
+        if (packageName != applicationContext.packageName && packageName !in overlayHosts) {
+            if (pinOverlayManager.isShowing()) {
+                pinOverlayManager.hide()
+                pinOverlayScreen = null
+                recentsInterceptRunning = false
+            }
             // Warning-оверлей тоже убираем при реальном уходе с настроек (напр. ребёнок нажал «Домой»,
             // не закрыв предупреждение), чтобы он не завис поверх следующего экрана.
             if (warningOverlayManager.isShowing()) warningOverlayManager.hide()
@@ -229,7 +259,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     private fun maybeInterceptWithPin(screen: CriticalScreen) {
         val lastUnlocked = lastUnlockedAt[screen] ?: 0L
-        if (SystemClock.elapsedRealtime() - lastUnlocked < UNLOCK_WINDOW_MS) {
+        if (SystemClock.elapsedRealtime() - lastUnlocked < unlockWindowFor(screen)) {
             Timber.tag(TAG).d("Критичный экран %s в окне разблокировки — без PIN", screen)
             return
         }
@@ -247,6 +277,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
                 return@launch
             }
             Timber.tag(TAG).d("Критичный экран %s — показываю PIN-оверлей", screen)
+            if (screen == CriticalScreen.RECENTS) {
+                interceptRecents()
+                return@launch
+            }
             pinOverlayManager.show(
                 verifyPin = ::verifyPin,
                 onUnlocked = { lastUnlockedAt[screen] = SystemClock.elapsedRealtime() },
@@ -254,6 +288,60 @@ class KidGuardAccessibilityService : AccessibilityService() {
             )
         }
     }
+
+    /**
+     * Список последних — единственный экран, где порядок обратный: сначала уводим, потом просим
+     * PIN.
+     *
+     * У остальных критичных экранов оверлей ложится поверх, а «Назад» уводит. Здесь так нельзя:
+     * карточки приложений видны сразу, и цель ребёнка — кнопка «Очистить всё», до которой он
+     * доберётся быстрее, чем прочитает оверлей. Поэтому экран сворачивается немедленно, а PIN
+     * спрашивается уже поверх того, откуда ушли.
+     *
+     * Верный PIN открывает список заново: родителю он нужен, чтобы разбирать свёрнутые приложения.
+     * Отказ не возвращает ничего — мы уже ушли, и это ровно то поведение, которого ждали.
+     */
+    private fun interceptRecents() {
+        // Флаг синхронный, в отличие от pinOverlayManager.isShowing(): показ идёт через
+        // mainHandler, и второе событие о списке (его шлёт лаунчер) успевало проскочить в щель.
+        if (recentsInterceptRunning || pinOverlayManager.isShowing()) return
+        recentsInterceptRunning = true
+        pinOverlayScreen = CriticalScreen.RECENTS
+        pinOverlayManager.show(
+            verifyPin = ::verifyPin,
+            onUnlocked = {
+                // Уводить никуда не надо: список последних уже открыт, оверлей просто уходит с
+                // дороги, и родитель разбирает карточки.
+                pinOverlayScreen = null
+                recentsInterceptRunning = false
+                lastUnlockedAt[CriticalScreen.RECENTS] = SystemClock.elapsedRealtime()
+            },
+            onCancel = {
+                pinOverlayScreen = null
+                recentsInterceptRunning = false
+                // ВОТ ЗДЕСЬ уводим ребёнка, а не до показа оверлея. Так вышло не от красоты:
+                // закрыть список ДО оверлея не удаётся — лаунчер остаётся в режиме списка, и
+                // после закрытия оверлея система показывает его снова (проверено на эмуляторе и
+                // с GLOBAL_ACTION_BACK, и с GLOBAL_ACTION_HOME, и с паузой между ними). А уход
+                // домой в момент отказа срабатывает надёжно и даёт ровно требуемое поведение:
+                // отказался от PIN — списка не увидел.
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                Timber.tag(TAG).d("Список последних закрыт без PIN — увожу на домашний экран")
+            },
+            titleRes = R.string.pin_overlay_recents_title,
+            subtitleRes = R.string.pin_overlay_recents_subtitle
+        )
+    }
+
+    /**
+     * Сколько после верного PIN не спрашивать его снова для этого экрана.
+     *
+     * У списка последних окно длиннее: остальные экраны открывают, чтобы довести одну настройку, а
+     * здесь родитель разбирает карточки — двадцати секунд на это мало. Плюс список мы открываем
+     * сами после верного PIN, и короткое окно означало бы, что он перехватится повторно.
+     */
+    private fun unlockWindowFor(screen: CriticalScreen): Long =
+        if (screen == CriticalScreen.RECENTS) RECENTS_UNLOCK_WINDOW_MS else UNLOCK_WINDOW_MS
 
     /** Сырой PIN никуда не хранится. Проверка и счётчик попыток — в общем [PinGuard]. */
     private suspend fun verifyPin(entered: String): PinVerifyResult = pinGuard.verify(entered)
@@ -469,6 +557,13 @@ class KidGuardAccessibilityService : AccessibilityService() {
             in settingsPackages if DATE_TIME_KEYWORDS.any { title.contains(it) } ->
                 CriticalScreen.DATE_TIME_SETTINGS
 
+            // Список последних живёт в лаунчере и НЕ является отдельной активностью: на HiOS
+            // mCurrentFocus остаётся QuickstepLauncher и в режиме списка, и на домашнем экране.
+            // Отличает их только заголовок окна («hios launcher recent apps» — снято с телефона
+            // Олега 06.09.2026).
+            in launcherPackages if RECENTS_KEYWORDS.any { title.contains(it) } ->
+                CriticalScreen.RECENTS
+
             else -> null
         }
     }
@@ -569,12 +664,16 @@ class KidGuardAccessibilityService : AccessibilityService() {
         /** «О приложении» и «Хранилище» нашего приложения: очистка данных, force-stop, удаление. */
         KIDGUARD_APP_INFO,
         /** Перевод часов вперёд — обход анти-отмотки, досрочный сброс дневного счётчика. */
-        DATE_TIME_SETTINGS
+        DATE_TIME_SETTINGS,
+        /** Список последних приложений: оттуда «Очистить всё» останавливает KidGuard. */
+        RECENTS
     }
 
     private companion object {
         const val TAG = "KidGuardA11y"
         const val UNLOCK_WINDOW_MS = 20_000L
+        /** Две минуты родителю на разбор карточек в списке последних (решение Володи 06.09.2026). */
+        const val RECENTS_UNLOCK_WINDOW_MS = 120_000L
         // Опрос содержимого окна для [awaitOwnAppScreen]: до ~600 мс. Содержимое доезжает позже
         // события смены окна; за это время ребёнок физически не успеет ничего нажать, а чужие
         // экраны столько не задерживают (просто не совпадут и уйдут).
@@ -592,6 +691,13 @@ class KidGuardAccessibilityService : AccessibilityService() {
             setOf("com.google.android.packageinstaller", "com.android.packageinstaller")
         // Ключевые слова в заголовке окна (нижний регистр). Русский — основной язык устройств
         // ребёнка; английский — на случай другой локали. Кросс-вендорно стабильны.
+        /**
+         * Заголовки списка последних. Набор заведомо неполон и дополняется по факту: у каждого
+         * вендора своя формулировка. Проверенное на HiOS 14 — «hios launcher recent apps».
+         */
+        val RECENTS_KEYWORDS = listOf(
+            "recent apps", "recents", "overview", "недавние", "последние приложения"
+        )
         val VPN_KEYWORDS = listOf("vpn")
         // «доступность» — заголовок этого экрана на HiOS (снят с реального Tecno KL6, 2026-07-18):
         // Transsion переводит Accessibility иначе, чем AOSP, и без этого ключа экран проскакивал
