@@ -534,7 +534,7 @@ private fun WeekChartCard(week: List<DayUsage>) {
                         }
                         Text(
                             text = day.date.dayOfWeek
-                                .getDisplayName(TextStyle.SHORT, Locale("ru"))
+                                .getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("ru"))
                                 .replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

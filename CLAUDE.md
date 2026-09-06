@@ -16,12 +16,27 @@
 - **DI:** Hilt. **Локальные данные:** Room (источник истины на устройстве). **Сеть:** Retrofit + OkHttp.
 - **Аутентификация:** Google Sign-In (Credential Manager).
 - **Сборка:** Gradle (Kotlin DSL, version catalog `gradle/libs.versions.toml`).
-- **Версии:** AGP 9.2.1, Kotlin 2.2.10, Compose BOM 2026.02. **minSdk 33**, targetSdk 36, compileSdk 37
-  (compileSdk поднят с 36 до 37 — этого требует lifecycle 2.11.0; на совместимость устройств не влияет).
+- **Версии** (актуально на 2026-09-05): Gradle 9.7.1, AGP 9.4.0, Kotlin 2.4.10, KSP 2.3.11,
+  Compose BOM 2026.08.00. **minSdk 33**, targetSdk 36, compileSdk 37 (compileSdk поднят с 36 до 37 —
+  этого требует lifecycle 2.11.0; на совместимость устройств не влияет).
+  В AGP 9 отдельного плагина `kotlin-android` нет — Kotlin встроенный (built-in Kotlin), поэтому
+  ключ `kotlin` в каталоге правит плагины `kotlin-compose`/`kotlin-serialization`, а через них —
+  версию компилятора. KSP от версии Kotlin отвязан (свои `2.3.x`).
 - **Package:** `ru.homelab.kidguard`.
 
-> Библиотеки Hilt/Room/Retrofit/Google Sign-In в каркасе ещё НЕ подключены — добавляются по
-> мере реализации. Сейчас в проекте только Compose-каркас (Empty Activity).
+**Модули (все четыре живые, зависимости подключены):**
+
+- `app` — Compose UI и точка входа: `feature/{auth,onboarding,pairing,parent,child}`, тема
+  (`ui/theme`) и общие UI-компоненты (`core/ui`). Здесь же Hilt-приложение, навигация,
+  Credential Manager (Google Sign-In) и WorkManager.
+- `core` — **чистый домен без Android SDK**: правила и модели (`core/domain` — model, usecase,
+  security), разбор пакетов для VPN (`core/net`). Из зависимостей только `javax.inject` и
+  корутины — поэтому вся логика лимитов, расписаний и блокировок покрыта обычными JVM-тестами.
+- `data` — данные и синхронизация: Room (`data/db`), Retrofit/OkHttp (`data/network`), WebSocket-push
+  (`data/sync`), DataStore (`data/settings`), репозитории по доменам (usage, policy, children,
+  bonus, penalty, alerts, pin, auth).
+- `platform` — всё, что упирается в Android: `accessibility`, `overlay`, `vpn`, `deviceadmin`,
+  `foreground`, `notification`, `tracking`, `permissions`, `apps`, `schedule`, `diagnostics`.
 
 ## Архитектура и ключевые решения
 
@@ -38,8 +53,10 @@
   Фоновые процессы (музыка при погашенном экране) время НЕ расходуют.
 - **Единая политика ребёнка:** правила — общий объект на сервере, оба равноправных родителя
   редактируют одну политику; на детский телефон приходит один согласованный набор правил.
-- **Планируемые модули:** `core` (домен/правила), `parent`, `child` (исполнитель), `sync`.
-  Пока проект одномодульный (`app`) — разобьём на модули осознанно на этапе реализации.
+- **Модули:** `app` / `core` / `data` / `platform` (состав — в разделе «Стек» выше). Изначально
+  планировалось деление `core`/`parent`/`child`/`sync`, но по факту разделили по слоям, а не по
+  ролям: приложения родителя и ребёнка живут в одном `app` как разные ветки навигации, потому что
+  роль выбирается один раз и делит только UI, а домен и данные у них общие.
 
 ## Процесс (важно)
 

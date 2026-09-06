@@ -464,7 +464,7 @@ private fun ScheduleDayRow(
             }
         }
         Text(
-            text = if (hasWindow) windowRangeText(window!!) else stringResource(R.string.schedule_not_set),
+            text = if (hasWindow) windowRangeText(window) else stringResource(R.string.schedule_not_set),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = if (hasWindow) accentColor else MaterialTheme.colorScheme.onSurfaceVariant

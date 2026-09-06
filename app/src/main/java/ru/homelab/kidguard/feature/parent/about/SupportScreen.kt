@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.parent.about
 
+import android.content.ClipData
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.StringRes
@@ -39,12 +40,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,13 +68,14 @@ private const val SUPPORT_URL = "https://pay.cloudtips.ru/p/a8b6710d"
 @Composable
 fun SupportScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val versionName = BuildConfig.VERSION_NAME
 
     val soonSnackText = stringResource(R.string.about_soon_snack)
     val linkCopiedText = stringResource(R.string.support_link_copied)
+    val linkClipLabel = stringResource(R.string.support_link_clip_label)
     val openErrorText = stringResource(R.string.support_open_error)
     val noMailClientText = stringResource(R.string.about_feedback_no_client)
     val feedbackSubject = stringResource(R.string.about_feedback_subject, versionName)
@@ -100,8 +102,12 @@ fun SupportScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         scope.launch { snackbarHostState.showSnackbar(soonSnackText) }
     }
     val onCopyLinkClick: () -> Unit = {
-        clipboard.setText(AnnotatedString(SUPPORT_URL))
-        scope.launch { snackbarHostState.showSnackbar(linkCopiedText) }
+        // Clipboard.setClipEntry — suspend (новый API вместо LocalClipboardManager), поэтому
+        // копирование и Snackbar идут одной корутиной: сообщение показываем по факту копирования.
+        scope.launch {
+            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(linkClipLabel, SUPPORT_URL)))
+            snackbarHostState.showSnackbar(linkCopiedText)
+        }
     }
     val onFeedbackClick: () -> Unit = {
         // Та же логика, что и «Обратная связь» в AboutScreen: без почтового клиента startActivity

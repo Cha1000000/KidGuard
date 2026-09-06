@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.feature.parent.children
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,15 +17,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import ru.homelab.kidguard.R
 import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 
@@ -33,9 +36,11 @@ import ru.homelab.kidguard.core.ui.components.GlassBottomSheet
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CodeSheet(code: String, onDismiss: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val copiedMsg = stringResource(R.string.child_code_copied)
+    val clipLabel = stringResource(R.string.child_code_title)
 
     GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -68,8 +73,12 @@ internal fun CodeSheet(code: String, onDismiss: () -> Unit) {
             )
             OutlinedButton(
                 onClick = {
-                    clipboard.setText(AnnotatedString(code))
-                    Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                    // Clipboard.setClipEntry — suspend (новый API вместо LocalClipboardManager),
+                    // поэтому Toast показываем в той же корутине, уже после копирования.
+                    scope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(clipLabel, code)))
+                        Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {

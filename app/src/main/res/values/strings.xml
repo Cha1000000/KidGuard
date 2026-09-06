@@ -128,6 +128,8 @@
     <string name="support_amount_popular">чаще всего</string>
     <string name="support_copy_link">Скопировать ссылку</string>
     <string name="support_link_copied">Ссылка скопирована</string>
+    <!-- Подпись копии в буфере обмена: Android 13+ показывает её в системном превью. -->
+    <string name="support_link_clip_label">Ссылка на поддержку KidGuard</string>
     <string name="support_open_error">Не удалось открыть страницу оплаты. Проверьте подключение к интернету.</string>
     <string name="support_section_free">Поддержать бесплатно</string>
     <string name="support_rate">Оценить в RuStore</string>
