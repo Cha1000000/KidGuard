@@ -15,6 +15,7 @@ import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.ChildAlertStore
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
 import ru.homelab.kidguard.data.auth.AuthRepositoryImpl
 import ru.homelab.kidguard.data.bonus.BonusRepositoryImpl
 import ru.homelab.kidguard.data.penalty.PenaltyRepositoryImpl
@@ -26,6 +27,7 @@ import ru.homelab.kidguard.data.alerts.ChildAlertStoreImpl
 import ru.homelab.kidguard.data.settings.SettingsRepositoryImpl
 import ru.homelab.kidguard.data.sync.SyncRepositoryImpl
 import ru.homelab.kidguard.data.usage.UsageRepositoryImpl
+import ru.homelab.kidguard.data.usage.UsageWatermarkRepositoryImpl
 import javax.inject.Singleton
 
 @Module
@@ -47,6 +49,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUsageRepository(impl: UsageRepositoryImpl): UsageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUsageWatermarkRepository(
+        impl: UsageWatermarkRepositoryImpl
+    ): UsageWatermarkRepository
 
     @Binds
     @Singleton

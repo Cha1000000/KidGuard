@@ -11,6 +11,7 @@ import kotlinx.coroutines.isActive
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
 import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.UsageBucket
@@ -20,6 +21,7 @@ import ru.homelab.kidguard.platform.accessibility.BlockingUiState
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
 import ru.homelab.kidguard.platform.apps.AlwaysAllowedPackages
 import timber.log.Timber
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,7 +56,9 @@ class ScreenTimeTracker @Inject constructor(
     // Те же use case'ы, что и у блокировки: «лимит исчерпан» в учёте и в enforcement обязаны
     // означать одно и то же — своя копия формулы здесь однажды уже разошлась бы с настоящей.
     private val observeLimitState: ObserveLimitStateUseCase,
-    private val observeAppLimitState: ObserveAppLimitStateUseCase
+    private val observeAppLimitState: ObserveAppLimitStateUseCase,
+    private val usageBackfiller: UsageBackfiller,
+    private val watermarkRepository: UsageWatermarkRepository
 ) {
 
     private val powerManager = context.getSystemService(PowerManager::class.java)
@@ -63,8 +67,16 @@ class ScreenTimeTracker @Inject constructor(
     /** Основной цикл учёта. Запускается foreground-сервисом и живёт, пока сервис активен. */
     suspend fun run() {
         Timber.tag(TAG).d("Движок учёта экранного времени запущен")
+        // ПЕРЕД первым тиком: пока движок стоял, телефоном могли пользоваться — контроль убили,
+        // телефон перезагружали, сервис не успел подняться. Системная статистика помнит это время,
+        // и его надо занести в счётчики до того, как мы начнём считать заново.
+        backfillMissed()
         while (currentCoroutineContext().isActive) {
             delay(TICK_SECONDS * 1000L)
+            // Ватерлиния движется каждый тик независимо от того, засчитали мы его или нет: «учёт
+            // работал» — это про живой движок, а не про то, пользовались ли телефоном. Иначе
+            // выключенный на ночь экран выглядел бы как провал и досчитывался бы по второму кругу.
+            watermarkRepository.setAccountedUntil(Instant.now())
             // Пакет читаем один раз за тик: суммарное и пер-app время должны сойтись.
             val activePackage = foregroundAppMonitor.currentPackage.value
             if (isUserActive() && activePackage != null) {
@@ -110,6 +122,17 @@ class ScreenTimeTracker @Inject constructor(
         val interactive = powerManager?.isInteractive == true
         val unlocked = keyguardManager?.isKeyguardLocked == false
         return interactive && unlocked && !blockingUiState.blockingVisible()
+    }
+
+    /**
+     * Досчёт провала. Ошибку намеренно глушим: движок учёта важнее досчёта, и упавшая системная
+     * статистика не должна помешать телефону считать время дальше.
+     */
+    private suspend fun backfillMissed() {
+        runCatching { usageBackfiller.backfill() }
+            .onFailure { Timber.tag(TAG).w(it, "Досчёт пропущенного времени не удался") }
+            .getOrNull()
+            ?.let { Timber.tag(TAG).d("Досчитано %d мин, пока учёт не работал", it.totalMinutes) }
     }
 
     private companion object {

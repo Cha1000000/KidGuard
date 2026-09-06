@@ -18,6 +18,7 @@ fun DevicePermission.titleRes(): Int = when (this) {
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_title
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_title
     DevicePermission.VPN -> R.string.permission_vpn_title
+    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_access_title
     DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_title
 }
 
@@ -30,6 +31,7 @@ fun DevicePermission.descRes(): Int = when (this) {
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_desc
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
     DevicePermission.VPN -> R.string.permission_vpn_desc
+    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_access_desc
     DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_desc
 }
 
@@ -44,9 +46,10 @@ fun DevicePermission.healthImpactRes(): Int = when (this) {
     DevicePermission.OVERLAY -> R.string.health_impact_overlay
     DevicePermission.DEVICE_ADMIN -> R.string.health_impact_device_admin
     DevicePermission.BATTERY_OPTIMIZATION -> R.string.health_impact_battery
-    // Уведомления и экстренный звонок в DeviceHealth не входят (контроль без них работает) —
-    // сюда попасть не должны.
+    // Уведомления, доступ к статистике и экстренный звонок в DeviceHealth не входят (контроль без
+    // них работает) — сюда попасть не должны.
     DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_desc
+    DevicePermission.USAGE_ACCESS -> R.string.permission_usage_access_desc
     DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_desc
     DevicePermission.VPN -> R.string.health_impact_vpn
 }
@@ -57,4 +60,15 @@ fun DevicePermission.healthImpactRes(): Int = when (this) {
  * DeviceHealth не входят (см. комментарий в DevicePermission.kt) — они необязательные.
  */
 val DevicePermission.isRequired: Boolean
-    get() = this != DevicePermission.NOTIFICATIONS && this != DevicePermission.EMERGENCY_CALL
+    get() = this !in OPTIONAL_PERMISSIONS
+
+/**
+ * Разрешения, без которых контроль остаётся рабочим. `USAGE_ACCESS` здесь потому, что без него
+ * теряется только досчёт пропущенного времени: блокировки, лимиты и учёт живого времени работают
+ * как прежде.
+ */
+private val OPTIONAL_PERMISSIONS = setOf(
+    DevicePermission.NOTIFICATIONS,
+    DevicePermission.EMERGENCY_CALL,
+    DevicePermission.USAGE_ACCESS
+)

@@ -63,6 +63,7 @@ class ParentAlertNotifier @Inject constructor(
             DevicePermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_title
             DevicePermission.VPN -> R.string.permission_vpn_title
             DevicePermission.NOTIFICATIONS -> R.string.permission_notifications_title
+            DevicePermission.USAGE_ACCESS -> R.string.permission_usage_access_title
             DevicePermission.EMERGENCY_CALL -> R.string.permission_emergency_call_title
         }
     )

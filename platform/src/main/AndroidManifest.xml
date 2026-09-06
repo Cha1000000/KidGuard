@@ -14,6 +14,15 @@
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!--
+        Системная статистика использования: ею досчитывается время, прошедшее мимо нашего учёта,
+        пока контроль был убит (см. UsageBackfill). Выдаётся не как обычное разрешение, а тумблером
+        на экране «Доступ к данным использования», зато, в отличие от accessibility, ПЕРЕЖИВАЕТ
+        force-stop — на этом и держится досчёт.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />

@@ -1,6 +1,7 @@
 package ru.homelab.kidguard.platform.permissions
 
 import android.annotation.SuppressLint
+import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -41,10 +42,29 @@ class PermissionsManager @Inject constructor(
         DevicePermission.BATTERY_OPTIMIZATION -> isIgnoringBatteryOptimizations()
         DevicePermission.NOTIFICATIONS -> NotificationManagerCompat.from(context).areNotificationsEnabled()
         DevicePermission.VPN -> VpnService.prepare(context) == null
+        DevicePermission.USAGE_ACCESS -> isUsageAccessGranted()
+
         DevicePermission.EMERGENCY_CALL -> ContextCompat.checkSelfPermission(
             context, android.Manifest.permission.CALL_PHONE
         ) == PackageManager.PERMISSION_GRANTED
     }
+
+    /**
+     * Доступ к системной статистике использования. Проверяется через `AppOpsManager`, а не
+     * `checkSelfPermission`: `PACKAGE_USAGE_STATS` объявляется в манифесте, но выдаётся не как
+     * обычное разрешение, а тумблером на отдельном системном экране, и `checkSelfPermission` для
+     * него всегда возвращает «отказано».
+     */
+    private fun isUsageAccessGranted(): Boolean = runCatching {
+        val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false
+        val mode = appOps.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            android.os.Process.myUid(),
+            context.packageName
+        )
+        mode == AppOpsManager.MODE_ALLOWED
+    }.onFailure { Timber.w(it, "Не удалось проверить доступ к статистике использования") }
+        .getOrDefault(false)
 
     /**
      * Интент, ведущий в системный экран выдачи разрешения (или null, если не требуется).
@@ -74,6 +94,11 @@ class PermissionsManager @Inject constructor(
 
         DevicePermission.VPN ->
             VpnService.prepare(context)
+
+        // Общий экран «Доступ к данным использования»: адресного, для одного приложения, у
+        // платформы нет — пользователь находит KidGuard в списке сам.
+        DevicePermission.USAGE_ACCESS ->
+            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
 
         // Runtime-разрешение: выдаётся системным диалогом, а не экраном настроек — интента нет,
         // мастер запрашивает его своим launcher'ом.
