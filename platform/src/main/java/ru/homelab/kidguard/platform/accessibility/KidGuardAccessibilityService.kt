@@ -120,6 +120,16 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private var recentsInterceptRunning = false
 
     /**
+     * До этого момента (elapsedRealtime) события о списке последних игнорируем.
+     *
+     * Нужно из-за «хвоста»: когда ребёнок отказывается от PIN, мы уводим его на домашний экран, но
+     * лаунчер успевает прислать ещё одно событие о списке — и оверлей тут же выскакивал повторно.
+     * Домашний экран собственных событий не шлёт, так что дождаться смены экрана нечем — отсюда
+     * окно по времени.
+     */
+    private var recentsIgnoredUntil = 0L
+
+    /**
      * Пакеты, чьи окна мы хотя бы раз видели служебными (шторка, навбар, AOD, клавиатура). Список
      * набирается наблюдением, а не хардкодом: на каждой прошивке оболочка своя, а ошибиться в имени
      * пакета — значит снова начать засчитывать её как приложение. Нужен для событий от окон,
@@ -305,6 +315,10 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // Флаг синхронный, в отличие от pinOverlayManager.isShowing(): показ идёт через
         // mainHandler, и второе событие о списке (его шлёт лаунчер) успевало проскочить в щель.
         if (recentsInterceptRunning || pinOverlayManager.isShowing()) return
+        if (SystemClock.elapsedRealtime() < recentsIgnoredUntil) {
+            Timber.tag(TAG).d("Список последних только что закрыли — пропускаю событие")
+            return
+        }
         recentsInterceptRunning = true
         pinOverlayScreen = CriticalScreen.RECENTS
         pinOverlayManager.show(
@@ -319,6 +333,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
             onCancel = {
                 pinOverlayScreen = null
                 recentsInterceptRunning = false
+                recentsIgnoredUntil = SystemClock.elapsedRealtime() + RECENTS_SETTLE_MS
                 // ВОТ ЗДЕСЬ уводим ребёнка, а не до показа оверлея. Так вышло не от красоты:
                 // закрыть список ДО оверлея не удаётся — лаунчер остаётся в режиме списка, и
                 // после закрытия оверлея система показывает его снова (проверено на эмуляторе и
@@ -674,6 +689,12 @@ class KidGuardAccessibilityService : AccessibilityService() {
         const val UNLOCK_WINDOW_MS = 20_000L
         /** Две минуты родителю на разбор карточек в списке последних (решение Володи 06.09.2026). */
         const val RECENTS_UNLOCK_WINDOW_MS = 120_000L
+        /**
+         * Сколько после отказа от PIN не реагировать на события списка последних. Лаунчер шлёт их
+         * ещё некоторое время после того, как мы ушли на домашний экран, и без этой паузы оверлей
+         * выскакивал вторично.
+         */
+        const val RECENTS_SETTLE_MS = 1_200L
         // Опрос содержимого окна для [awaitOwnAppScreen]: до ~600 мс. Содержимое доезжает позже
         // события смены окна; за это время ребёнок физически не успеет ничего нажать, а чужие
         // экраны столько не задерживают (просто не совпадут и уйдут).
