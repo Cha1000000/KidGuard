@@ -23,6 +23,9 @@ import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
+import ru.homelab.kidguard.core.domain.usecase.WindowKind
+import ru.homelab.kidguard.core.domain.usecase.WindowSnapshot
+import ru.homelab.kidguard.core.domain.usecase.resolveForegroundPackage
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.MAX_TREE_DEPTH
 import ru.homelab.kidguard.platform.accessibility.KidGuardAccessibilityService.Companion.UNLOCK_WINDOW_MS
 import ru.homelab.kidguard.platform.overlay.PinOverlayManager
@@ -94,6 +97,21 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private val lastUnlockedAt = mutableMapOf<CriticalScreen, Long>()
 
     /**
+     * Пакет каждого известного окна: `windowId -> packageName`. Наполняется из событий прикладных
+     * окон, где имя приходит даром, и избавляет от похода за `root` при каждом пересчёте стека
+     * (см. [windowSnapshots]). Закрытые окна вычищаются там же.
+     */
+    private val windowPackages = mutableMapOf<Int, String>()
+
+    /**
+     * Пакеты, чьи окна мы хотя бы раз видели служебными (шторка, навбар, AOD, клавиатура). Список
+     * набирается наблюдением, а не хардкодом: на каждой прошивке оболочка своя, а ошибиться в имени
+     * пакета — значит снова начать засчитывать её как приложение. Нужен для событий от окон,
+     * которых в стеке уже нет, — см. [updateForeground].
+     */
+    private val shellPackages = mutableSetOf<String>()
+
+    /**
      * Пакеты системных настроек и пакет-инсталлера — СПРАШИВАЕМ У СИСТЕМЫ, а не хардкодим:
      * на кастомных прошивках (HiOS/Transsion, MIUI, EMUI) инсталлер может называться по-своему
      * (`com.transsion.*` и т.п.), и тогда защита от удаления просто не сработала бы. К найденному
@@ -161,15 +179,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // исключительно на TYPE_WINDOW_STATE_CHANGED.
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             if (isRelevantWindowChange(event)) {
-                topApplicationPackage()?.let { foregroundAppMonitor.update(it) }
+                refreshForegroundFromWindows()
             }
             return
         }
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val packageName = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
-        foregroundAppMonitor.update(packageName)
-        Timber.tag(TAG).d("Активное приложение: %s", packageName)
+        updateForeground(event.windowId, packageName)
 
         val title = screenTitle(event)
         // Диагностический лог (только debug — Timber-дерево плантится лишь в debug-сборке): по нему
@@ -242,21 +259,108 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private suspend fun verifyPin(entered: String): PinVerifyResult = pinGuard.verify(entered)
 
     /**
-     * Верхнее прикладное окно — источник переднего плана для ветки `TYPE_WINDOWS_CHANGED`.
-     * Фильтр по [AccessibilityWindowInfo.TYPE_APPLICATION] исключает наши собственные оверлеи
-     * (они `TYPE_ACCESSIBILITY_OVERLAY`/`TYPE_APPLICATION_OVERLAY`), `maxByOrNull { layer }`
-     * берёт самое верхнее из прикладных окон. `root` может быть `null` (окно без извлекаемого
-     * содержимого) — тогда просто не обновляем, держим последнее известное значение.
+     * Передний план по событию смены окна.
+     *
+     * `event.packageName` — это пакет ОКНА, а не приложения на экране, и доверять ему можно только
+     * когда окно прикладное. Событие `TYPE_WINDOW_STATE_CHANGED` шлёт каждое окно: шторка
+     * уведомлений, панель громкости, навбар, always-on display, клавиатура, тост. Раньше монитор
+     * обновлялся безусловно — и оболочка подменяла собой приложение, а значение залипало до
+     * следующего события. За неделю так набежало 459 минут на `com.android.systemui`, которого
+     * система вообще не считает бывавшим на переднем плане (см. [resolveForegroundPackage]).
+     *
+     * Событие от служебного окна не выбрасываем: оно как раз повод пересчитать, что осталось под
+     * шторкой — иначе после её закрытия приложение вернулось бы в монитор только со следующим
+     * своим событием, которого может и не быть.
      */
-    private fun topApplicationPackage(): String? = try {
-        windows
-            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
-            .maxByOrNull { it.layer }
-            ?.root?.packageName?.toString()
-            ?.takeIf { it.isNotBlank() }
+    private fun updateForeground(windowId: Int, packageName: String) {
+        when (windowKind(windowId)) {
+            WindowKind.APPLICATION -> {
+                windowPackages[windowId] = packageName
+                foregroundAppMonitor.update(packageName)
+                Timber.tag(TAG).d("Активное приложение: %s", packageName)
+            }
+            // Окна события в стеке нет — судить не по чему, решаем по прошлому опыту с этим
+            // пакетом. Случая два, и они требуют противоположного: окно нового приложения ещё
+            // не доехало до getWindows() (верить событию, иначе блокировка запоздает) либо окно
+            // оболочки уже закрылось (верить стеку, иначе шторка на миг подменит приложение —
+            // ровно это и ловилось в логе при закрытии шторки).
+            null -> if (packageName in shellPackages) {
+                refreshForegroundFromWindows()
+            } else {
+                foregroundAppMonitor.update(packageName)
+                Timber.tag(TAG).d("Активное приложение: %s", packageName)
+            }
+            else -> {
+                // Пакет опознан как оболочка на факте, а не по списку констант: мы своими глазами
+                // видели его окно служебным. Так это работает на любой прошивке.
+                shellPackages += packageName
+                Timber.tag(TAG).d("Событие служебного окна [%s] — пересчитываю передний план", packageName)
+                refreshForegroundFromWindows()
+            }
+        }
+    }
+
+    /**
+     * Пересчёт переднего плана по текущему стеку окон.
+     *
+     * `null` (прикладных окон нет — экран блокировки, AOD) намеренно НЕ сбрасывает монитор:
+     * пустой ответ бывает и в момент переключения между экранами, а обнулённый передний план на
+     * мгновение снял бы блокировку. Учёт времени в такие моменты и так стоит — `ScreenTimeTracker`
+     * проверяет, что экран включён и разблокирован.
+     */
+    private fun refreshForegroundFromWindows() {
+        val foreground = resolveForegroundPackage(windowSnapshots()) ?: return
+        foregroundAppMonitor.update(foreground)
+        Timber.tag(TAG).d("Активное приложение (по стеку окон): %s", foreground)
+    }
+
+    /**
+     * Снимок стека окон для [resolveForegroundPackage].
+     *
+     * Имя пакета у окна берём из кэша [windowPackages], и только при промахе дёргаем `root` —
+     * он создаёт `AccessibilityNodeInfo` через IPC, а пересчёт идёт на каждое релевантное событие.
+     * Кэш заодно чинит старую дыру: `root` бывает `null` у окна без извлекаемого содержимого, и
+     * тогда верхнее прикладное окно считалось безымянным, а монитор оставался залипшим.
+     */
+    private fun windowSnapshots(): List<WindowSnapshot> = try {
+        val live = windows
+        // Закрытые окна из кэша убираем сразу: id переиспользуются, и чужое имя было бы хуже,
+        // чем его отсутствие.
+        windowPackages.keys.retainAll(live.mapTo(mutableSetOf()) { it.id })
+        live.map { window ->
+            val kind = windowKindOf(window.type)
+            val packageName = if (kind == WindowKind.APPLICATION) {
+                windowPackages[window.id]
+                    ?: window.root?.packageName?.toString()?.takeIf { it.isNotBlank() }
+                        ?.also { windowPackages[window.id] = it }
+            } else {
+                null
+            }
+            WindowSnapshot(id = window.id, kind = kind, layer = window.layer, packageName = packageName)
+        }
     } catch (e: Exception) {
-        Timber.tag(TAG).w(e, "Не удалось определить верхнее прикладное окно")
+        Timber.tag(TAG).w(e, "Не удалось прочитать стек окон")
+        emptyList()
+    }
+
+    /**
+     * Род окна, к которому относится событие, или `null` — окна в стеке нет (ещё не появилось или
+     * уже закрылось) и судить не по чему. Разница важна: «неизвестно» и «служебное» ведут к разным
+     * решениям в [updateForeground].
+     */
+    private fun windowKind(windowId: Int): WindowKind? = try {
+        windows.firstOrNull { it.id == windowId }?.let { windowKindOf(it.type) }
+    } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "Не удалось определить род окна %d", windowId)
         null
+    }
+
+    private fun windowKindOf(type: Int): WindowKind = when (type) {
+        AccessibilityWindowInfo.TYPE_APPLICATION -> WindowKind.APPLICATION
+        AccessibilityWindowInfo.TYPE_SYSTEM -> WindowKind.SYSTEM
+        AccessibilityWindowInfo.TYPE_INPUT_METHOD -> WindowKind.INPUT_METHOD
+        AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY -> WindowKind.OVERLAY
+        else -> WindowKind.OTHER
     }
 
     /**
