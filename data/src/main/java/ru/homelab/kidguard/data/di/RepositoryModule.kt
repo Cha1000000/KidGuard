@@ -4,6 +4,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import ru.homelab.kidguard.core.domain.repository.AlertSettingsRepository
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
 import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
@@ -16,6 +17,7 @@ import ru.homelab.kidguard.core.domain.repository.ChildAlertStore
 import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
+import ru.homelab.kidguard.data.alerts.AlertSettingsRepositoryImpl
 import ru.homelab.kidguard.data.auth.AuthRepositoryImpl
 import ru.homelab.kidguard.data.bonus.BonusRepositoryImpl
 import ru.homelab.kidguard.data.penalty.PenaltyRepositoryImpl
@@ -37,6 +39,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindChildAlertStore(impl: ChildAlertStoreImpl): ChildAlertStore
+
+    @Binds
+    @Singleton
+    abstract fun bindAlertSettingsRepository(impl: AlertSettingsRepositoryImpl): AlertSettingsRepository
 
     @Binds
     @Singleton

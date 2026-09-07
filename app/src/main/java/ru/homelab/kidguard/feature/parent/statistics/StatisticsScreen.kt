@@ -69,6 +69,7 @@ import java.util.Locale
 @Composable
 fun StatisticsScreen(
     onOpenAbout: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: StatisticsViewModel = hiltViewModel()
@@ -82,7 +83,11 @@ fun StatisticsScreen(
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(
             stringResource(R.string.parent_tab_statistics),
-            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+            actions = { ParentMenu(
+                    onOpenAbout = onOpenAbout,
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenAccount = onOpenAccount
+                ) }
         )
         if (!uiState.noChildren) ChildSelectorChip()
 

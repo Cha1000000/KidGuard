@@ -42,13 +42,18 @@ fun RulesScreen(
     onOpenWhitelist: () -> Unit,
     onOpenPinProtection: () -> Unit,
     onOpenAbout: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(
             stringResource(R.string.parent_tab_rules),
-            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+            actions = { ParentMenu(
+                    onOpenAbout = onOpenAbout,
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenAccount = onOpenAccount
+                ) }
         )
         ChildSelectorChip()
         // LazyColumn, а не Column: на невысоких экранах 7 карточек (+ заголовки секций) не

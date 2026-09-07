@@ -35,6 +35,7 @@ import ru.homelab.kidguard.feature.parent.about.SupportScreen
 import ru.homelab.kidguard.feature.parent.about.TermsScreen
 import ru.homelab.kidguard.feature.parent.account.AccountScreen
 import ru.homelab.kidguard.feature.parent.children.ChildrenScreen
+import ru.homelab.kidguard.feature.parent.notifications.NotificationsScreen
 import ru.homelab.kidguard.feature.parent.rules.AppLimitsScreen
 import ru.homelab.kidguard.feature.parent.rules.BlockedAppsScreen
 import ru.homelab.kidguard.feature.parent.rules.BlockedSitesScreen
@@ -55,6 +56,7 @@ private const val ROUTE_RULES_SCHEDULE = "parent/rules/schedule"
 private const val ROUTE_RULES_PIN = "parent/rules/pin"
 private const val ROUTE_RULES_BREAKS = "parent/rules/breaks"
 private const val ROUTE_ACCOUNT = "parent/account"
+private const val ROUTE_NOTIFICATIONS = "parent/notifications"
 private const val ROUTE_ABOUT = "parent/about"
 private const val ROUTE_GUIDE = "parent/about/guide"
 private const val ROUTE_PRIVACY = "parent/about/privacy"
@@ -94,6 +96,7 @@ fun ParentScreen(
             composable(ParentTab.CHILDREN.route) {
                 ChildrenScreen(
                     onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) },
                     onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
                 )
             }
@@ -107,6 +110,7 @@ fun ParentScreen(
                     onOpenWhitelist = { navController.navigate(ROUTE_RULES_WHITELIST) },
                     onOpenPinProtection = { navController.navigate(ROUTE_RULES_PIN) },
                     onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) },
                     onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
                 )
             }
@@ -143,8 +147,12 @@ fun ParentScreen(
             composable(ParentTab.STATISTICS.route) {
                 StatisticsScreen(
                     onOpenAbout = { navController.navigate(ROUTE_ABOUT) },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) },
                     onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
                 )
+            }
+            composable(ROUTE_NOTIFICATIONS) {
+                NotificationsScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_ACCOUNT) {
                 AccountScreen(

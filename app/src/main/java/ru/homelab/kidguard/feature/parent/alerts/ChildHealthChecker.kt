@@ -2,6 +2,7 @@ package ru.homelab.kidguard.feature.parent.alerts
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import ru.homelab.kidguard.core.domain.repository.AlertSettingsRepository
 import ru.homelab.kidguard.core.domain.repository.ChildAlertStore
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.usecase.childAlert
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 class ChildHealthChecker @Inject constructor(
     private val childRepository: ChildRepository,
     private val alertStore: ChildAlertStore,
+    private val alertSettings: AlertSettingsRepository,
     private val notifier: ParentAlertNotifier
 ) {
 
@@ -52,8 +54,19 @@ class ChildHealthChecker @Inject constructor(
                 alert.childName,
                 if (alert.silent) "устройство молчит" else alert.brokenPermissions.toString()
             )
+            // Родитель мог отписаться от шторки по этому ребёнку (экран «Оповещения»). Фильтр
+            // стоит здесь, а не на сервере: WS-событие лишь будит клиента «сходи проверь», и одна
+            // эта проверка накрывает сразу все три пути пробуждения — воркер, WS и вход в
+            // приложение. Флаг читается из локального кэша, сеть для него не нужна.
+            if (!alertSettings.pushEnabled(child.id)) {
+                Timber.tag(TAG).d("Уведомления о %s выключены родителем — не показываю", alert.childName)
+                return@forEach
+            }
             notifier.show(alert)
         }
+        // Снимок сохраняем для ВСЕХ детей, включая тех, чьи уведомления выключены: иначе, включив
+        // канал обратно, родитель получил бы тревогу о поломке, случившейся при выключенном
+        // канале, как о свежей.
         alertStore.save(children)
         return true
     }

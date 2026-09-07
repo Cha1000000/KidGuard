@@ -54,6 +54,7 @@ private sealed interface ChildrenSheet {
 @Composable
 fun ChildrenScreen(
     onOpenAbout: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChildrenViewModel = hiltViewModel()
@@ -68,7 +69,11 @@ fun ChildrenScreen(
     Column(modifier = modifier.fillMaxSize()) {
         ScreenTitle(
             stringResource(R.string.parent_tab_children),
-            actions = { ParentMenu(onOpenAbout = onOpenAbout, onOpenAccount = onOpenAccount) }
+            actions = { ParentMenu(
+                    onOpenAbout = onOpenAbout,
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenAccount = onOpenAccount
+                ) }
         )
 
         val pullToRefreshState = rememberPullToRefreshState()

@@ -69,7 +69,29 @@
     <!-- Меню родителя («три точки») -->
     <string name="parent_menu_open_cd">Открыть меню</string>
     <string name="parent_menu_about">О приложении</string>
+    <string name="parent_menu_notifications">Оповещения</string>
     <string name="parent_menu_account">Аккаунт</string>
+
+    <!-- Оповещения: каким каналом звать родителя по каждому ребёнку -->
+    <string name="notifications_title">Оповещения</string>
+    <string name="notifications_section_email">Куда присылать письма</string>
+    <string name="notifications_email_label">Адрес для писем</string>
+    <string name="notifications_email_clear_cd">Очистить поле</string>
+    <string name="notifications_email_save">Сохранить</string>
+    <string name="notifications_email_invalid">Похоже, в адресе опечатка</string>
+    <string name="notifications_email_account_hint">Адрес аккаунта — %1$s. Очистите поле, чтобы вернуться к нему.</string>
+    <string name="notifications_email_verification_sent">Отправили проверочное письмо на %1$s. Если оно не пришло — адрес указан неверно.</string>
+    <string name="notifications_email_verification_failed">Адрес сохранён, но проверочное письмо отправить не удалось. Проверьте его позже.</string>
+    <string name="notifications_email_reset_done">Письма снова будут приходить на адрес аккаунта.</string>
+    <string name="notifications_email_unused">Письма выключены у всех детей — этот адрес сейчас не используется.</string>
+    <string name="notifications_section_children">О ком присылать</string>
+    <string name="notifications_channel_push">В шторку</string>
+    <string name="notifications_channel_email">На почту</string>
+    <string name="notifications_warning">Выключив оба канала, вы не узнаете, если контроль на телефоне ребёнка перестанет работать.</string>
+    <string name="notifications_empty">Пока нет ни одного ребёнка. Добавьте его на вкладке «Дети».</string>
+    <string name="notifications_load_error">Не удалось загрузить настройки. Проверьте подключение.</string>
+    <string name="notifications_retry">Повторить</string>
+    <string name="notifications_save_error">Не удалось сохранить. Проверьте подключение и попробуйте снова.</string>
 
     <!-- Аккаунт: выход и удаление -->
     <string name="account_title">Аккаунт</string>

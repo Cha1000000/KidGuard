@@ -34,7 +34,12 @@ data class ChildDto(
     val health: DeviceHealthDto? = null,
     // Дефолт false нужен для совместимости со старым сервером, который поля ещё не отдаёт:
     // худшее, что случится, — диалог удаления не покажет подсказку про второго родителя.
-    val hasCoParent: Boolean = false
+    val hasCoParent: Boolean = false,
+    // Дефолт true у обоих (веха «Оповещения»): совместимость со старым сервером, который эти поля
+    // ещё не отдаёт — до фичи уведомления были включены всегда, и молчание сервера не должно тихо
+    // менять это поведение на «выключено».
+    val notifyPush: Boolean = true,
+    val notifyEmail: Boolean = true
 )
 
 @Serializable
@@ -62,6 +67,20 @@ data class DevicePairChildDto(val id: Int, val name: String, val avatar: Int = 0
 data class DevicePairResponse(val token: String, val child: DevicePairChildDto)
 
 /**
+ * Патч подписки родителя на тревоги по одному ребёнку (экран «Оповещения»). Оба поля — с дефолтом
+ * `null` и НЕ обязательны специально: Json в [NetworkModule] собран с настройками kotlinx по
+ * умолчанию (`encodeDefaults = false`), поэтому поле, оставшееся равным своему дефолту, в тело
+ * запроса вообще не попадает — незаданный канал просто не уедет на сервер, и тот его не тронет.
+ * Если когда-нибудь понадобится реально отправлять `null` (не «не менять», а «сбросить») — это
+ * НЕ такой случай, смотри [UpdateAlertEmailRequest] в AuthApi, где решение обратное.
+ */
+@Serializable
+data class ChildNotificationsRequest(val notifyPush: Boolean? = null, val notifyEmail: Boolean? = null)
+
+@Serializable
+data class ChildNotificationsResponse(val ok: Boolean = true)
+
+/**
  * Дети и pairing (веха 4.2). Запросы `/children*` требуют родительский JWT (добавляет
  * [AuthTokenInterceptor]); `/device/pair` — точка входа детского устройства, токена не требует.
  * Контракт — docs/plans/milestone-04-accounts-backend-sync.md.
@@ -85,6 +104,12 @@ interface ChildrenApi {
 
     @DELETE("children/{childId}")
     suspend fun deleteChild(@Path("childId") childId: Int): DeleteChildResponse
+
+    @PATCH("children/{childId}/notifications")
+    suspend fun updateNotifications(
+        @Path("childId") childId: Int,
+        @Body request: ChildNotificationsRequest
+    ): ChildNotificationsResponse
 
     @POST("device/pair")
     suspend fun pairDevice(@Body request: DevicePairRequest): DevicePairResponse

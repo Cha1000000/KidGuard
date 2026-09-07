@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -23,9 +24,18 @@ import ru.homelab.kidguard.R
  * Меню «три точки» родительского режима — одинаковое на всех трёх вкладках (Дети / Правила /
  * Статистика), см. [ScreenTitle][ru.homelab.kidguard.core.ui.components.ScreenTitle]. Устроено
  * по образцу `ChildMenu` из детского режима (TodayScreen).
+ *
+ * «Оповещения» тут, а не в карточке ребёнка, потому что это ЛИЧНАЯ настройка родителя (каким
+ * каналом звать именно его), тогда как правила у ребёнка общие для обоих родителей. Рядом на
+ * одном экране эти две природы путались бы. Когда настроек станет больше, пункт переедет внутрь
+ * раздела «Настройки» — это одна строка здесь и один роут в ParentScreen.
  */
 @Composable
-fun ParentMenu(onOpenAbout: () -> Unit, onOpenAccount: () -> Unit) {
+fun ParentMenu(
+    onOpenAbout: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    onOpenAccount: () -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -42,6 +52,14 @@ fun ParentMenu(onOpenAbout: () -> Unit, onOpenAccount: () -> Unit) {
                 onClick = {
                     expanded = false
                     onOpenAbout()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.parent_menu_notifications)) },
+                leadingIcon = { Icon(Icons.Filled.Notifications, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onOpenNotifications()
                 }
             )
             DropdownMenuItem(

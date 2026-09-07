@@ -3,21 +3,15 @@ package ru.homelab.kidguard.data.children
 import ru.homelab.kidguard.core.domain.model.AppInfo
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.ChildWithCode
-import ru.homelab.kidguard.core.domain.model.DeviceHealth
-import ru.homelab.kidguard.core.domain.model.ProcessExitKind
-import ru.homelab.kidguard.core.domain.model.ProcessExitRecord
 import ru.homelab.kidguard.core.domain.model.UsageEntry
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.data.network.AppsApi
-import ru.homelab.kidguard.data.network.ChildDto
 import ru.homelab.kidguard.data.network.ChildrenApi
 import ru.homelab.kidguard.data.network.CoParentRequest
 import ru.homelab.kidguard.data.network.CreateChildRequest
-import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.UpdateChildRequest
 import ru.homelab.kidguard.data.network.UsageApi
-import timber.log.Timber
-import java.time.Instant
+import ru.homelab.kidguard.data.network.toDomain
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -90,55 +84,6 @@ class ChildRepositoryImpl @Inject constructor(
         Result.failure(error)
     }
 
-    private fun ChildDto.toDomain() = Child(
-        id = id,
-        name = name,
-        avatar = avatar,
-        paired = paired,
-        lastSeenAt = parseLastSeen(lastSeenAt),
-        health = health?.toDomain(),
-        hasCoParent = hasCoParent
-    )
-
-    /**
-     * Кривую метку времени от сервера глотаем: список детей — основной экран родителя, ронять его
-     * из-за необязательного watchdog-поля нельзя. Родитель увидит «нет данных», а не ошибку.
-     */
-    private fun parseLastSeen(raw: String?): Instant? = raw?.let {
-        runCatching { Instant.parse(it) }
-            .onFailure { e -> Timber.w(e, "Не разобрал lastSeenAt: %s", raw) }
-            .getOrNull()
-    }
-
-    private fun DeviceHealthDto.toDomain() = DeviceHealth(
-        accessibility = accessibility,
-        overlay = overlay,
-        deviceAdmin = deviceAdmin,
-        vpn = vpn,
-        batteryOptimization = batteryOptimization,
-        lastExit = toLastExit()
-    )
-
-    /**
-     * Причина смерти нужна целиком или никак: без времени её нечего показать родителю, а незнакомое
-     * имя вида нового ProcessExitKind (ребёнок обновился раньше родителя) не должно ронять список
-     * детей — в этом случае просто считаем, что данных нет.
-     */
-    private fun DeviceHealthDto.toLastExit(): ProcessExitRecord? {
-        val kindName = lastExitKind ?: return null
-        val at = lastExitAt?.let { raw ->
-            runCatching { Instant.parse(raw) }
-                .onFailure { e -> Timber.w(e, "Не разобрал lastExitAt: %s", raw) }
-                .getOrNull()
-        } ?: return null
-        val kind = runCatching { ProcessExitKind.valueOf(kindName) }.getOrNull() ?: return null
-        return ProcessExitRecord(
-            at = at,
-            kind = kind,
-            description = lastExitDescription.orEmpty(),
-            // Сырые коды по сети не возим: родителю они не нужны, а для диагностики есть description.
-            rawReason = 0,
-            rawSubreason = 0
-        )
-    }
+    // Разбор ChildDto -> Child (lastSeenAt/health/lastExit) вынесен в ChildMappers.kt: тот же DTO
+    // с той же кривой watchdog-разметкой разбирает и AlertSettingsRepositoryImpl.
 }
