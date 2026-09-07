@@ -92,10 +92,37 @@ class AlertSettingsRepositoryImpl @Inject constructor(
         Result.failure(error)
     }
 
-    override suspend fun pushEnabled(childId: Int): Boolean =
-        // Неизвестный ребёнок (кэш ещё не наполнен load()'ом, либо это вообще не наш ребёнок) —
-        // true, как и требует контракт: тревога важнее аккуратности умолчания.
-        context.alertPrefsDataStore.data.first()[pushKey(childId)] ?: true
+    override suspend fun pushFlags(): Map<Int, Boolean> {
+        // Сеть — первый источник, кэш — запасной. Кэш обновляется только когда родитель откроет
+        // экран «Оповещения» или сам двинет тумблер, поэтому он легко отстаёт: флаг, включённый с
+        // другого устройства, сюда не доедет. Устаревшее «выключено» при этом молча гасит
+        // единственный сигнал о поломке контроля, так что лишний запрос раз в 15 минут — цена,
+        // которую стоит платить.
+        val fresh = runCatching { childrenApi.listChildren().children }.getOrNull()
+        if (fresh != null) {
+            context.alertPrefsDataStore.edit { prefs ->
+                fresh.forEach { child -> prefs[pushKey(child.id)] = child.notifyPush }
+            }
+            return fresh.associate { it.id to it.notifyPush }
+        }
 
-    private fun pushKey(childId: Int) = booleanPreferencesKey("push_$childId")
+        // Сети нет: отдаём последнее известное. Ребёнка, которого в кэше нет, здесь просто не
+        // будет — вызывающий трактует отсутствие как «показывать».
+        return context.alertPrefsDataStore.data.first().asMap()
+            .mapNotNull { (key, value) ->
+                val id = key.name.removePrefix(PUSH_KEY_PREFIX).toIntOrNull()
+                if (key.name.startsWith(PUSH_KEY_PREFIX) && id != null && value is Boolean) {
+                    id to value
+                } else {
+                    null
+                }
+            }
+            .toMap()
+    }
+
+    private fun pushKey(childId: Int) = booleanPreferencesKey("$PUSH_KEY_PREFIX$childId")
+
+    private companion object {
+        const val PUSH_KEY_PREFIX = "push_"
+    }
 }

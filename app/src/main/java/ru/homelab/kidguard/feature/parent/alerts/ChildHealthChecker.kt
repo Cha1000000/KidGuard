@@ -46,6 +46,8 @@ class ChildHealthChecker @Inject constructor(
         val children = childRepository.listChildren().getOrElse { return false }
         // Снимок читаем один раз: внутри цикла это было бы чтение DataStore на каждого ребёнка.
         val previous = alertStore.previous()
+        // Флаги каналов — тоже один раз и до цикла, по той же причине.
+        val pushFlags = alertSettings.pushFlags()
         children.forEach { child ->
             val alert = childAlert(previous = previous[child.id], current = child, now = now)
                 ?: return@forEach
@@ -57,8 +59,12 @@ class ChildHealthChecker @Inject constructor(
             // Родитель мог отписаться от шторки по этому ребёнку (экран «Оповещения»). Фильтр
             // стоит здесь, а не на сервере: WS-событие лишь будит клиента «сходи проверь», и одна
             // эта проверка накрывает сразу все три пути пробуждения — воркер, WS и вход в
-            // приложение. Флаг читается из локального кэша, сеть для него не нужна.
-            if (!alertSettings.pushEnabled(child.id)) {
+            // приложение.
+            //
+            // Сравнение именно с `false`: отсутствие ребёнка в карте означает «неизвестно» (сервер
+            // старый, кэш пуст) и трактуется как «показывать». Молчать можно только тогда, когда
+            // родитель ЯВНО этого попросил.
+            if (pushFlags[child.id] == false) {
                 Timber.tag(TAG).d("Уведомления о %s выключены родителем — не показываю", alert.childName)
                 return@forEach
             }
