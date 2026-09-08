@@ -149,6 +149,15 @@ class SyncRepositoryImpl @Inject constructor(
                     is WsEvent.ChildPaired -> childPairedEvents.tryEmit(event.childId)
 
                     is WsEvent.ChildHealthChanged -> childHealthEvents.tryEmit(event.childId)
+
+                    // Переподключение WS — подтянуть свежее состояние активного ребёнка, чтобы
+                    // не ждать следующего 15-минутного пула, если правка второго родителя
+                    // прилетела в момент разрыва.
+                    WsEvent.Reconnected -> {
+                        val childId = activeChildId.first() ?: return@collect
+                        runCatching { pullAndApply(childId) }
+                            .onFailure { Timber.tag(TAG).w(it, "Pull после переподключения не удался") }
+                    }
                 }
             }
         }
@@ -234,10 +243,33 @@ class SyncRepositoryImpl @Inject constructor(
         // периодический pull ниже остаётся страховкой на случай долгого разрыва WS.
         launch {
             policySocket.events().collect { event ->
-                if (event !is WsEvent.PolicyChanged) return@collect
-                runCatching {
-                    if (event.childId == authLocalStore.pairedChildId()) pullAndApply(event.childId)
-                }.onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+                // Лог обязателен: без него незапривязанное устройство молча глотает ВСЕ события
+                // push-канала, и в логах это неотличимо от «сервер ничего не слал» — на разбор
+                // такой тишины уходит несоразмерно много времени.
+                val childId = authLocalStore.pairedChildId() ?: run {
+                    Timber.tag(TAG).d("WS-событие пришло, но устройство не привязано — пропускаю")
+                    return@collect
+                }
+                when (event) {
+                    is WsEvent.PolicyChanged -> {
+                        if (event.childId == childId) {
+                            runCatching { pullAndApply(event.childId) }
+                                .onFailure { Timber.tag(TAG).w(it, "Pull по WS-сигналу не удался") }
+                        }
+                    }
+                    // Переподключились после разрыва — подтянуть всё, что могло прийти
+                    // в офлайне (например, отключение расписания родителем), не дожидаясь
+                    // очередного 15-минутного пула.
+                    WsEvent.Reconnected -> {
+                        runCatching { pullAndApply(childId) }
+                            .onFailure { Timber.tag(TAG).w(it, "Pull после переподключения не удался") }
+                    }
+
+                    // Перечислены явно, а не через `else`: when остаётся исчерпывающим, и новый
+                    // тип события компилятор заставит осознанно разобрать и здесь, а не даст
+                    // молча проглотить его на детском устройстве.
+                    is WsEvent.ChildPaired, is WsEvent.ChildHealthChanged -> Unit
+                }
             }
         }
 

@@ -27,3 +27,7 @@ local.properties
 *.keystore
 *.p12
 keystore.properties
+
+# Артефакты локальных MCP-серверов (создаются в корне при запуске сессии агента).
+mcp_audit.db
+mcp_security.log
