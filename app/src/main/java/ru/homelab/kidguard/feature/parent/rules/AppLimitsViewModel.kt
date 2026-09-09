@@ -29,11 +29,19 @@ data class AppLimitUi(
     val limitMinutes: Int?,
     /** Израсходовано этим приложением сегодня (минут). */
     val spentMinutes: Int,
-    /** Активное «Дополнительное время» приложения на сегодня (минут). */
+    /** Выданное приложению на сегодня «Дополнительное время» (минут, суммарно за день). */
     val bonusMinutes: Int,
+    /** Сколько из выданного уже израсходовано (минут). Тратится только при исчерпанном общем лимите. */
+    val bonusSpentMinutes: Int,
     val isSystem: Boolean,
     val isRisky: Boolean
-)
+) {
+    /** Остаток выданного времени; ноль — либо не выдавали, либо уже израсходовано. */
+    val bonusMinutesLeft: Int get() = (bonusMinutes - bonusSpentMinutes).coerceAtLeast(0)
+
+    /** Приложение сейчас открыто выданным временем поверх общего лимита. */
+    val hasActiveBonus: Boolean get() = bonusMinutesLeft > 0
+}
 
 @HiltViewModel
 class AppLimitsViewModel @Inject constructor(
@@ -55,8 +63,9 @@ class AppLimitsViewModel @Inject constructor(
             childApps,
             policyRepository.appLimits,
             usageRepository.appScreenTimeByPackage(today),
-            bonusRepository.appBonusMinutes(today)
-        ) { apps, limits, usedByPackage, bonusByPackage ->
+            bonusRepository.appBonusMinutes(today),
+            usageRepository.appBonusSpentByPackage(today)
+        ) { apps, limits, usedByPackage, bonusByPackage, bonusSpentByPackage ->
             apps
                 .map { app ->
                     AppLimitUi(
@@ -66,6 +75,7 @@ class AppLimitsViewModel @Inject constructor(
                         limitMinutes = limits[app.packageName],
                         spentMinutes = (usedByPackage[app.packageName] ?: 0) / 60,
                         bonusMinutes = bonusByPackage[app.packageName] ?: 0,
+                        bonusSpentMinutes = (bonusSpentByPackage[app.packageName] ?: 0) / 60,
                         isSystem = app.isSystem,
                         isRisky = app.isRisky
                     )
@@ -85,8 +95,19 @@ class AppLimitsViewModel @Inject constructor(
         viewModelScope.launch { bonusRepository.addBonus(currentDateProvider.today(), packageName, minutes) }
     }
 
-    /** Отменить дополнительное время приложения на сегодня. */
+    /**
+     * Отменить дополнительное время приложения на сегодня.
+     *
+     * Расход сбрасывается вместе с выдачей: иначе он пережил бы отмену и погасил бы следующую
+     * выдачу мгновенно. На детском устройстве то же самое делает применение политики при
+     * синхронизации (`SyncRepositoryImpl.resetBonusSpentWhereReduced`) — здесь мы приводим в
+     * порядок родительскую копию, по которой рисуется экран.
+     */
     fun clearAppBonus(packageName: String) {
-        viewModelScope.launch { bonusRepository.clearBonus(currentDateProvider.today(), packageName) }
+        viewModelScope.launch {
+            val today = currentDateProvider.today()
+            bonusRepository.clearBonus(today, packageName)
+            usageRepository.resetAppBonusSpent(today, packageName)
+        }
     }
 }

@@ -10,6 +10,11 @@ import androidx.room.Entity
  * Разделено на два счётчика (Room v12) по той же причине, что и в `screen_time`: [seconds] не
  * превышает личный лимит приложения, время сверх него копится в [overrunSeconds]. Фактическое
  * время в приложении — их сумма.
+ *
+ * [bonusSpentSeconds] (Room v14) стоит особняком: это не третий кусок времени, а **параллельный**
+ * счётчик расхода выданного родителем дополнительного времени. Те же секунды уже посчитаны в
+ * [seconds] или [overrunSeconds], поэтому в сумму «сколько ребёнок пробыл в приложении» он не
+ * входит — иначе время задвоилось бы.
  */
 @Entity(tableName = "app_screen_time", primaryKeys = ["date", "packageName"])
 data class AppScreenTimeEntity(
@@ -17,5 +22,7 @@ data class AppScreenTimeEntity(
     val packageName: String,
     val seconds: Int,
     /** См. комментарий в `ScreenTimeEntity`: DEFAULT нужен для INSERT-ов без этой колонки. */
-    @ColumnInfo(defaultValue = "0") val overrunSeconds: Int = 0
+    @ColumnInfo(defaultValue = "0") val overrunSeconds: Int = 0,
+    /** Израсходовано из выданного этому приложению дополнительного времени (веха «пропуск»). */
+    @ColumnInfo(defaultValue = "0") val bonusSpentSeconds: Int = 0
 )

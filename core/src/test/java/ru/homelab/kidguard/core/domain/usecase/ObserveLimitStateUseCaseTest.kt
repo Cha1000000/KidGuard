@@ -187,6 +187,9 @@ class ObserveLimitStateUseCaseTest {
         override suspend fun addAppOverrunTime(date: LocalDate, packageName: String, seconds: Int) = Unit
         override suspend fun resetScreenTime(date: LocalDate) = Unit
         override suspend fun resetAppScreenTime(date: LocalDate) = Unit
+        override fun appBonusSpentByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppBonusSpentTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+        override suspend fun resetAppBonusSpent(date: LocalDate, packageName: String?) = Unit
     }
 
     private class FakeUsageRepository(private val seconds: Int) : UsageRepository {
@@ -203,6 +206,9 @@ class ObserveLimitStateUseCaseTest {
         override suspend fun addAppOverrunTime(date: LocalDate, packageName: String, seconds: Int) = Unit
         override suspend fun resetScreenTime(date: LocalDate) = Unit
         override suspend fun resetAppScreenTime(date: LocalDate) = Unit
+        override fun appBonusSpentByPackage(date: LocalDate): Flow<Map<String, Int>> = flowOf(emptyMap())
+        override suspend fun addAppBonusSpentTime(date: LocalDate, packageName: String, seconds: Int) = Unit
+        override suspend fun resetAppBonusSpent(date: LocalDate, packageName: String?) = Unit
     }
 
     private class FakeBonusRepository(private val phoneMinutes: Int) : BonusRepository {

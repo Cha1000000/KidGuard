@@ -42,6 +42,12 @@ import ru.homelab.kidguard.R
 fun BonusSection(
     activeBonusMinutes: Int,
     @StringRes subtitleRes: Int,
+    /**
+     * Остаток выданного времени; `null` — расход не отслеживается (бонус телефона). Показывается
+     * прямо в строке «Сегодня выдано», а не отдельной строкой ниже: нижний край bottom-sheet и так
+     * впритык, и добавленная строка уезжала за экран.
+     */
+    bonusMinutesLeft: Int? = null,
     onAdd: (minutes: Int) -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier
@@ -80,7 +86,19 @@ fun BonusSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.bonus_active, formatMinutes(activeBonusMinutes)),
+                        text = when {
+                            bonusMinutesLeft == null || bonusMinutesLeft == activeBonusMinutes ->
+                                stringResource(R.string.bonus_active, formatMinutes(activeBonusMinutes))
+                            bonusMinutesLeft > 0 -> stringResource(
+                                R.string.bonus_active_left,
+                                formatMinutes(activeBonusMinutes),
+                                bonusMinutesLeft
+                            )
+                            else -> stringResource(
+                                R.string.bonus_active_spent,
+                                formatMinutes(activeBonusMinutes)
+                            )
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,

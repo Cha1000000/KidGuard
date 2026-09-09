@@ -489,12 +489,12 @@ class SyncRepositoryImpl @Inject constructor(
                 }
             )
         )
-        bonusRepository.replaceAll(
-            data.bonuses.mapNotNull { dto ->
-                runCatching { BonusGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes) }
-                    .getOrNull()
-            }
-        )
+        val incomingBonuses = data.bonuses.mapNotNull { dto ->
+            runCatching { BonusGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes) }
+                .getOrNull()
+        }
+        resetBonusSpentWhereReduced(incomingBonuses)
+        bonusRepository.replaceAll(incomingBonuses)
         penaltyRepository.replaceAll(
             data.penalties.mapNotNull { dto ->
                 runCatching {
@@ -502,6 +502,34 @@ class SyncRepositoryImpl @Inject constructor(
                 }.getOrNull()
             }
         )
+    }
+
+    /**
+     * Обнуляет израсходованное дополнительное время тех приложений, которым его **уменьшили или
+     * отменили**.
+     *
+     * Отмена бонуса происходит у родителя и доезжает сюда обычным `replaceAll` — запись просто
+     * исчезает из документа. Без этого сброса расход пережил бы отмену, и следующая выдача
+     * погасла бы об него мгновенно: выдали 15 → израсходованы → отменили → выдали снова 15,
+     * остаток `15 − 15 = 0`, приложение не открылось бы.
+     *
+     * Увеличение минут — обычное продление, расход при нём сохраняется: именно на нём держится
+     * суммирование повторных выдач (`15 + 15 = 30` против потраченных 15 → остаётся 15).
+     *
+     * На родительском устройстве метод безвреден: расход приложений ребёнка там не ведётся.
+     */
+    private suspend fun resetBonusSpentWhereReduced(incoming: List<BonusGrant>) {
+        val today = currentDateProvider.today()
+        val before = bonusRepository.appBonusMinutes(today).first()
+        if (before.isEmpty()) return
+        val after = incoming
+            .filter { it.date == today && it.packageName.isNotEmpty() }
+            .associate { it.packageName to it.minutes }
+        before.forEach { (pkg, minutesBefore) ->
+            if ((after[pkg] ?: 0) < minutesBefore) {
+                usageRepository.resetAppBonusSpent(today, pkg)
+            }
+        }
     }
 
     /** Пушит локальную политику, только если она отличается от последнего синхронизированного снапшота. */

@@ -19,8 +19,9 @@ class BlockingDecisionTest {
         appLimit: LimitState = LimitState.NoLimit,
         whitelist: Set<String> = emptySet(),
         blockedApps: Set<String> = emptySet(),
-        studyTime: Boolean = false
-    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed, blockedApps, studyTime)
+        studyTime: Boolean = false,
+        bonusPass: Boolean = false
+    ) = shouldBlock(pkg, limit, appLimit, whitelist, allowed, blockedApps, studyTime, bonusPass)
 
     // --- Приоритет 1: alwaysAllowed ---
 
@@ -155,5 +156,40 @@ class BlockingDecisionTest {
     @Test
     fun `нет активного приложения - не блокируем`() {
         assertFalse(block(pkg = null, limit = LimitState.Expired, appLimit = LimitState.Expired))
+    }
+
+    // --- Приоритет 5: пропуск на дополнительное время приложения ---
+
+    @Test
+    fun `пропуск открывает приложение при исчерпанном общем лимите`() {
+        assertFalse(block(limit = LimitState.Expired, bonusPass = true))
+    }
+
+    @Test
+    fun `без пропуска исчерпанный общий лимит по-прежнему блокирует`() {
+        assertTrue(block(limit = LimitState.Expired, bonusPass = false))
+    }
+
+    @Test
+    fun `пропуск не снимает родительский запрет`() {
+        assertTrue(block(limit = LimitState.Expired, blockedApps = setOf("com.game.app"), bonusPass = true))
+    }
+
+    @Test
+    fun `пропуск не снимает исчерпанный личный лимит приложения`() {
+        // Личный лимит бонус продлевает своими минутами обычным путём; пропуск обходить его не
+        // должен, иначе приложение работало бы мимо учёта собственного времени.
+        assertTrue(block(appLimit = LimitState.Expired, bonusPass = true))
+    }
+
+    @Test
+    fun `пропуск не открывает Время учёбы`() {
+        // Расписание — осознанное «сейчас телефон нельзя», точечный бонус его не отменяет.
+        assertTrue(block(studyTime = true, bonusPass = true))
+    }
+
+    @Test
+    fun `пропуск ничего не ломает, пока общий лимит цел`() {
+        assertFalse(block(limit = LimitState.Remaining(30), bonusPass = true))
     }
 }

@@ -31,3 +31,6 @@ keystore.properties
 # Артефакты локальных MCP-серверов (создаются в корне при запуске сессии агента).
 mcp_audit.db
 mcp_security.log
+
+# Артефакты локального анализа кода (graphify)
+graphify-out/

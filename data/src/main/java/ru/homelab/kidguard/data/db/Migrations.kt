@@ -200,3 +200,18 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         )
     }
 }
+
+/**
+ * v14: расход выданного приложению дополнительного времени («пропуска»).
+ *
+ * Отдельная колонка, а не переиспользование `overrunSeconds`: тот считает время сверх личного
+ * лимита приложения, а этот — сколько потрачено из разрешённого родителем поверх исчерпанного
+ * общего лимита. Величины независимы и могут расти одновременно.
+ */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `app_screen_time` ADD COLUMN `bonusSpentSeconds` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}

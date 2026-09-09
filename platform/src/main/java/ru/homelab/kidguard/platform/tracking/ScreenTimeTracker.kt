@@ -13,6 +13,7 @@ import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
 import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
+import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.UsageBucket
 import ru.homelab.kidguard.core.domain.usecase.countsTowardsDailyLimit
@@ -57,6 +58,7 @@ class ScreenTimeTracker @Inject constructor(
     // означать одно и то же — своя копия формулы здесь однажды уже разошлась бы с настоящей.
     private val observeLimitState: ObserveLimitStateUseCase,
     private val observeAppLimitState: ObserveAppLimitStateUseCase,
+    private val observeBonusPasses: ObserveBonusPassesUseCase,
     private val usageBackfiller: UsageBackfiller,
     private val watermarkRepository: UsageWatermarkRepository
 ) {
@@ -86,7 +88,8 @@ class ScreenTimeTracker @Inject constructor(
                 val targets = usageTickTargets(
                     countsTowardsDailyLimit = countsTowardsLimit(activePackage),
                     dailyLimitState = observeLimitState().first(),
-                    appLimitState = observeAppLimitState(activePackage).first()
+                    appLimitState = observeAppLimitState(activePackage).first(),
+                    hasBonusAccessPass = activePackage in observeBonusPasses().first()
                 )
                 when (targets.appBucket) {
                     UsageBucket.BUDGET -> usageRepository.addAppScreenTime(today, activePackage, TICK_SECONDS)
@@ -95,7 +98,15 @@ class ScreenTimeTracker @Inject constructor(
                 when (targets.dailyBucket) {
                     UsageBucket.BUDGET -> usageRepository.addScreenTime(today, TICK_SECONDS)
                     UsageBucket.OVERRUN -> usageRepository.addOverrunTime(today, TICK_SECONDS)
-                    null -> Unit // «Всегда доступные», лаунчер, само KidGuard — дневной лимит не трогают
+                    // «Всегда доступные», лаунчер, само KidGuard — дневной лимит не трогают.
+                    // Сюда же попадает время на выданном родителем пропуске: он разрешил его сам,
+                    // и в перерасход дня оно идти не должно.
+                    null -> Unit
+                }
+                // Параллельный счётчик: те же секунды уже учтены выше, здесь лишь списывается
+                // выданное дополнительное время.
+                if (targets.spendsBonusWindow) {
+                    usageRepository.addAppBonusSpentTime(today, activePackage, TICK_SECONDS)
                 }
                 Timber.tag(TAG).d(
                     "Учтено +%d сек: %s (дневной %s, личный %s)",

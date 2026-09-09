@@ -62,4 +62,21 @@ class UsageRepositoryImpl @Inject constructor(
     override suspend fun resetAppScreenTime(date: LocalDate) {
         usageDao.deleteAppSecondsForDate(date.toString())
     }
+
+    override fun appBonusSpentByPackage(date: LocalDate): Flow<Map<String, Int>> =
+        usageDao.appSecondsForDate(date.toString()).map { rows ->
+            rows.associate { it.packageName to it.bonusSpentSeconds }
+        }
+
+    override suspend fun addAppBonusSpentTime(date: LocalDate, packageName: String, seconds: Int) {
+        usageDao.addAppBonusSpentSeconds(date.toString(), packageName, seconds)
+    }
+
+    override suspend fun resetAppBonusSpent(date: LocalDate, packageName: String?) {
+        if (packageName == null) {
+            usageDao.resetAppBonusSpentForDate(date.toString())
+        } else {
+            usageDao.resetAppBonusSpent(date.toString(), packageName)
+        }
+    }
 }

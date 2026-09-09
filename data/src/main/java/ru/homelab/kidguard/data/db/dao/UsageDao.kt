@@ -58,6 +58,25 @@ interface UsageDao {
     )
     suspend fun addAppOverrunSeconds(date: String, packageName: String, seconds: Int)
 
+    /** Прибавить секунды, списанные с выданного приложению дополнительного времени. */
+    @Query(
+        "INSERT INTO app_screen_time(date, packageName, seconds, bonusSpentSeconds) " +
+            "VALUES(:date, :packageName, 0, :seconds) " +
+            "ON CONFLICT(date, packageName) DO UPDATE SET bonusSpentSeconds = bonusSpentSeconds + :seconds"
+    )
+    suspend fun addAppBonusSpentSeconds(date: String, packageName: String, seconds: Int)
+
+    /**
+     * Обнулить израсходованное дополнительное время приложения за день. Строку не удаляем —
+     * в ней лежит обычный расход экранного времени, который терять нельзя.
+     */
+    @Query("UPDATE app_screen_time SET bonusSpentSeconds = 0 WHERE date = :date AND packageName = :packageName")
+    suspend fun resetAppBonusSpent(date: String, packageName: String)
+
+    /** То же по всем приложениям за день. */
+    @Query("UPDATE app_screen_time SET bonusSpentSeconds = 0 WHERE date = :date")
+    suspend fun resetAppBonusSpentForDate(date: String)
+
     /** Обнулить общий экранный расход за день (сброс сегодняшнего лимита). */
     @Query("DELETE FROM screen_time WHERE date = :date")
     suspend fun deleteForDate(date: String)

@@ -78,4 +78,33 @@ class VpnPolicyTest {
         val result = vpnDisallowedFor(LimitState.NoLimit, emptySet(), allInstalled, "ru.homelab.kidguard")
         assertEquals(setOf("com.example.game", "ru.homelab.kidguard"), result)
     }
+
+    // --- Дополнительное время приложения ---
+
+    @Test
+    fun `приложение с непотраченным дополнительным временем обходит блокировку интернета`() {
+        // Иначе родитель открыл бы ребёнку мессенджер, в котором нельзя ни позвонить, ни написать.
+        val disallowed = vpnDisallowedFor(
+            limitState = LimitState.Expired,
+            whitelist = setOf("com.phone"),
+            allInstalled = setOf("com.phone", "com.messenger", "com.game"),
+            ownPackageName = "ru.homelab.kidguard",
+            bonusPassPackages = setOf("com.messenger")
+        )
+        assertTrue("com.messenger" in disallowed)
+        assertTrue("com.phone" in disallowed)
+        assertTrue("ru.homelab.kidguard" in disallowed)
+        assertFalse("com.game" in disallowed)
+    }
+
+    @Test
+    fun `без выданного времени набор прежний`() {
+        val disallowed = vpnDisallowedFor(
+            limitState = LimitState.Expired,
+            whitelist = setOf("com.phone"),
+            allInstalled = setOf("com.phone", "com.messenger"),
+            ownPackageName = "ru.homelab.kidguard"
+        )
+        assertFalse("com.messenger" in disallowed)
+    }
 }

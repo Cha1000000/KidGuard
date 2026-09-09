@@ -5,6 +5,7 @@ import ru.homelab.kidguard.core.domain.repository.UsageEventSource
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
 import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
+import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.UsageBucket
 import ru.homelab.kidguard.core.domain.usecase.UsageInterval
@@ -44,7 +45,8 @@ class UsageBackfiller @Inject constructor(
     private val watermarkRepository: UsageWatermarkRepository,
     private val alwaysAllowedPackages: AlwaysAllowedPackages,
     private val observeLimitState: ObserveLimitStateUseCase,
-    private val observeAppLimitState: ObserveAppLimitStateUseCase
+    private val observeAppLimitState: ObserveAppLimitStateUseCase,
+    private val observeBonusPasses: ObserveBonusPassesUseCase
 ) {
 
     /**
@@ -125,7 +127,8 @@ class UsageBackfiller @Inject constructor(
                 alwaysAllowed = alwaysAllowedPackages.packages
             ),
             dailyLimitState = observeLimitState().first(),
-            appLimitState = observeAppLimitState(packageName).first()
+            appLimitState = observeAppLimitState(packageName).first(),
+            hasBonusAccessPass = packageName in observeBonusPasses().first()
         )
         when (targets.appBucket) {
             UsageBucket.BUDGET -> usageRepository.addAppScreenTime(date, packageName, seconds)
@@ -135,6 +138,11 @@ class UsageBackfiller @Inject constructor(
             UsageBucket.BUDGET -> usageRepository.addScreenTime(date, seconds)
             UsageBucket.OVERRUN -> usageRepository.addOverrunTime(date, seconds)
             null -> Unit // «Всегда доступные», лаунчер, само KidGuard — дневной лимит не трогают
+        }
+        // Досчёт обязан списывать пропуск наравне с живым тиком: иначе время, проведённое в
+        // приложении мимо мёртвого контроля, досталось бы ребёнку бесплатно.
+        if (targets.spendsBonusWindow) {
+            usageRepository.addAppBonusSpentTime(date, packageName, seconds)
         }
     }
 
