@@ -1,14 +1,21 @@
 package ru.homelab.kidguard.platform.overlay
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
+import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
+import android.text.format.DateFormat
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -28,6 +35,8 @@ import ru.homelab.kidguard.core.domain.security.PinVerifyResult
 import ru.homelab.kidguard.core.domain.text.RussianDative
 import ru.homelab.kidguard.platform.R
 import timber.log.Timber
+import java.util.Date
+import java.util.Locale
 import kotlin.random.Random
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,6 +78,7 @@ class FullScreenLockOverlayManager @Inject constructor(
     private var overlayView: View? = null
     private var verifyJob: Job? = null
     private var countdownTick: Runnable? = null
+    private var statusReceivers: List<BroadcastReceiver> = emptyList()
     private val enteredDigits = StringBuilder()
 
     /** Сервис отдаёт свой WindowManager при подключении — без него замок показать нельзя. */
@@ -117,15 +127,17 @@ class FullScreenLockOverlayManager @Inject constructor(
             return@post
         }
         enteredDigits.clear()
-        val view = createOverlayView(
+        val lock = createOverlayView(
             appearance, title, subtitle, countdownSeconds, contacts, verifyPin, onUnlocked, onCall
         )
         try {
-            manager.addView(view, buildLayoutParams())
-            overlayView = view
+            manager.addView(lock.root, buildLayoutParams())
+            overlayView = lock.root
         } catch (e: Exception) {
             Timber.e(e, "Не удалось показать ночной замок")
+            return@post
         }
+        registerStatusReceivers(lock.status)
     }
 
     /** Убрать замок без коллбэков — например, когда окно сна закончилось само. */
@@ -140,6 +152,7 @@ class FullScreenLockOverlayManager @Inject constructor(
         verifyJob = null
         countdownTick?.let(mainHandler::removeCallbacks)
         countdownTick = null
+        unregisterStatusReceivers()
         try {
             windowManager?.removeView(view)
         } catch (e: Exception) {
@@ -157,7 +170,8 @@ class FullScreenLockOverlayManager @Inject constructor(
         verifyPin: suspend (String) -> PinVerifyResult,
         onUnlocked: () -> Unit,
         onCall: (EmergencyContact) -> Unit
-    ): View {
+    ): LockView {
+        val status = buildStatusStrip()
         val container = FrameLayout(context).apply {
             isClickable = true
             setOnTouchListener { _, _ -> true } // поглощаем всё, что под замком
@@ -272,7 +286,7 @@ class FullScreenLockOverlayManager @Inject constructor(
         val content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(28), dp(20), dp(28))
+            setPadding(dp(20), dp(8), dp(20), dp(28))
             // Полумесяц — только ночью: перерыв про отдых глаз, а не про сон.
             if (appearance == LockAppearance.NIGHT) {
                 addView(MoonView(context), LinearLayout.LayoutParams(dp(62), dp(62)).apply {
@@ -305,29 +319,42 @@ class FullScreenLockOverlayManager @Inject constructor(
                 )
             )
         }
+        // Строку состояния и содержимое разводит вертикальный LinearLayout, а не наложение во
+        // FrameLayout: иначе строка уезжала бы вместе с прокруткой и налезала на полумесяц.
+        val foreground = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(
+                status.view,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+            addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
         container.addView(
-            scroll,
+            foreground,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         )
-        applyInsetPadding(container, scroll)
-        return container
+        applyInsetPadding(container, foreground)
+        return LockView(container, status)
     }
 
     /**
-     * Фон (`NightSkyView`) занимает весь экран, включая полосы системных панелей, а содержимое
-     * отодвигаем от них сами — иначе полумесяц оказался бы под часами, а кнопка контакта — под
-     * полосой жестов.
+     * Фон (`NightSkyView`) занимает весь экран, включая полосы системных панелей, а переднюю
+     * часть — свою строку состояния и содержимое — отодвигаем от них сами: иначе наши часы
+     * оказались бы под вырезом камеры, а кнопка контакта — под полосой жестов.
      */
-    private fun applyInsetPadding(container: View, scroll: View) {
+    private fun applyInsetPadding(container: View, foreground: View) {
         container.setOnApplyWindowInsetsListener { _, insets ->
             val bars = insets.getInsets(
                 android.view.WindowInsets.Type.systemBars() or
                     android.view.WindowInsets.Type.displayCutout()
             )
-            scroll.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            foreground.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
     }
@@ -359,6 +386,150 @@ class FullScreenLockOverlayManager @Inject constructor(
         updateDots(dots, filledCount = PIN_LENGTH, isError = true)
         until.text = message
         until.setTextColor(Color.parseColor(ERROR_COLOR))
+    }
+
+    /** Собранный замок: корневое окно и строка состояния, которую обновляют ресиверы. */
+    private class LockView(val root: View, val status: StatusStrip)
+
+    /**
+     * Своя строка состояния поверх замка.
+     *
+     * Системную показать нельзя: окно замка — `TYPE_ACCESSIBILITY_OVERLAY` (слой 32), а
+     * статус-бар лежит ниже (17), поэтому замок его закрывает, что бы система туда ни рисовала.
+     * Вырезать в окне дыру под полосу тоже не годится — в неё просвечивало бы то, что под
+     * замком. Значит, часы, дату и заряд рисуем сами: ночью ребёнку нужно знать время и остаток
+     * батареи, даже когда телефон закрыт.
+     */
+    private class StatusStrip(
+        val view: View,
+        val clock: TextView,
+        val date: TextView,
+        val battery: TextView,
+        val batteryIcon: BatteryView
+    )
+
+    private fun buildStatusStrip(): StatusStrip {
+        val clock = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            textSize = 21f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        val date = TextView(context).apply {
+            setTextColor(Color.parseColor(UNTIL_COLOR))
+            textSize = 16f
+            // На узком экране или при увеличенном системном шрифте полная дата
+            // («среда, 9 сентября») иначе вылезет на процент заряда.
+            isSingleLine = true
+            ellipsize = TextUtils.TruncateAt.END
+        }
+        val battery = TextView(context).apply {
+            setTextColor(Color.parseColor(UNTIL_COLOR))
+            textSize = 16f
+        }
+        val batteryIcon = BatteryView(context)
+        val view = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(18), dp(10), dp(18), dp(6))
+            addView(clock, wrapContent())
+            // Дата забирает всё свободное место, поэтому заряд всегда прижат к правому краю,
+            // как в системной строке, а при нехватке ширины ужимается именно дата.
+            addView(
+                date,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { marginStart = dp(10) }
+            )
+            addView(battery, wrapContent())
+            // Пиктограмма правее процента — тот же порядок, что в системном статус-баре.
+            addView(
+                batteryIcon,
+                LinearLayout.LayoutParams(dp(BATTERY_ICON_WIDTH_DP), dp(BATTERY_ICON_HEIGHT_DP))
+                    .apply { marginStart = dp(5) }
+            )
+        }
+        return StatusStrip(view, clock, date, battery, batteryIcon).also { strip ->
+            // Первые значения ставим сразу, не дожидаясь тика: `ACTION_BATTERY_CHANGED` sticky,
+            // поэтому текущий заряд можно спросить у системы без подписки.
+            updateClock(strip)
+            updateBattery(strip, context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
+        }
+    }
+
+    /** Формат времени — системный (12/24 часа), дата — по локали: «ср, 9 сентября». */
+    private fun updateClock(strip: StatusStrip) {
+        val now = Date()
+        strip.clock.text = DateFormat.getTimeFormat(context).format(now)
+        strip.date.text =
+            DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), DATE_SKELETON), now)
+    }
+
+    private fun updateBattery(strip: StatusStrip, batteryStatus: Intent?) {
+        val intent = batteryStatus ?: return
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        if (level < 0 || scale <= 0) {
+            // Бывает на эмуляторах и отдельных прошивках. Ставим прочерк, а не оставляем дыру:
+            // пустое место в строке ребёнок прочитает как поломку замка. Пиктограмму в этом
+            // случае прячем — рисовать пустой корпус означало бы «заряда нет совсем».
+            Timber.w("Система не отдала заряд батареи (level=%d, scale=%d)", level, scale)
+            strip.battery.text = context.getString(R.string.lock_status_battery_unknown)
+            strip.batteryIcon.visibility = View.GONE
+            return
+        }
+        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+            status == BatteryManager.BATTERY_STATUS_FULL
+        val percent = level * 100 / scale
+        strip.battery.text = context.getString(R.string.lock_status_battery, percent)
+        strip.batteryIcon.visibility = View.VISIBLE
+        strip.batteryIcon.setCharge(percent, charging)
+    }
+
+    /**
+     * Пока замок висит, часы и заряд должны жить. Подписываемся ТОЛЬКО после успешного
+     * `addView`: [show] умеет выйти раньше (WindowManager ещё не привязан после ночной
+     * перезагрузки, или окно не добавилось), и ресивер, подписанный до этого, повис бы навсегда —
+     * снимать его было бы некому, [dismiss] в таком случае не зовут.
+     *
+     * `ACTION_TIME_TICK` система шлёт раз в минуту и только динамическим ресиверам, поэтому
+     * собственный таймер не нужен: попадаем ровно в границу минуты и переживаем перевод часов.
+     */
+    private fun registerStatusReceivers(strip: StatusStrip) {
+        val time = object : BroadcastReceiver() {
+            override fun onReceive(unused: Context?, intent: Intent?) = updateClock(strip)
+        }
+        val battery = object : BroadcastReceiver() {
+            override fun onReceive(unused: Context?, intent: Intent?) = updateBattery(strip, intent)
+        }
+        val timeFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_TICK)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        // Список копим по мере регистрации: если вторая подписка упадёт, первую всё равно снимут.
+        val registered = mutableListOf<BroadcastReceiver>()
+        try {
+            context.registerReceiver(time, timeFilter, Context.RECEIVER_NOT_EXPORTED)
+            registered += time
+            context.registerReceiver(
+                battery, IntentFilter(Intent.ACTION_BATTERY_CHANGED), Context.RECEIVER_NOT_EXPORTED
+            )
+            registered += battery
+        } catch (e: Exception) {
+            Timber.e(e, "Не удалось подписаться на часы и заряд — строка состояния замрёт")
+        }
+        statusReceivers = registered
+    }
+
+    private fun unregisterStatusReceivers() {
+        statusReceivers.forEach { receiver ->
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: IllegalArgumentException) {
+                Timber.w(e, "Ресивер строки состояния уже был снят")
+            }
+        }
+        statusReceivers = emptyList()
     }
 
     private fun buildCallButtons(
@@ -544,6 +715,92 @@ class FullScreenLockOverlayManager @Inject constructor(
         }
     }
 
+    /**
+     * Пиктограмма заряда в стиле системной: корпус с заливкой по уровню, «носик» справа и
+     * молния при зарядке. Рисуем сами, как [MoonView] и звёзды: это дешевле картинки и сразу
+     * попадает в палитру замка.
+     */
+    private class BatteryView(context: Context) : View(context) {
+
+        private var fraction = 0f
+        private var charging = false
+
+        private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val boltFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor(SKY_BOTTOM_COLOR)
+        }
+        private val boltStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+        }
+        private val boltPath = Path()
+
+        fun setCharge(percent: Int, isCharging: Boolean) {
+            val next = (percent / 100f).coerceIn(0f, 1f)
+            if (next == fraction && isCharging == charging) return
+            fraction = next
+            charging = isCharging
+            invalidate()
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            val density = resources.displayMetrics.density
+            val stroke = 1.4f * density
+            val radius = 2f * density
+            // Красный на последних процентах — как в системе; во время зарядки цвет обычный,
+            // иначе телефон на кабеле выглядел бы тревожно.
+            val low = !charging && fraction <= LOW_BATTERY_FRACTION
+            val color = Color.parseColor(if (low) ERROR_COLOR else UNTIL_COLOR)
+            bodyPaint.color = color
+            bodyPaint.strokeWidth = stroke
+            fillPaint.color = color
+            boltStrokePaint.color = color
+            boltStrokePaint.strokeWidth = stroke * 0.7f
+
+            val top = stroke / 2f
+            val bottom = height - stroke / 2f
+            // «Носик» съедает правый край, корпус заканчивается левее.
+            val bodyRight = width - width * CAP_WIDTH_FRACTION
+            canvas.drawRoundRect(stroke / 2f, top, bodyRight, bottom, radius, radius, bodyPaint)
+            canvas.drawRoundRect(
+                bodyRight + stroke, height * 0.32f, width.toFloat(), height * 0.68f,
+                radius / 2f, radius / 2f, fillPaint
+            )
+
+            val inset = stroke * 1.5f
+            val fillLeft = stroke / 2f + inset
+            val fillEnd = bodyRight - inset
+            val fillRight = fillLeft + (fillEnd - fillLeft) * fraction
+            if (fillRight > fillLeft) {
+                canvas.drawRoundRect(
+                    fillLeft, top + inset, fillRight, bottom - inset,
+                    radius / 2f, radius / 2f, fillPaint
+                )
+            }
+
+            if (!charging) return
+            // Молния читается и на залитой части, и на пустой: тёмный силуэт со светлой обводкой.
+            buildBolt(stroke / 2f, top, bodyRight, bottom)
+            canvas.drawPath(boltPath, boltFillPaint)
+            canvas.drawPath(boltPath, boltStrokePaint)
+        }
+
+        private fun buildBolt(left: Float, top: Float, right: Float, bottom: Float) {
+            val w = right - left
+            val h = bottom - top
+            fun x(fraction: Float) = left + w * fraction
+            fun y(fraction: Float) = top + h * fraction
+            boltPath.reset()
+            boltPath.moveTo(x(0.58f), y(0.06f))
+            boltPath.lineTo(x(0.34f), y(0.56f))
+            boltPath.lineTo(x(0.49f), y(0.56f))
+            boltPath.lineTo(x(0.42f), y(0.94f))
+            boltPath.lineTo(x(0.66f), y(0.44f))
+            boltPath.lineTo(x(0.51f), y(0.44f))
+            boltPath.close()
+        }
+    }
+
     /** Жёлтый полумесяц: круг, из которого вырезан второй круг со сдвигом. */
     private class MoonView(context: Context) : View(context) {
 
@@ -567,6 +824,12 @@ class FullScreenLockOverlayManager @Inject constructor(
     }
 
     private companion object {
+        // Скелет даты, а не готовый шаблон: порядок частей расставит локаль.
+        const val DATE_SKELETON = "EEEdMMMM"
+        const val BATTERY_ICON_WIDTH_DP = 27
+        const val BATTERY_ICON_HEIGHT_DP = 14
+        const val CAP_WIDTH_FRACTION = 0.09f
+        const val LOW_BATTERY_FRACTION = 0.15f
         const val PIN_LENGTH = 4
         const val DOT_SIZE_DP = 13
         const val DOT_MARGIN_DP = 7

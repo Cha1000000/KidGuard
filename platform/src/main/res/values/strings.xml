@@ -77,6 +77,10 @@
     <string name="sleep_lock_hint">Экран закроется, когда родитель введёт PIN</string>
     <string name="sleep_lock_call">Позвонить %1$s</string>
 
+    <!-- Своя строка состояния на замке: системную не видно, замок рисуется поверх статус-бара -->
+    <string name="lock_status_battery">%1$d%%</string>
+    <string name="lock_status_battery_unknown">—</string>
+
     <!-- Замок принудительного перерыва: тот же несмахиваемый экран, но с обратным отсчётом -->
     <string name="break_lock_title">Перерыв</string>
     <string name="break_lock_hint">Экран откроется сам. Родитель может снять его PIN-ом.</string>
