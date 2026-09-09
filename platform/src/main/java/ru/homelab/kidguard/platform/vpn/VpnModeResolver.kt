@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.shouldBlockInternet
 import ru.homelab.kidguard.core.domain.usecase.vpnDisallowedPackages
@@ -19,7 +20,9 @@ import javax.inject.Singleton
  * [KidGuardVpnService] мог сам решить, какой режим поднимать, а не полагаться исключительно на
  * extras от [VpnController] — системный always-on-перезапуск сервиса приходит без них.
  * Правило выбора режима — то же, что раньше жило в [VpnController]:
- * - лимит исчерпан ([shouldBlockInternet]) → blackhole, обходят только whitelist + сам KidGuard;
+ * - лимит исчерпан ([shouldBlockInternet]) → blackhole, обходят whitelist, сам KidGuard и
+ *   приложения с непотраченным дополнительным временем (иначе открытый родителем мессенджер
+ *   остался бы без сети — то есть бесполезным ровно тогда, когда время и выдавали);
  * - время есть + активен запрет сайтов → DNS-фильтр;
  * - время есть, запрета сайтов нет → blackhole с обходом всеми (pass-through).
  */
@@ -28,7 +31,8 @@ class VpnModeResolver @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val observeLimitStateUseCase: ObserveLimitStateUseCase,
     private val policyRepository: PolicyRepository,
-    private val installedAppsSource: InstalledAppsSource
+    private val installedAppsSource: InstalledAppsSource,
+    private val observeBonusPassesUseCase: ObserveBonusPassesUseCase
 ) {
 
     /** Одноразово читает текущее состояние политики и решает режим (для системного старта без extras). */
@@ -36,9 +40,13 @@ class VpnModeResolver @Inject constructor(
         val limitState = observeLimitStateUseCase().first()
         val whitelist = policyRepository.whitelist.first()
         val rules = policyRepository.siteBlockRules.first()
+        val bonusPasses = observeBonusPassesUseCase().first()
         return when {
             shouldBlockInternet(limitState) ->
-                VpnMode.Blackhole(vpnDisallowedPackages(whitelist, context.packageName))
+                VpnMode.Blackhole(
+                    vpnDisallowedPackages(whitelist, context.packageName, bonusPasses),
+                    limitReached = true
+                )
             rules.isActive -> VpnMode.DnsFilter(rules)
             else -> VpnMode.Blackhole(installedAppsSource.installedPackageNames().toSet() + context.packageName)
         }
@@ -46,17 +54,22 @@ class VpnModeResolver @Inject constructor(
 
     /**
      * Реактивный поток режима: эмитит при изменении лимита, белого списка, набора установленных
-     * приложений или правил запрета сайтов.
+     * приложений, правил запрета сайтов или набора выданных пропусков — последнее нужно, чтобы
+     * интернет у приложения появлялся сразу по выдаче времени и пропадал по его исчерпании.
      */
     fun modeFlow(): Flow<VpnMode> = combine(
         observeLimitStateUseCase(),
         policyRepository.whitelist,
         installedAppsSource.observeInstalledPackageNames(),
-        policyRepository.siteBlockRules
-    ) { limitState, whitelist, installed, rules ->
+        policyRepository.siteBlockRules,
+        observeBonusPassesUseCase()
+    ) { limitState, whitelist, installed, rules, bonusPasses ->
         when {
             shouldBlockInternet(limitState) ->
-                VpnMode.Blackhole(vpnDisallowedPackages(whitelist, context.packageName))
+                VpnMode.Blackhole(
+                    vpnDisallowedPackages(whitelist, context.packageName, bonusPasses),
+                    limitReached = true
+                )
             rules.isActive -> VpnMode.DnsFilter(rules)
             else -> VpnMode.Blackhole(installed.toSet() + context.packageName)
         }

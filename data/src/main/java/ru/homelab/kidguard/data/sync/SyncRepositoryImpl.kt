@@ -29,6 +29,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
+import ru.homelab.kidguard.core.domain.model.BONUS_SPENT_PREFIX
 import ru.homelab.kidguard.core.domain.model.OVERRUN_PACKAGE
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
@@ -370,6 +371,9 @@ class SyncRepositoryImpl @Inject constructor(
      * [OVERRUN_PACKAGE]): родителю нужно и то, сколько бюджета израсходовано, и сколько ребёнок
      * пробыл в телефоне сверх него. По приложениям, наоборот, отправляется сумма — там интересно
      * фактическое время в приложении, а не бюджетная его часть.
+     *
+     * Отдельно уезжает израсходованное дополнительное время ([BONUS_SPENT_PREFIX] + пакет) —
+     * иначе родитель не увидит, сколько осталось от выданного им пропуска.
      */
     private suspend fun pushUsage(childId: Int) {
         val today = currentDateProvider.today()
@@ -383,6 +387,19 @@ class SyncRepositoryImpl @Inject constructor(
                 }
                 usageRepository.appTotalScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
                     if (seconds > 0) add(UsageEntryDto(date.toString(), packageName = pkg, seconds = seconds))
+                }
+                // Израсходованное дополнительное время — отдельными записями под префиксом:
+                // родителю нужно показать остаток выданного, а сам расход считается здесь.
+                usageRepository.appBonusSpentByPackage(date).first().forEach { (pkg, seconds) ->
+                    if (seconds > 0) {
+                        add(
+                            UsageEntryDto(
+                                date.toString(),
+                                packageName = BONUS_SPENT_PREFIX + pkg,
+                                seconds = seconds
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -489,12 +506,12 @@ class SyncRepositoryImpl @Inject constructor(
                 }
             )
         )
-        bonusRepository.replaceAll(
-            data.bonuses.mapNotNull { dto ->
-                runCatching { BonusGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes) }
-                    .getOrNull()
-            }
-        )
+        val incomingBonuses = data.bonuses.mapNotNull { dto ->
+            runCatching { BonusGrant(LocalDate.parse(dto.date), dto.packageName, dto.minutes) }
+                .getOrNull()
+        }
+        resetBonusSpentWhereReduced(incomingBonuses)
+        bonusRepository.replaceAll(incomingBonuses)
         penaltyRepository.replaceAll(
             data.penalties.mapNotNull { dto ->
                 runCatching {
@@ -502,6 +519,34 @@ class SyncRepositoryImpl @Inject constructor(
                 }.getOrNull()
             }
         )
+    }
+
+    /**
+     * Обнуляет израсходованное дополнительное время тех приложений, которым его **уменьшили или
+     * отменили**.
+     *
+     * Отмена бонуса происходит у родителя и доезжает сюда обычным `replaceAll` — запись просто
+     * исчезает из документа. Без этого сброса расход пережил бы отмену, и следующая выдача
+     * погасла бы об него мгновенно: выдали 15 → израсходованы → отменили → выдали снова 15,
+     * остаток `15 − 15 = 0`, приложение не открылось бы.
+     *
+     * Увеличение минут — обычное продление, расход при нём сохраняется: именно на нём держится
+     * суммирование повторных выдач (`15 + 15 = 30` против потраченных 15 → остаётся 15).
+     *
+     * На родительском устройстве метод безвреден: расход приложений ребёнка там не ведётся.
+     */
+    private suspend fun resetBonusSpentWhereReduced(incoming: List<BonusGrant>) {
+        val today = currentDateProvider.today()
+        val before = bonusRepository.appBonusMinutes(today).first()
+        if (before.isEmpty()) return
+        val after = incoming
+            .filter { it.date == today && it.packageName.isNotEmpty() }
+            .associate { it.packageName to it.minutes }
+        before.forEach { (pkg, minutesBefore) ->
+            if ((after[pkg] ?: 0) < minutesBefore) {
+                usageRepository.resetAppBonusSpent(today, pkg)
+            }
+        }
     }
 
     /** Пушит локальную политику, только если она отличается от последнего синхронизированного снапшота. */

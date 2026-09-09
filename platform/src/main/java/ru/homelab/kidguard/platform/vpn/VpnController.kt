@@ -50,6 +50,7 @@ class VpnController @Inject constructor(
                 intent
                     .putExtra(KidGuardVpnService.EXTRA_MODE, KidGuardVpnService.MODE_BLACKHOLE)
                     .putStringArrayListExtra(KidGuardVpnService.EXTRA_DISALLOWED, ArrayList(mode.disallowed))
+                    .putExtra(KidGuardVpnService.EXTRA_LIMIT_REACHED, mode.limitReached)
                 Timber.tag(TAG).d("VPN blackhole, disallowed=%s", mode.disallowed)
             }
             is VpnMode.DnsFilter -> {

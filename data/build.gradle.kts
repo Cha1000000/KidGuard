@@ -36,6 +36,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // MigrationTestHelper ищет схемы в assets тестового APK — без этого он не найдёт ни одной
+    // и упадёт с «Cannot find the schema file».
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs(files("$projectDir/schemas"))
+        }
+    }
+
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 }
 
 // Room-плагин androidx.room в проекте не подключён, поэтому каталог схем задаём
@@ -54,6 +66,12 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+
+    // Тесты миграций Room (MigrationTestHelper) — инструментальные: им нужен настоящий SQLite
+    // устройства, на котором и выполняется ALTER TABLE.
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)

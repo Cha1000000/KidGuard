@@ -14,10 +14,17 @@ fun shouldBlockInternet(limitState: LimitState): Boolean = limitState is LimitSt
 /**
  * Набор пакетов, которые должны обходить VPN (`addDisallowedApplication`) и ходить в сеть
  * напрямую: само KidGuard (нужна синхронизация с сервером) + всё из белого списка «всегда
- * доступные».
+ * доступные» + приложения с непотраченным дополнительным временем ([bonusPassPackages]).
+ *
+ * Последнее обязательно: при исчерпанном лимите VPN уходит в blackhole, и без этого приложение,
+ * которое родитель только что открыл ребёнку, запустилось бы **без интернета** — то есть
+ * бесполезным ровно в том случае, ради которого время и выдавали (позвонить, написать).
  */
-fun vpnDisallowedPackages(whitelist: Set<String>, ownPackageName: String): Set<String> =
-    whitelist + ownPackageName
+fun vpnDisallowedPackages(
+    whitelist: Set<String>,
+    ownPackageName: String,
+    bonusPassPackages: Set<String> = emptySet()
+): Set<String> = whitelist + bonusPassPackages + ownPackageName
 
 /**
  * disallowed-набор для VPN (веха 5.4). VPN активен всегда; режим переключается набором:
@@ -27,9 +34,10 @@ fun vpnDisallowedFor(
     limitState: LimitState,
     whitelist: Set<String>,
     allInstalled: Set<String>,
-    ownPackageName: String
+    ownPackageName: String,
+    bonusPassPackages: Set<String> = emptySet()
 ): Set<String> = if (shouldBlockInternet(limitState)) {
-    vpnDisallowedPackages(whitelist, ownPackageName)
+    vpnDisallowedPackages(whitelist, ownPackageName, bonusPassPackages)
 } else {
     allInstalled + ownPackageName
 }

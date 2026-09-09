@@ -627,6 +627,12 @@
     <string name="bonus_title">Дополнительное время</string>
     <string name="bonus_subtitle_phone">Добавить время сверх дневного лимита — только на сегодня. Суммируется.</string>
     <string name="bonus_subtitle_app">Сверх лимита этого приложения на сегодня. Суммируется.</string>
+    <!-- У приложения нет своего лимита: время открывает его поверх исчерпанного общего лимита -->
+    <string name="bonus_subtitle_app_no_limit">Откроет это приложение, когда общий дневной лимит закончится. Тратится, только пока ребёнок в приложении.</string>
+    <!-- Часть выданного уже израсходована: остаток дописывается к строке «Сегодня выдано» -->
+    <string name="bonus_active_left">Сегодня выдано: +%1$s · осталось %2$d мин</string>
+    <string name="bonus_active_spent">Сегодня выдано: +%1$s · израсходовано</string>
+    <string name="app_limits_bonus_badge">+%1$d мин</string>
     <string name="bonus_active">Сегодня выдано: +%1$s</string>
     <string name="bonus_cancel">Отменить</string>
     <string name="bonus_quick_add">+%1$d мин</string>
@@ -682,6 +688,9 @@
     <string name="child_limits_expired">Лимит исчерпан</string>
     <string name="child_limits_empty_title">Лимитов пока нет</string>
     <string name="child_limits_empty_desc">Родитель не ограничил по времени ни одно приложение.</string>
+    <!-- Родитель выдал приложению дополнительное время поверх общего дневного лимита -->
+    <string name="child_limits_bonus_open">Открыто родителем — осталось %1$s</string>
+    <string name="child_limits_bonus_extra">Плюс %1$s от родителя</string>
     <string name="child_blocked_empty_title">Запрещённых приложений нет</string>
     <string name="child_blocked_empty_desc">Родитель не закрыл ни одно приложение.</string>
     <string name="child_allowed_empty_title">Список пуст</string>

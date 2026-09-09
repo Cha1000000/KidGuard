@@ -147,14 +147,25 @@ private fun AppLimitRow(app: AppLimitUi, onClick: () -> Unit) {
                     )
                 }
             }
-            Text(
-                text = app.limitMinutes?.let { formatLimit(it) }
-                    ?: stringResource(R.string.app_limits_no_limit),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
-                color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = app.limitMinutes?.let { formatLimit(it) }
+                        ?: stringResource(R.string.app_limits_no_limit),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (app.limitMinutes != null) FontWeight.Bold else FontWeight.Normal,
+                    color = if (app.limitMinutes != null) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // Иначе родитель не видит, что уже выдал время, и выдаёт повторно вслепую.
+                if (app.hasActiveBonus) {
+                    Text(
+                        text = stringResource(R.string.app_limits_bonus_badge, app.bonusMinutesLeft),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
         }
     }
 }
@@ -214,18 +225,24 @@ private fun AppLimitEditorSheet(
                     Text(stringResource(R.string.app_limits_save))
                 }
             }
-            // Бонус приложению имеет смысл только при заданном лимите: без лимита приложение и
-            // так не блокируется по своему времени, поэтому доп. время было бы лишним.
-            if (app.limitMinutes != null) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                BonusSection(
-                    activeBonusMinutes = app.bonusMinutes,
-                    subtitleRes = R.string.bonus_subtitle_app,
-                    onAdd = onAddBonus,
-                    onClear = onClearBonus,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
+            // Блок показывается ВСЕГДА, в том числе когда личного лимита нет. Раньше он прятался
+            // при `limitMinutes == null`, и это отрезало основной сценарий: общий дневной лимит
+            // исчерпан, ребёнку срочно нужен мессенджер — а выдать время конкретному приложению
+            // родителю было негде. Смысл выдачи при этом разный, поэтому разная и подпись:
+            // с личным лимитом — «сверх лимита приложения», без него — «откроет поверх общего».
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            BonusSection(
+                activeBonusMinutes = app.bonusMinutes,
+                subtitleRes = if (app.limitMinutes != null) {
+                    R.string.bonus_subtitle_app
+                } else {
+                    R.string.bonus_subtitle_app_no_limit
+                },
+                bonusMinutesLeft = app.bonusMinutesLeft,
+                onAdd = onAddBonus,
+                onClear = onClearBonus,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
     }
 }

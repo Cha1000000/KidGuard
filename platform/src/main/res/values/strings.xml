@@ -37,8 +37,12 @@
 
     <!-- Blackhole-VPN (веха 5) -->
     <string name="vpn_channel_name">Блокировка интернета</string>
-    <string name="vpn_notification_title">Интернет ограничен</string>
-    <string name="vpn_notification_text">Время на сегодня вышло — интернет доступен только KidGuard</string>
+    <!-- Туннель поднят, но интернет не режется (работает запрет сайтов или pass-through) -->
+    <string name="vpn_notification_title">Контроль интернета включён</string>
+    <string name="vpn_notification_text">Сайты из родительского запрета недоступны</string>
+    <!-- Дневной лимит исчерпан: сеть осталась только у разрешённых приложений -->
+    <string name="vpn_notification_title_limit">Интернет ограничен</string>
+    <string name="vpn_notification_text_limit">Время на сегодня вышло — сеть осталась только у разрешённых приложений</string>
 
     <!-- PIN-оверлей на критичных системных экранах (веха 6, шаг 6.2) -->
     <string name="pin_overlay_title">Введите PIN</string>

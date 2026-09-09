@@ -1,7 +1,9 @@
 package ru.homelab.kidguard.core.domain.usecase
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.LimitState
 
@@ -19,6 +21,13 @@ class UsageTickTargetsTest {
         daily: LimitState = remaining,
         app: LimitState = LimitState.NoLimit
     ) = usageTickTargets(counts, daily, app)
+
+    private fun targetsWithPass(
+        counts: Boolean = true,
+        daily: LimitState = LimitState.Expired,
+        app: LimitState = LimitState.NoLimit,
+        pass: Boolean = true
+    ) = usageTickTargets(counts, daily, app, hasBonusAccessPass = pass)
 
     @Test
     fun `обычное приложение при живом лимите расходует бюджет`() {
@@ -74,5 +83,49 @@ class UsageTickTargetsTest {
         val result = targets(daily = LimitState.NoLimit, app = LimitState.NoLimit)
         assertEquals(UsageBucket.BUDGET, result.dailyBucket)
         assertEquals(UsageBucket.BUDGET, result.appBucket)
+    }
+
+    // --- Пропуск на дополнительное время приложения ---
+
+    @Test
+    fun `на активном пропуске тик идёт в счётчик окна`() {
+        assertTrue(targetsWithPass().spendsBonusWindow)
+    }
+
+    @Test
+    fun `на активном пропуске дневной перерасход НЕ растёт`() {
+        // Это время родитель разрешил сам — показывать его как нарушение нельзя.
+        assertNull(targetsWithPass().dailyBucket)
+    }
+
+    @Test
+    fun `счётчик самого приложения на пропуске ведётся как обычно`() {
+        // Иначе у приложения с личным лимитом тот перестал бы тратиться, и две механики
+        // разъехались бы: бонус продлил лимит, а расход по нему стоит на месте.
+        assertEquals(UsageBucket.BUDGET, targetsWithPass().appBucket)
+        assertEquals(
+            UsageBucket.OVERRUN,
+            targetsWithPass(app = LimitState.Expired).appBucket
+        )
+    }
+
+    @Test
+    fun `без пропуска ничего не меняется - дневной перерасход на месте`() {
+        val t = targetsWithPass(pass = false)
+        assertFalse(t.spendsBonusWindow)
+        assertEquals(UsageBucket.OVERRUN, t.dailyBucket)
+    }
+
+    @Test
+    fun `пропуск не тратится, пока общий лимит цел`() {
+        // Выданное заранее время не должно утекать вхолостую.
+        assertFalse(targetsWithPass(daily = LimitState.Remaining(30)).spendsBonusWindow)
+        assertFalse(targetsWithPass(daily = LimitState.NoLimit).spendsBonusWindow)
+    }
+
+    @Test
+    fun `приложение, не расходующее дневной лимит, окно тоже не тратит`() {
+        // Белый список и лаунчер доступны и так — пропуск им незачем.
+        assertFalse(targetsWithPass(counts = false).spendsBonusWindow)
     }
 }

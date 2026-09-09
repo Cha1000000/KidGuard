@@ -27,6 +27,7 @@ import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.todayFlow
 import java.time.LocalDate
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
+import ru.homelab.kidguard.core.domain.usecase.bonusMinutesLeft
 import javax.inject.Inject
 
 /**
@@ -163,7 +164,12 @@ class TodayViewModel @Inject constructor(
             usageRepository.appScreenTimeByPackage(today),
             bonusRepository.appBonusMinutes(today)
         ) { whitelist, blocked, appLimits, appUsedSeconds, appBonus ->
-            computeRules(labels, whitelist, blocked, appLimits, appUsedSeconds, appBonus)
+            RulesInputs(whitelist, blocked, appLimits, appUsedSeconds, appBonus)
+        }.combine(usageRepository.appBonusSpentByPackage(today)) { inputs, bonusSpent ->
+            computeRules(
+                labels, inputs.whitelist, inputs.blocked, inputs.appLimits,
+                inputs.appUsedSeconds, inputs.appBonus, bonusSpent
+            )
         }
 
         val combined = combine(
@@ -227,16 +233,29 @@ class TodayViewModel @Inject constructor(
         blocked: Set<String>,
         appLimits: Map<String, Int>,
         appUsedSeconds: Map<String, Int>,
-        appBonus: Map<String, Int>
+        appBonus: Map<String, Int>,
+        appBonusSpent: Map<String, Int>
     ): RulesData {
-        val limitedFirst = appLimits.keys
+        // Приложения с непотраченным дополнительным временем считаем наравне с лимитированными:
+        // экран «Лимиты», куда ведёт эта карточка, показывает и их — счётчики обязаны сойтись.
+        val bonusPackages = appBonus.keys.filter { pkg ->
+            pkg.isNotEmpty() && bonusMinutesLeft(appBonus[pkg] ?: 0, appBonusSpent[pkg] ?: 0) > 0
+        }
+        val shownPackages = appLimits.keys + bonusPackages
+        val limitedFirst = shownPackages
             .sortedBy { labelOf(labels, it).lowercase() }
             .firstOrNull()
         val limited = LimitedGroup(
-            count = appLimits.size,
+            count = shownPackages.size,
             firstLabel = limitedFirst?.let { labelOf(labels, it) },
             firstMinutesLeft = limitedFirst?.let { pkg ->
-                (appLimits[pkg] ?: 0) + (appBonus[pkg] ?: 0) - (appUsedSeconds[pkg] ?: 0) / 60
+                val limit = appLimits[pkg]
+                if (limit == null) {
+                    // Своего лимита нет — остаток это то, что осталось от выданного времени.
+                    bonusMinutesLeft(appBonus[pkg] ?: 0, appBonusSpent[pkg] ?: 0)
+                } else {
+                    limit + (appBonus[pkg] ?: 0) - (appUsedSeconds[pkg] ?: 0) / 60
+                }
             }
         )
         return RulesData(
@@ -261,3 +280,12 @@ class TodayViewModel @Inject constructor(
         const val PREVIEW_LIMIT = 3
     }
 }
+
+/** Промежуточный снимок правил: `combine` типизирован до пяти источников, шестой идёт поверх. */
+private data class RulesInputs(
+    val whitelist: Set<String>,
+    val blocked: Set<String>,
+    val appLimits: Map<String, Int>,
+    val appUsedSeconds: Map<String, Int>,
+    val appBonus: Map<String, Int>
+)

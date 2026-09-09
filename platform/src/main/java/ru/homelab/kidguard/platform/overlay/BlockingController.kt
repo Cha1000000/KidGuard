@@ -17,6 +17,7 @@ import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
+import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
@@ -39,6 +40,7 @@ class BlockingController @Inject constructor(
     private val foregroundAppMonitor: ForegroundAppMonitor,
     private val observeLimitStateUseCase: ObserveLimitStateUseCase,
     private val observeAppLimitStateUseCase: ObserveAppLimitStateUseCase,
+    private val observeBonusPassesUseCase: ObserveBonusPassesUseCase,
     private val observeScheduleStateUseCase: ObserveScheduleStateUseCase,
     private val policyRepository: PolicyRepository,
     private val overlayManager: OverlayManager,
@@ -87,14 +89,16 @@ class BlockingController @Inject constructor(
                 observeScheduleStateUseCase()
             ) { limitState, appLimitState, whitelist, blockedApps, scheduleState ->
                 PolicyInputs(limitState, appLimitState, whitelist, blockedApps, scheduleState)
-            }.combine(bypassedPackage) { inputs, bypassed ->
+            }.combine(observeBonusPassesUseCase()) { inputs, passes ->
+                inputs to (activePackage != null && activePackage in passes)
+            }.combine(bypassedPackage) { (inputs, hasPass), bypassed ->
                 // «Время учёбы» по смыслу равно исчерпанному дневному лимиту (см. shouldBlock) —
                 // просто передаём признак дальше в чистую функцию, вся матрица приоритетов там.
                 val studyTimeActive = inputs.scheduleState is ScheduleState.Study
                 val bypassActive = activePackage != null && activePackage == bypassed
                 val block = !bypassActive && shouldBlock(
                     activePackage, inputs.limitState, inputs.appLimitState, inputs.whitelist,
-                    alwaysAllowed, inputs.blockedApps, studyTimeActive
+                    alwaysAllowed, inputs.blockedApps, studyTimeActive, hasPass
                 )
                 // Причина для оверлея (в том же порядке приоритета, что и в shouldBlock):
                 // 1. Пакет в blockedApps (и не alwaysAllowed) — запрет родителя бьёт всё остальное.

@@ -88,25 +88,45 @@ private fun ChildLimitedAppRow(app: ChildLimitedAppUi) {
             AppIconImage(icon = app.icon, label = app.label, packageName = app.packageName)
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
+                val limitMinutes = app.limitMinutes
                 Text(
-                    text = if (app.leftMinutes <= 0) {
-                        stringResource(R.string.child_limits_expired)
-                    } else {
-                        stringResource(
+                    text = when {
+                        // Своего лимита нет — приложение в списке только из-за выданного времени.
+                        limitMinutes == null -> stringResource(
+                            R.string.child_limits_bonus_open,
+                            formatDurationMinutes(app.bonusLeftMinutes)
+                        )
+                        app.leftMinutes <= 0 -> stringResource(R.string.child_limits_expired)
+                        else -> stringResource(
                             R.string.child_limits_spent,
                             formatDurationMinutes(app.spentMinutes),
-                            formatDurationMinutes(app.limitMinutes)
+                            formatDurationMinutes(limitMinutes)
                         )
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (limitMinutes == null) MaterialTheme.colorScheme.tertiary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                // У приложения есть и свой лимит, и выданное сверх него время — говорим про оба,
+                // иначе строка выше умалчивает о самом важном для ребёнка.
+                if (limitMinutes != null && app.hasBonusAccess) {
+                    Text(
+                        text = stringResource(
+                            R.string.child_limits_bonus_extra,
+                            formatDurationMinutes(app.bonusLeftMinutes)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
             Text(
-                text = formatDurationMinutes(app.limitMinutes),
+                text = app.limitMinutes?.let { formatDurationMinutes(it) }
+                    ?: formatDurationMinutes(app.bonusLeftMinutes),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = if (app.limitMinutes == null) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.primary
             )
         }
     }
