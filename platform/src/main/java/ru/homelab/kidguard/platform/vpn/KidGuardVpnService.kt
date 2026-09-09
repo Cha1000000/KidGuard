@@ -87,6 +87,7 @@ class KidGuardVpnService : VpnService() {
 
     /** Диспетчеризует режим на существующие establish-функции для tun. */
     private fun establishForMode(mode: VpnMode) {
+        refreshNotification(mode)
         when (mode) {
             is VpnMode.Blackhole -> establishTun(mode.disallowed.toList())
             is VpnMode.DnsFilter -> establishDnsFilterTun(mode.rules)
@@ -102,7 +103,7 @@ class KidGuardVpnService : VpnService() {
         }
         else -> {
             val disallowed = intent.getStringArrayListExtra(EXTRA_DISALLOWED).orEmpty().toSet()
-            VpnMode.Blackhole(disallowed)
+            VpnMode.Blackhole(disallowed, intent.getBooleanExtra(EXTRA_LIMIT_REACHED, false))
         }
     }
 
@@ -174,11 +175,28 @@ class KidGuardVpnService : VpnService() {
         tunFd = null
     }
 
-    private fun buildNotification(): Notification {
+    /**
+     * @param limitReached интернет реально отрезан (дневной лимит исчерпан). Разные тексты нужны
+     *   потому, что туннель поднят всегда — в том числе когда время ещё есть и режется только
+     *   запрет сайтов; общий текст в этом случае сообщал ребёнку «время вышло», хотя оно не вышло.
+     *   Прежняя формулировка вдобавок обещала «интернет доступен только KidGuard», забывая про
+     *   «Всегда доступные» и приложения с выданным дополнительным временем.
+     */
+    private fun buildNotification(limitReached: Boolean): Notification {
         ensureChannel()
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.vpn_notification_title))
-            .setContentText(getString(R.string.vpn_notification_text))
+            .setContentTitle(
+                getString(
+                    if (limitReached) R.string.vpn_notification_title_limit
+                    else R.string.vpn_notification_title
+                )
+            )
+            .setContentText(
+                getString(
+                    if (limitReached) R.string.vpn_notification_text_limit
+                    else R.string.vpn_notification_text
+                )
+            )
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -197,13 +215,24 @@ class KidGuardVpnService : VpnService() {
         }
     }
 
-    private fun startVpnForeground() {
+    private fun startVpnForeground(limitReached: Boolean = false) {
         // minSdk = 33, поэтому трёхаргументный startForeground (с типом FGS) доступен всегда.
         startForeground(
             NotificationIds.VPN_SERVICE,
-            buildNotification(),
+            buildNotification(limitReached),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         )
+    }
+
+    /**
+     * Обновляет текст уже показанного уведомления под применённый режим. Нужно потому, что
+     * `startForeground` обязан случиться сразу при старте, а режим на системном пути читается
+     * асинхронно и приезжает позже.
+     */
+    private fun refreshNotification(mode: VpnMode) {
+        val limitReached = mode is VpnMode.Blackhole && mode.limitReached
+        getSystemService(NotificationManager::class.java)
+            ?.notify(NotificationIds.VPN_SERVICE, buildNotification(limitReached))
     }
 
     companion object {
@@ -219,6 +248,9 @@ class KidGuardVpnService : VpnService() {
 
         /** `ArrayList<String>` пакетов, которые должны обходить VPN (режим [MODE_BLACKHOLE]). */
         const val EXTRA_DISALLOWED = "ru.homelab.kidguard.platform.vpn.extra.DISALLOWED"
+
+        /** Интернет реально отрезан (лимит исчерпан) — от этого зависит текст уведомления. */
+        const val EXTRA_LIMIT_REACHED = "ru.homelab.kidguard.platform.vpn.extra.LIMIT_REACHED"
 
         /** Режим VPN: [MODE_BLACKHOLE] (по умолчанию, если extra отсутствует) или [MODE_DNS_FILTER]. */
         const val EXTRA_MODE = "ru.homelab.kidguard.platform.vpn.extra.MODE"

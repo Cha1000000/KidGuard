@@ -43,7 +43,10 @@ class VpnModeResolver @Inject constructor(
         val bonusPasses = observeBonusPassesUseCase().first()
         return when {
             shouldBlockInternet(limitState) ->
-                VpnMode.Blackhole(vpnDisallowedPackages(whitelist, context.packageName, bonusPasses))
+                VpnMode.Blackhole(
+                    vpnDisallowedPackages(whitelist, context.packageName, bonusPasses),
+                    limitReached = true
+                )
             rules.isActive -> VpnMode.DnsFilter(rules)
             else -> VpnMode.Blackhole(installedAppsSource.installedPackageNames().toSet() + context.packageName)
         }
@@ -63,7 +66,10 @@ class VpnModeResolver @Inject constructor(
     ) { limitState, whitelist, installed, rules, bonusPasses ->
         when {
             shouldBlockInternet(limitState) ->
-                VpnMode.Blackhole(vpnDisallowedPackages(whitelist, context.packageName, bonusPasses))
+                VpnMode.Blackhole(
+                    vpnDisallowedPackages(whitelist, context.packageName, bonusPasses),
+                    limitReached = true
+                )
             rules.isActive -> VpnMode.DnsFilter(rules)
             else -> VpnMode.Blackhole(installed.toSet() + context.packageName)
         }

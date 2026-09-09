@@ -29,6 +29,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
+import ru.homelab.kidguard.core.domain.model.BONUS_SPENT_PREFIX
 import ru.homelab.kidguard.core.domain.model.OVERRUN_PACKAGE
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
 import ru.homelab.kidguard.core.domain.model.ScheduleRules
@@ -370,6 +371,9 @@ class SyncRepositoryImpl @Inject constructor(
      * [OVERRUN_PACKAGE]): родителю нужно и то, сколько бюджета израсходовано, и сколько ребёнок
      * пробыл в телефоне сверх него. По приложениям, наоборот, отправляется сумма — там интересно
      * фактическое время в приложении, а не бюджетная его часть.
+     *
+     * Отдельно уезжает израсходованное дополнительное время ([BONUS_SPENT_PREFIX] + пакет) —
+     * иначе родитель не увидит, сколько осталось от выданного им пропуска.
      */
     private suspend fun pushUsage(childId: Int) {
         val today = currentDateProvider.today()
@@ -383,6 +387,19 @@ class SyncRepositoryImpl @Inject constructor(
                 }
                 usageRepository.appTotalScreenTimeByPackage(date).first().forEach { (pkg, seconds) ->
                     if (seconds > 0) add(UsageEntryDto(date.toString(), packageName = pkg, seconds = seconds))
+                }
+                // Израсходованное дополнительное время — отдельными записями под префиксом:
+                // родителю нужно показать остаток выданного, а сам расход считается здесь.
+                usageRepository.appBonusSpentByPackage(date).first().forEach { (pkg, seconds) ->
+                    if (seconds > 0) {
+                        add(
+                            UsageEntryDto(
+                                date.toString(),
+                                packageName = BONUS_SPENT_PREFIX + pkg,
+                                seconds = seconds
+                            )
+                        )
+                    }
                 }
             }
         }

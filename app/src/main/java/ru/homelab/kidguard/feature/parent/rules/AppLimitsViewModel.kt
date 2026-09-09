@@ -10,11 +10,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.ChildRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
@@ -46,6 +49,8 @@ data class AppLimitUi(
 @HiltViewModel
 class AppLimitsViewModel @Inject constructor(
     private val childAppsProvider: ChildAppsProvider,
+    private val childRepository: ChildRepository,
+    private val syncRepository: SyncRepository,
     private val policyRepository: PolicyRepository,
     private val usageRepository: UsageRepository,
     private val bonusRepository: BonusRepository,
@@ -56,16 +61,48 @@ class AppLimitsViewModel @Inject constructor(
         emit(withContext(Dispatchers.Default) { childAppsProvider.loadActiveChildApps() })
     }
 
+    /**
+     * Расход ребёнка за сегодня, снятый с сервера: сколько приложение провело времени и сколько
+     * выданного ему дополнительного времени уже израсходовано.
+     *
+     * Читается по сети, а не из [usageRepository]: локальная Room родителя расход ребёнка **не
+     * хранит** — `SyncRepositoryImpl` наполняет её только на детском устройстве, а статистика
+     * приходит разовым запросом. Раньше из-за этого строка «Сегодня: 0 из 30 мин» всегда
+     * показывала ноль.
+     *
+     * Свежесть ограничена сверху отправкой статистики ребёнком (15-минутный тик), поэтому
+     * значения могут отставать — для остатка выданного времени это приемлемо, решение о выдаче
+     * принимает родитель, а не экран.
+     */
+    private val childUsage: Flow<ChildUsageToday> = flow {
+        emit(ChildUsageToday.EMPTY)
+        val childId = syncRepository.activeChildId.first()
+        if (childId == null) return@flow
+        val today = currentDateProvider.today()
+        val entries = childRepository.getChildUsage(childId, days = 1).getOrNull().orEmpty()
+            .filter { it.date == today }
+        emit(
+            ChildUsageToday(
+                spentSecondsByPackage = entries.filter { it.isApp }
+                    .associate { it.packageName to it.seconds },
+                bonusSpentSecondsByPackage = entries.mapNotNull { entry ->
+                    entry.bonusSpentPackage?.let { it to entry.seconds }
+                }.toMap()
+            )
+        )
+    }
+
     /** `null` — список с сервера ещё грузится; пустой — устройство ребёнка его не прислало. */
     val apps: StateFlow<List<AppLimitUi>?> = flow {
         val today = currentDateProvider.today()
         val combined = combine(
             childApps,
             policyRepository.appLimits,
-            usageRepository.appScreenTimeByPackage(today),
             bonusRepository.appBonusMinutes(today),
-            usageRepository.appBonusSpentByPackage(today)
-        ) { apps, limits, usedByPackage, bonusByPackage, bonusSpentByPackage ->
+            childUsage
+        ) { apps, limits, bonusByPackage, usage ->
+            val usedByPackage = usage.spentSecondsByPackage
+            val bonusSpentByPackage = usage.bonusSpentSecondsByPackage
             apps
                 .map { app ->
                     AppLimitUi(
@@ -109,5 +146,17 @@ class AppLimitsViewModel @Inject constructor(
             bonusRepository.clearBonus(today, packageName)
             usageRepository.resetAppBonusSpent(today, packageName)
         }
+    }
+}
+
+/** Снимок сегодняшнего расхода ребёнка, снятый с сервера (см. `childUsage`). */
+private data class ChildUsageToday(
+    /** Фактическое время в приложении за сегодня, секунды. */
+    val spentSecondsByPackage: Map<String, Int>,
+    /** Израсходованное дополнительное время приложения за сегодня, секунды. */
+    val bonusSpentSecondsByPackage: Map<String, Int>
+) {
+    companion object {
+        val EMPTY = ChildUsageToday(emptyMap(), emptyMap())
     }
 }
