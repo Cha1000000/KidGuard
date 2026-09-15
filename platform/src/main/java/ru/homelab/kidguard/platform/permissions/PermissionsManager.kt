@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.platform.permissions
 
+import ru.homelab.kidguard.core.domain.model.RiskyAccessibilityServices
 import android.annotation.SuppressLint
 import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
@@ -180,6 +181,45 @@ class PermissionsManager @Inject constructor(
     }
 
     /**
+     * Посторонние службы доступности — всё, кроме KidGuard, из списка включённых служб и из
+     * назначений кнопки и жеста доступности. Назначения читаем отдельно: «Меню спец. возможностей»
+     * повешенное на кнопку панели навигации, открывает список последних даже когда в общем списке
+     * служб его не видно.
+     */
+    fun foreignAccessibilityServices(): List<String> = ACCESSIBILITY_TARGET_SETTINGS
+        .flatMap { key ->
+            RiskyAccessibilityServices.foreignIn(
+                Settings.Secure.getString(context.contentResolver, key),
+                context.packageName
+            )
+        }
+        .distinct()
+
+    /**
+     * Выключает опасные посторонние службы доступности ([RiskyAccessibilityServices]) — меню с
+     * действием «Недавние приложения», через которое ребёнок открывал список последних в обход
+     * PIN-замка (15.09.2026). Остальные службы и сам KidGuard не трогаются.
+     *
+     * Работает только при `WRITE_SECURE_SETTINGS` — тем же правом KidGuard возвращает себе
+     * отключённый accessibility (см. [restoreAccessibility]).
+     *
+     * @return выключено ли что-нибудь.
+     */
+    fun disableRiskyAccessibilityServices(): Boolean {
+        if (!canRestoreAccessibility()) return false
+        var changed = false
+        ACCESSIBILITY_TARGET_SETTINGS.forEach { key ->
+            val cleaned = RiskyAccessibilityServices.withoutRisky(
+                Settings.Secure.getString(context.contentResolver, key)
+            ) ?: return@forEach
+            runCatching { Settings.Secure.putString(context.contentResolver, key, cleaned) }
+                .onSuccess { changed = true }
+                .onFailure { Timber.w(it, "Не удалось вычистить %s", key) }
+        }
+        return changed
+    }
+
+    /**
      * Контроль жив, только если выполнено ВСЁ: поднят общий тумблер специальных возможностей, наш
      * сервис в списке включённых И система его действительно ПРИВЯЗАЛА.
      *
@@ -264,6 +304,7 @@ class PermissionsManager @Inject constructor(
     private fun packageUri(): Uri = Uri.fromParts("package", context.packageName, null)
 
     private companion object {
+
         /**
          * Точки входа в вендорные менеджеры автозапуска. Проверяются по порядку, берётся первая
          * существующая на устройстве (см. [autostartIntent]). Видимость чужих пакетов на
@@ -299,3 +340,14 @@ class PermissionsManager @Inject constructor(
         )
     }
 }
+
+/**
+ * Настройки, где может быть назначена служба доступности: общий список включённых служб, кнопка на
+ * панели навигации и жест/ярлык. Имена двух последних — скрытые константы `Settings.Secure`,
+ * поэтому строками. Нужен и [PermissionsManager], и сторожу, который следит за этими ключами.
+ */
+internal val ACCESSIBILITY_TARGET_SETTINGS = listOf(
+    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+    "accessibility_button_targets",
+    "accessibility_shortcut_target_service"
+)

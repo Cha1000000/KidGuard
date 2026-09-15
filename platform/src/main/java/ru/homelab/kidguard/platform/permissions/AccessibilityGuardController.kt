@@ -2,6 +2,9 @@ package ru.homelab.kidguard.platform.permissions
 
 import android.content.Context
 import android.content.Intent
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -72,9 +75,38 @@ class AccessibilityGuardController @Inject constructor(
 
     suspend fun run() {
         Timber.tag(TAG).d("Сторож разрешения контроля запущен")
-        while (currentCoroutineContext().isActive) {
-            evaluate()
-            delay(TICK_SECONDS * 1000L)
+        // Наблюдатель — чтобы включённое меню спец. возможностей гасло сразу, а не на следующем тике,
+        // и родитель узнавал о смене служб без 15-минутного ожидания отчёта.
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                sweepRiskyAccessibilityServices()
+                healthReportTrigger.requestNow()
+            }
+        }
+        ACCESSIBILITY_TARGET_SETTINGS.forEach { key ->
+            context.contentResolver.registerContentObserver(Settings.Secure.getUriFor(key), false, observer)
+        }
+        try {
+            while (currentCoroutineContext().isActive) {
+                sweepRiskyAccessibilityServices()
+                evaluate()
+                delay(TICK_SECONDS * 1000L)
+            }
+        } finally {
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
+
+    /**
+     * Выключает опасные посторонние службы доступности, если у KidGuard есть право на запись
+     * защищённых настроек. Через «Меню спец. возможностей» 15.09.2026 открывали список последних в
+     * обход PIN-замка; если контроль снова умрёт и меню включат, оно продержится до первого тика.
+     * Без права ничего не делает — родитель узнает о службе из отчёта о состоянии.
+     */
+    private fun sweepRiskyAccessibilityServices() {
+        if (permissionsManager.disableRiskyAccessibilityServices()) {
+            Timber.tag(TAG).w("Выключено опасное меню спец. возможностей")
+            healthReportTrigger.requestNow()
         }
     }
 

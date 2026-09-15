@@ -38,7 +38,10 @@ class ChildAlertStoreImpl @Inject constructor(
         val overlay: Boolean = true,
         val deviceAdmin: Boolean = true,
         val vpn: Boolean = true,
-        val batteryOptimization: Boolean = true
+        val batteryOptimization: Boolean = true,
+        // Посторонние службы доступности. Без них включённое меню спец. возможностей при каждой
+        // проверке выглядело бы новым, и родитель получал бы одну и ту же тревогу каждые 15 минут.
+        val foreignAccessibilityServices: List<String> = emptyList()
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -70,7 +73,8 @@ class ChildAlertStoreImpl @Inject constructor(
         overlay = health?.overlay ?: true,
         deviceAdmin = health?.deviceAdmin ?: true,
         vpn = health?.vpn ?: true,
-        batteryOptimization = health?.batteryOptimization ?: true
+        batteryOptimization = health?.batteryOptimization ?: true,
+        foreignAccessibilityServices = health?.foreignAccessibilityServices.orEmpty()
     )
 
     private fun StoredChild.toChild() = Child(
@@ -80,7 +84,14 @@ class ChildAlertStoreImpl @Inject constructor(
         paired = paired,
         lastSeenAt = lastSeenAtEpochSeconds?.let(Instant::ofEpochSecond),
         health = if (hasHealth) {
-            DeviceHealth(accessibility, overlay, deviceAdmin, vpn, batteryOptimization)
+            DeviceHealth(
+                accessibility = accessibility,
+                overlay = overlay,
+                deviceAdmin = deviceAdmin,
+                vpn = vpn,
+                batteryOptimization = batteryOptimization,
+                foreignAccessibilityServices = foreignAccessibilityServices
+            )
         } else {
             null
         }

@@ -44,7 +44,8 @@ private fun DeviceHealthDto.toDomain() = DeviceHealth(
     vpn = vpn,
     batteryOptimization = batteryOptimization,
     lastExit = toLastExit(),
-    dayBlock = toDayBlock()
+    dayBlock = toDayBlock(),
+    foreignAccessibilityServices = foreignAccessibilityServices
 )
 
 /**

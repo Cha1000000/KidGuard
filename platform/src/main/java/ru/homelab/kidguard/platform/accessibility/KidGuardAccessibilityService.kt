@@ -1,5 +1,8 @@
 package ru.homelab.kidguard.platform.accessibility
 
+import ru.homelab.kidguard.platform.call.callAudioModeFlow
+import ru.homelab.kidguard.core.domain.usecase.shouldDismissRecentsPinOnCall
+import ru.homelab.kidguard.core.domain.usecase.shouldDismissPinOverlayOnWindowEvent
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -90,6 +93,17 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
+     * Задан ли родителем PIN — кеш в памяти, обновляется потоком в [onServiceConnected].
+     *
+     * Нужен ради скорости перехвата списка последних: там между открытием обзора и показом PIN
+     * счёт идёт на доли секунды (ребёнок жмёт «Очистить всё» в это окно — телефон Олега,
+     * 15.09.2026). Чтение `pinProtection` из DataStore — диск и корутинный хоп, слишком медленно
+     * для горячего пути. Здесь — синхронная проверка volatile-поля.
+     */
+    @Volatile
+    private var pinConfigured = false
+
+    /**
      * elapsedRealtime() последней успешной проверки PIN для каждого типа критичного экрана.
      * Пока разница с текущим временем меньше [UNLOCK_WINDOW_MS], повторный показ ТОГО ЖЕ
      * типа экрана не требует PIN снова — родитель успевает довести настройку до конца.
@@ -118,16 +132,6 @@ class KidGuardAccessibilityService : AccessibilityService() {
      * экран повторно — уводя ребёнка уже с того приложения, куда он вернулся.
      */
     private var recentsInterceptRunning = false
-
-    /**
-     * До этого момента (elapsedRealtime) события о списке последних игнорируем.
-     *
-     * Нужно из-за «хвоста»: когда ребёнок отказывается от PIN, мы уводим его на домашний экран, но
-     * лаунчер успевает прислать ещё одно событие о списке — и оверлей тут же выскакивал повторно.
-     * Домашний экран собственных событий не шлёт, так что дождаться смены экрана нечем — отсюда
-     * окно по времени.
-     */
-    private var recentsIgnoredUntil = 0L
 
     /**
      * Пакеты, чьи окна мы хотя бы раз видели служебными (шторка, навбар, AOD, клавиатура). Список
@@ -190,6 +194,8 @@ class KidGuardAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         // Сторож судит о живости контроля в первую очередь по этому флагу — см. [AccessibilityLiveness].
         accessibilityLiveness.onConnected()
+        // Держим наличие PIN в памяти, чтобы перехват обзора не читал DataStore на горячем пути.
+        scope.launch { policyRepository.pinProtection.collect { pinConfigured = it != null } }
         // Отдаём оверлею WindowManager сервиса — только окно accessibility-типа показывается
         // поверх защищённых системных экранов (см. PinOverlayManager).
         getSystemService(WindowManager::class.java)?.let {
@@ -197,6 +203,23 @@ class KidGuardAccessibilityService : AccessibilityService() {
             warningOverlayManager.attach(it)
             fullScreenLockOverlayManager.attach(it)
             breakWarningOverlay.attach(it)
+        }
+        // Звонок снимает PIN над списком последних: ребёнок должен иметь возможность ответить.
+        // Коллектор на главном потоке — там же, где события окон меняют pinOverlayScreen и флаги
+        // перехвата, чтобы им не гоняться между потоками.
+        scope.launch(Dispatchers.Main) {
+            applicationContext.callAudioModeFlow(includeRinging = true).collect { callActive ->
+                if (pinOverlayManager.isShowing() && shouldDismissRecentsPinOnCall(
+                        overlayForRecents = pinOverlayScreen == CriticalScreen.RECENTS,
+                        callActive = callActive
+                    )
+                ) {
+                    pinOverlayManager.hide()
+                    pinOverlayScreen = null
+                    recentsInterceptRunning = false
+                    Timber.tag(TAG).d("Звонок — снимаю PIN со списка последних")
+                }
+            }
         }
         // Система подключила сервис — главный кейс задержки watchdog: родитель только что выдал
         // (или переустановкой сбросил и восстановил) accessibility-разрешение. Не ждём следующий
@@ -255,15 +278,25 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // скрыл бы себя своим же window-событием) и под-окна того же хоста настроек/инсталлера
         // (например, всплывающие «значок приложения»), где родитель ещё должен ввести PIN.
         val overlayHosts = if (pinOverlayScreen == CriticalScreen.RECENTS) launcherPackages else overlayHostPackages
-        if (packageName != applicationContext.packageName && packageName !in overlayHosts) {
-            if (pinOverlayManager.isShowing()) {
-                pinOverlayManager.hide()
-                pinOverlayScreen = null
-                recentsInterceptRunning = false
-            }
-            // Warning-оверлей тоже убираем при реальном уходе с настроек (напр. ребёнок нажал «Домой»,
-            // не закрыв предупреждение), чтобы он не завис поверх следующего экрана.
-            if (warningOverlayManager.isShowing()) warningOverlayManager.hide()
+        val ownPackage = applicationContext.packageName
+        // PIN над списком последних по событиям окон не снимается никогда — только верный PIN, отказ
+        // или звонок. Иначе поворот из горизонтальной игры и панель меню спец. возможностей снимали
+        // замок через секунду (обход, 15.09.2026). Решение и причины — в shouldDismissPinOverlayOnWindowEvent.
+        if (pinOverlayManager.isShowing() && shouldDismissPinOverlayOnWindowEvent(
+                overlayForRecents = pinOverlayScreen == CriticalScreen.RECENTS,
+                eventPackage = packageName,
+                ownPackage = ownPackage,
+                hostPackages = overlayHosts
+            )
+        ) {
+            pinOverlayManager.hide()
+            pinOverlayScreen = null
+            recentsInterceptRunning = false
+        }
+        // Warning-оверлей убираем при реальном уходе с настроек (напр. ребёнок нажал «Домой», не закрыв
+        // предупреждение), чтобы он не завис поверх следующего экрана. Правило прежнее.
+        if (packageName != ownPackage && packageName !in overlayHosts && warningOverlayManager.isShowing()) {
+            warningOverlayManager.hide()
         }
     }
 
@@ -271,6 +304,19 @@ class KidGuardAccessibilityService : AccessibilityService() {
         val lastUnlocked = lastUnlockedAt[screen] ?: 0L
         if (SystemClock.elapsedRealtime() - lastUnlocked < unlockWindowFor(screen)) {
             Timber.tag(TAG).d("Критичный экран %s в окне разблокировки — без PIN", screen)
+            return
+        }
+        // Список последних — синхронно, без корутины и чтения DataStore: между открытием обзора и
+        // показом PIN счёт на доли секунды, и любой лишний хоп даёт ребёнку окно на «Очистить всё».
+        // Наличие PIN берём из кеша [pinConfigured]. Событие accessibility уже на главном потоке,
+        // так что показ идёт настолько быстро, насколько система вообще позволяет.
+        if (screen == CriticalScreen.RECENTS) {
+            if (!pinConfigured) {
+                Timber.tag(TAG).d("Список последних, но PIN не задан — пропускаю")
+                return
+            }
+            Timber.tag(TAG).d("Критичный экран RECENTS — показываю PIN-оверлей")
+            interceptRecents()
             return
         }
         scope.launch {
@@ -281,16 +327,12 @@ class KidGuardAccessibilityService : AccessibilityService() {
                 Timber.tag(TAG).d("Экран «О приложении»/«Хранилище» не наш — пропускаю")
                 return@launch
             }
-            if (policyRepository.pinProtection.first() == null) {
+            if (!pinConfigured) {
                 // PIN не задан родителем — защита не настроена, не перехватываем.
                 Timber.tag(TAG).d("Критичный экран %s, но PIN не задан — пропускаю", screen)
                 return@launch
             }
             Timber.tag(TAG).d("Критичный экран %s — показываю PIN-оверлей", screen)
-            if (screen == CriticalScreen.RECENTS) {
-                interceptRecents()
-                return@launch
-            }
             pinOverlayManager.show(
                 verifyPin = ::verifyPin,
                 onUnlocked = { lastUnlockedAt[screen] = SystemClock.elapsedRealtime() },
@@ -312,13 +354,14 @@ class KidGuardAccessibilityService : AccessibilityService() {
      * Отказ не возвращает ничего — мы уже ушли, и это ровно то поведение, которого ждали.
      */
     private fun interceptRecents() {
+        // Подавления «хвоста» после отказа тут больше нет (см. историю: телефон Олега 15.09.2026).
+        // Любой заход в обзор — под PIN. Хвост, приходящий пока PIN на экране, гасит гард
+        // isShowing() ниже; хвост уже после отказа даёт лишь короткий повторный PIN на рабочем
+        // столе — безопасная косметика. Прежние таймер/флаг пропускали ОСОЗНАННЫЙ быстрый повторный
+        // вход, и через него ребёнок обходил замок: лишний PIN лучше пропущенного.
         // Флаг синхронный, в отличие от pinOverlayManager.isShowing(): показ идёт через
         // mainHandler, и второе событие о списке (его шлёт лаунчер) успевало проскочить в щель.
         if (recentsInterceptRunning || pinOverlayManager.isShowing()) return
-        if (SystemClock.elapsedRealtime() < recentsIgnoredUntil) {
-            Timber.tag(TAG).d("Список последних только что закрыли — пропускаю событие")
-            return
-        }
         recentsInterceptRunning = true
         pinOverlayScreen = CriticalScreen.RECENTS
         pinOverlayManager.show(
@@ -333,7 +376,6 @@ class KidGuardAccessibilityService : AccessibilityService() {
             onCancel = {
                 pinOverlayScreen = null
                 recentsInterceptRunning = false
-                recentsIgnoredUntil = SystemClock.elapsedRealtime() + RECENTS_SETTLE_MS
                 // ВОТ ЗДЕСЬ уводим ребёнка, а не до показа оверлея. Так вышло не от красоты:
                 // закрыть список ДО оверлея не удаётся — лаунчер остаётся в режиме списка, и
                 // после закрытия оверлея система показывает его снова (проверено на эмуляторе и
@@ -687,14 +729,13 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private companion object {
         const val TAG = "KidGuardA11y"
         const val UNLOCK_WINDOW_MS = 20_000L
-        /** Две минуты родителю на разбор карточек в списке последних (решение Володи 06.09.2026). */
-        const val RECENTS_UNLOCK_WINDOW_MS = 120_000L
-        /**
-         * Сколько после отказа от PIN не реагировать на события списка последних. Лаунчер шлёт их
-         * ещё некоторое время после того, как мы ушли на домашний экран, и без этой паузы оверлей
-         * выскакивал вторично.
-         */
-        const val RECENTS_SETTLE_MS = 1_200L
+        // Окно разблокировки списка последних приравнено к остальным экранам (20 с, решение Володи
+        // 15.09.2026). Прежние 2 минуты давали ребёнку слишком много времени на «Очистить всё»,
+        // если родитель ввёл PIN и передал телефон. 20 с хватает разобрать карточки; после этого
+        // обзор снова под PIN. Ниже нуля нельзя: мы сами открываем обзор после верного PIN, и
+        // мгновенное окно тут же выбросило бы PIN родителю обратно.
+        const val RECENTS_UNLOCK_WINDOW_MS = 20_000L
+
         // Опрос содержимого окна для [awaitOwnAppScreen]: до ~600 мс. Содержимое доезжает позже
         // события смены окна; за это время ребёнок физически не успеет ничего нажать, а чужие
         // экраны столько не задерживают (просто не совпадут и уйдут).

@@ -49,10 +49,17 @@ class ParentAlertNotifier @Inject constructor(
         manager.notify(NOTIFICATION_ID_BASE + alert.childId, notification)
     }
 
-    private fun textFor(alert: ChildAlert): String = if (alert.silent) {
-        context.getString(R.string.parent_alert_silent)
-    } else {
-        context.getString(R.string.parent_alert_broken, alert.brokenPermissions.joinToString(", ") { labelOf(it) })
+    private fun textFor(alert: ChildAlert): String {
+        if (alert.silent) return context.getString(R.string.parent_alert_silent)
+        val parts = buildList {
+            if (alert.brokenPermissions.isNotEmpty()) {
+                add(context.getString(R.string.parent_alert_broken, alert.brokenPermissions.joinToString(", ") { labelOf(it) }))
+            }
+            // Меню спец. возможностей — отдельная фраза: это не сломанное разрешение, а открытая
+            // дверь, через которую контроль останавливают (15.09.2026).
+            if (alert.riskyAccessibilityMenu) add(context.getString(R.string.parent_alert_risky_menu))
+        }
+        return parts.joinToString(" ")
     }
 
     private fun labelOf(permission: DevicePermission): String = context.getString(

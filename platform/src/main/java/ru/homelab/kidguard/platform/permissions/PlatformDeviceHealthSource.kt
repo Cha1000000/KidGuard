@@ -33,6 +33,8 @@ class PlatformDeviceHealthSource @Inject constructor(
         // Берём последнюю запись как есть, а не «последнюю интересную»: она описывает, чем
         // закончился предыдущий запуск. Решать, показывать ли её родителю, будет он сам по
         // ProcessExitKind.worthReporting — иначе картина искажалась бы на нашей стороне.
-        lastExit = processExitReader.recent(limit = 1).firstOrNull()
+        lastExit = processExitReader.recent(limit = 1).firstOrNull(),
+        // Посторонние службы доступности: опасные из них (меню с «Недавними») — поломка контроля.
+        foreignAccessibilityServices = permissionsManager.foreignAccessibilityServices()
     )
 }

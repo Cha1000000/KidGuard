@@ -91,6 +91,7 @@ internal fun ChildCard(child: Child, onClick: () -> Unit, onHealthClick: () -> U
 @Composable
 private fun HealthWarningBadge(child: Child, now: Instant, onClick: () -> Unit) {
     val broken = child.health?.brokenPermissions().orEmpty()
+    val risky = child.health?.riskyAccessibilityServices().orEmpty()
     val text = when {
         // Сломано несколько — говорим, что есть ещё, иначе родитель починит одно и решит, что всё.
         broken.size > 1 -> stringResource(
@@ -101,6 +102,10 @@ private fun HealthWarningBadge(child: Child, now: Instant, onClick: () -> Unit) 
 
         broken.size == 1 ->
             stringResource(R.string.child_health_broken, stringResource(broken.first().titleRes()))
+
+        // Разрешения на месте, но включено меню с «Недавними» — отдельный текст, иначе плашка
+        // ниже соврала бы «Не выходил на связь».
+        risky.isNotEmpty() -> stringResource(R.string.child_health_risky_menu_badge)
 
         // Поломка без флагов = устройство молчит (сервис убит и доложить не может).
         else -> stringResource(R.string.child_health_silent, formatAgo(child.lastSeenAt ?: now, now))

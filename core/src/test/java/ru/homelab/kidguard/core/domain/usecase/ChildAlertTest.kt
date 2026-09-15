@@ -100,4 +100,38 @@ class ChildAlertTest {
         val notPaired = child(health = null, lastSeenAt = null, paired = false)
         assertNull(childAlert(previous = null, current = notPaired, now = now))
     }
+
+    // --- Меню спец. возможностей (обход PIN-замка, 15.09.2026) ---
+
+    private val menu =
+        "com.android.systemui.accessibility.accessibilitymenu/com.android.systemui.accessibility.accessibilitymenu.AccessibilityMenuService"
+
+    @Test
+    fun `включили меню спец возможностей - тревожим, и это не молчание`() {
+        val withMenu = child(health = healthy.copy(foreignAccessibilityServices = listOf(menu)))
+        val alert = childAlert(previous = child(), current = withMenu, now = now)
+        assertEquals(true, alert?.riskyAccessibilityMenu)
+        assertEquals(false, alert?.silent)
+        assertEquals(emptyList<DevicePermission>(), alert?.brokenPermissions)
+    }
+
+    @Test
+    fun `меню так и включено - повторно не тревожим`() {
+        val withMenu = child(health = healthy.copy(foreignAccessibilityServices = listOf(menu)))
+        assertNull(childAlert(previous = withMenu, current = withMenu, now = now))
+    }
+
+    @Test
+    fun `меню включили поверх уже сломанного разрешения - тревожим снова`() {
+        val broken = child(health = healthy.copy(accessibility = false))
+        val brokenAndMenu = child(health = healthy.copy(accessibility = false, foreignAccessibilityServices = listOf(menu)))
+        val alert = childAlert(previous = broken, current = brokenAndMenu, now = now)
+        assertEquals(true, alert?.riskyAccessibilityMenu)
+    }
+
+    @Test
+    fun `безопасная посторонняя служба тревоги не вызывает`() {
+        val talkback = child(health = healthy.copy(foreignAccessibilityServices = listOf("com.google.android.marvin.talkback/com.google.android.marvin.talkback.TalkBackService")))
+        assertNull(childAlert(previous = child(), current = talkback, now = now))
+    }
 }
