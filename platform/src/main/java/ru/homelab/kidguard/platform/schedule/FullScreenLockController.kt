@@ -1,5 +1,6 @@
 package ru.homelab.kidguard.platform.schedule
 
+import ru.homelab.kidguard.platform.call.callAudioModeFlow
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -259,16 +260,7 @@ class FullScreenLockController @Inject constructor(
      * возвращается сразу по его завершении. Детект «диалер на переднем плане» через accessibility
      * под нашим оверлеем не работает: система не шлёт событие об окне, открывшемся под оверлеем.
      */
-    private fun callActiveFlow(): Flow<Boolean> = callbackFlow {
-        val audioManager = context.getSystemService(AudioManager::class.java)
-        fun inCall(): Boolean = audioManager?.mode.let {
-            it == AudioManager.MODE_IN_CALL || it == AudioManager.MODE_IN_COMMUNICATION
-        }
-        trySend(inCall())
-        val listener = AudioManager.OnModeChangedListener { trySend(inCall()) }
-        audioManager?.addOnModeChangedListener(context.mainExecutor, listener)
-        awaitClose { audioManager?.removeOnModeChangedListener(listener) }
-    }
+    private fun callActiveFlow(): Flow<Boolean> = context.callAudioModeFlow(includeRinging = false)
 
     private fun ticker(): Flow<Unit> = flow {
         while (true) {

@@ -38,11 +38,20 @@ data class DeviceHealth(
      *
      * Как и [lastExit], в [isHealthy] не входит: это не разрешение, а подтверждение действия родителя.
      */
-    val dayBlock: AppliedDayBlock? = null
+    val dayBlock: AppliedDayBlock? = null,
+    /**
+     * Включённые посторонние службы доступности — всё, кроме KidGuard, из списка служб и назначений
+     * кнопки/жеста доступности. Опасные из них ([RiskyAccessibilityServices]) — поломка контроля.
+     */
+    val foreignAccessibilityServices: List<String> = emptyList()
 ) {
+    /** Опасные посторонние службы: через них открывают список последних в обход PIN-замка. */
+    fun riskyAccessibilityServices(): List<String> =
+        foreignAccessibilityServices.filter { RiskyAccessibilityServices.isRisky(it) }
+
     /** Всё ли на месте. Если нет — родителю показываем предупреждение. */
     val isHealthy: Boolean
-        get() = brokenPermissions().isEmpty()
+        get() = brokenPermissions().isEmpty() && riskyAccessibilityServices().isEmpty()
 
     /**
      * Что именно отвалилось — родителю показываем не «что-то сломалось», а конкретный список.

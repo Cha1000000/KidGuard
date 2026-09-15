@@ -106,8 +106,8 @@ class PinOverlayManager @Inject constructor(
         @StringRes titleRes: Int = R.string.pin_overlay_title,
         @StringRes subtitleRes: Int = R.string.pin_overlay_subtitle,
         action: OverlayAction? = null
-    ) = mainHandler.post {
-        if (overlayView != null) return@post
+    ) = runOnMain {
+        if (overlayView != null) return@runOnMain
         enteredDigits.clear()
         val view = createOverlayView(verifyPin, onUnlocked, onCancel, titleRes, subtitleRes, action)
         // Своё окно у accessibility-сервиса, если он есть; иначе обычное окно приложения.
@@ -123,6 +123,18 @@ class PinOverlayManager @Inject constructor(
         } else {
             Timber.e("Оверлей показать нечем: ни окно сервиса, ни окно приложения не приняли view")
         }
+    }
+
+    /**
+     * Выполнить на главном потоке — СРАЗУ, если мы уже на нём, иначе через хендлер.
+     *
+     * Разница критична для перехвата списка последних: обработчик accessibility-события идёт на
+     * главном потоке, и `Handler.post` поставил бы показ PIN в конец очереди — за лавину событий,
+     * которую система шлёт при открытии обзора (замерено на телефоне Олега 15.09.2026: до 680 мс).
+     * В это окно ребёнок успевал нажать «Очистить всё». Синхронное добавление окна закрывает щель.
+     */
+    private inline fun runOnMain(crossinline body: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) body() else mainHandler.post { body() }
     }
 
     /** Пытается добавить окно указанным менеджером; false — менеджера нет или система отказала. */
@@ -151,8 +163,8 @@ class PinOverlayManager @Inject constructor(
      * сам, не завершив ввод (например, кнопкой «Домой»): оверлей не должен зависать поверх
      * следующего экрана.
      */
-    fun hide() = mainHandler.post {
-        val view = overlayView ?: return@post
+    fun hide() = runOnMain {
+        val view = overlayView ?: return@runOnMain
         dismiss(view)
     }
 

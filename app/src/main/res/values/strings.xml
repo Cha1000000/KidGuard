@@ -753,6 +753,7 @@
     <string name="parent_alert_channel_name">Проблемы с контролем</string>
     <string name="parent_alert_title">%1$s — контроль не работает</string>
     <string name="parent_alert_broken">Отключено: %1$s. Откройте KidGuard, чтобы починить.</string>
+    <string name="parent_alert_risky_menu">Включено меню спец. возможностей — через него открывают список приложений в обход замка и останавливают контроль.</string>
     <string name="parent_alert_silent">Телефон не выходит на связь больше 40 минут: KidGuard остановлен, удалён или телефон выключен.</string>
 
     <string name="permission_accessibility_title">Специальные возможности</string>
@@ -779,6 +780,11 @@
     <string name="child_health_broken_more">Не работает: %1$s и ещё %2$d</string>
     <string name="child_health_silent">Не выходил на связь %1$s</string>
     <string name="child_health_broken_title">Контроль не работает</string>
+    <!-- Опасная посторонняя служба доступности (меню с действием «Недавние приложения») -->
+    <string name="child_health_risky_menu_badge">Включено меню спец. возможностей</string>
+    <string name="child_health_risky_menu_title">Меню спец. возможностей</string>
+    <string name="child_health_risky_menu_impact">Через него открывают список приложений в обход PIN-замка и останавливают контроль. Выключите его на телефоне ребёнка: «Настройки» → «Специальные возможности».</string>
+    <string name="child_health_foreign_services">Другие включённые службы доступности: %1$s</string>
     <string name="child_health_silent_title">Устройство не выходит на связь</string>
     <string name="child_health_last_seen">Последняя связь: %1$s</string>
     <string name="child_health_last_seen_never">Устройство ещё не выходило на связь</string>

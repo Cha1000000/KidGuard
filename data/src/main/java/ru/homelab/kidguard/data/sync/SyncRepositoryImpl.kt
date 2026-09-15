@@ -344,7 +344,8 @@ class SyncRepositoryImpl @Inject constructor(
                     dayBlockDate = dayBlock?.date?.toString(),
                     dayBlockIssuedAt = dayBlock?.issuedAt,
                     dayBlockAppliedAt = dayBlock?.appliedAt?.toString(),
-                    dayBlockMinutesLeft = dayBlock?.minutesLeftBefore
+                    dayBlockMinutesLeft = dayBlock?.minutesLeftBefore,
+                    foreignAccessibilityServices = health.foreignAccessibilityServices
                 )
             )
         )

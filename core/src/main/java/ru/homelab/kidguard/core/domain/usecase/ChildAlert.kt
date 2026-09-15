@@ -11,12 +11,15 @@ import java.time.Instant
  *   рассказать о себе не может.
  * @param silent устройство не выходит на связь дольше порога: контроль убит целиком (приложение
  *   остановлено, удалено или очищены данные), либо телефон просто выключен.
+ * @param riskyAccessibilityMenu на телефоне включено «Меню спец. возможностей» — через его действие
+ *   «Недавние приложения» открывали список последних в обход PIN-замка (15.09.2026).
  */
 data class ChildAlert(
     val childId: Int,
     val childName: String,
     val brokenPermissions: List<DevicePermission>,
-    val silent: Boolean
+    val silent: Boolean,
+    val riskyAccessibilityMenu: Boolean = false
 )
 
 /**
@@ -37,16 +40,24 @@ fun childAlert(previous: Child?, current: Child, now: Instant): ChildAlert? {
     if (!current.isControlBroken(now)) return null
 
     val broken = current.health?.brokenPermissions().orEmpty()
-    val silent = broken.isEmpty()
+    val risky = current.health?.riskyAccessibilityServices().orEmpty().isNotEmpty()
+    // «Молчит» — только когда нет ни сломанных разрешений, ни опасного меню: включённое меню
+    // означает, что телефон на связи и сам о нём доложил.
+    val silent = broken.isEmpty() && !risky
     val wasBroken = previous?.isControlBroken(now) == true
     val previousBroken = previous?.health?.brokenPermissions().orEmpty()
-    // Повторяем, только если набор поломок расширился: то же самое родитель уже видел.
-    if (wasBroken && broken.toSet().minus(previousBroken.toSet()).isEmpty()) return null
+    val wasRisky = previous?.health?.riskyAccessibilityServices().orEmpty().isNotEmpty()
+    // Повторяем, только если набор поломок расширился: то же самое родитель уже видел. Появившееся
+    // меню — тоже расширение набора.
+    val newBroken = broken.toSet().minus(previousBroken.toSet()).isNotEmpty()
+    val newRisky = risky && !wasRisky
+    if (wasBroken && !newBroken && !newRisky) return null
 
     return ChildAlert(
         childId = current.id,
         childName = current.name,
         brokenPermissions = broken,
-        silent = silent
+        silent = silent,
+        riskyAccessibilityMenu = risky
     )
 }

@@ -29,7 +29,10 @@ data class DeviceHealthDto(
     val dayBlockIssuedAt: Long? = null,
     /** ISO-8601. */
     val dayBlockAppliedAt: String? = null,
-    val dayBlockMinutesLeft: Int? = null
+    val dayBlockMinutesLeft: Int? = null,
+    // Посторонние службы доступности (компоненты «пакет/класс»). Дефолт — пустой список: отчёт
+    // старой сборки читается как «посторонних служб нет».
+    val foreignAccessibilityServices: List<String> = emptyList()
 )
 
 @Serializable

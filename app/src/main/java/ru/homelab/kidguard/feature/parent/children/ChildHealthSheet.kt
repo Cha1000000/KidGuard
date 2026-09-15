@@ -46,7 +46,11 @@ import java.time.Instant
 internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
     val now = remember(child) { Instant.now() }
     val broken = child.health?.brokenPermissions().orEmpty()
-    val isSilent = broken.isEmpty()
+    val risky = child.health?.riskyAccessibilityServices().orEmpty()
+    val otherForeign = child.health?.foreignAccessibilityServices.orEmpty() - risky.toSet()
+    // «Молчит» — только если нет ни сломанных разрешений, ни опасного меню: иначе лист открылся бы
+    // с заголовком про выключенный телефон, хотя телефон на связи и доложил о меню.
+    val isSilent = broken.isEmpty() && risky.isEmpty()
 
     GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -70,7 +74,10 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
                 StaleHealthNote()
             } else {
                 broken.forEach { HealthIssueRow(it) }
+                if (risky.isNotEmpty()) RiskyMenuRow()
             }
+            // Прочие посторонние службы — не поломка, но родителю стоит знать, что они включены.
+            if (otherForeign.isNotEmpty()) ForeignServicesNote(otherForeign)
 
             // Причина прошлой смерти процесса — главный ответ на вопрос «контроль пропал сам или
             // его выключили». Раньше его взять было негде: на HiOS логи вытесняются за минуты.
@@ -159,6 +166,46 @@ private fun HealthIssueRow(permission: DevicePermission) {
             )
         }
     }
+}
+
+/** Включено «Меню спец. возможностей»: через него открывали список последних в обход PIN-замка. */
+@Composable
+private fun RiskyMenuRow() {
+    Surface(
+        color = HealthDangerColor.copy(alpha = 0.09f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(R.string.child_health_risky_menu_title),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = HealthDangerColor
+            )
+            Text(
+                text = stringResource(R.string.child_health_risky_menu_impact),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Посторонние службы доступности, которые опасными не считаются (например, TalkBack). Показываем
+ * коротким именем пакета: полный компонент родителю ничего не скажет.
+ */
+@Composable
+private fun ForeignServicesNote(components: List<String>) {
+    val names = components.joinToString(", ") { it.substringBefore('/').substringAfterLast('.') }
+    Text(
+        text = stringResource(R.string.child_health_foreign_services, names),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
 }
 
 /**
