@@ -69,6 +69,9 @@ dependencies {
 
     // Тесты миграций Room (MigrationTestHelper) — инструментальные: им нужен настоящий SQLite
     // устройства, на котором и выполняется ALTER TABLE.
+    // Юнит-тесты чистых функций синхронизации (JVM, без устройства).
+    testImplementation(libs.junit)
+
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)

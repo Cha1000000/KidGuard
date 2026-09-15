@@ -215,3 +215,19 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         )
     }
 }
+
+/**
+ * v15: маркер разблокировки дня (кнопка «Разблокировать» и выдача бонуса во время блокировки).
+ *
+ * Три колонки в той же single-row таблице, что и маркеры сброса и блокировки: маркеры дня
+ * сравниваются между собой метками времени, и держать их рядом проще, чем собирать из разных таблиц.
+ */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `policy_flags` ADD COLUMN `dailyUsageUnblockDate` TEXT")
+        db.execSQL("ALTER TABLE `policy_flags` ADD COLUMN `dailyUsageUnblockAt` INTEGER")
+        db.execSQL(
+            "ALTER TABLE `policy_flags` ADD COLUMN `dailyUsageUnblockRestore` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}

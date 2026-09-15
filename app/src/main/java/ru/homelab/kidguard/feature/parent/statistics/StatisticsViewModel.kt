@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
+import ru.homelab.kidguard.core.domain.model.dayBlockState
+import ru.homelab.kidguard.core.domain.model.DayBlockState
 import ru.homelab.kidguard.core.domain.model.Child
 import ru.homelab.kidguard.core.domain.model.dayBudgetMinutes
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
@@ -59,6 +61,8 @@ data class StatisticsUiState(
     val todayPenaltyMinutes: Int = 0,
     val week: List<DayUsage> = emptyList(),
     val apps: List<AppUsage> = emptyList(),
+    /** Блокировка дня родителем: бейдж на карточке «Сегодня» и остаток на момент блокировки. */
+    val dayBlock: DayBlockState = DayBlockState.NotBlocked,
     val noChildren: Boolean = false,
     val error: Boolean = false
 ) {
@@ -89,6 +93,12 @@ class StatisticsViewModel @Inject constructor(
         // Переключение активного ребёнка (чип, веха 4.5) — сразу перегружаем статистику.
         viewModelScope.launch {
             syncRepository.activeChildId.drop(1).collect { refresh() }
+        }
+        // Телефон ребёнка подтвердил или снял блокировку дня — обновляем бейдж без свайпа.
+        viewModelScope.launch {
+            syncRepository.childHealthChanged.collect { childId ->
+                if (childId == syncRepository.activeChildId.first()) refresh()
+            }
         }
     }
 
@@ -127,11 +137,35 @@ class StatisticsViewModel @Inject constructor(
             val phonePenaltyByDate = penaltyRepository.observeAll().first()
                 .filter { it.packageName.isEmpty() }
                 .associate { it.date to it.minutes }
+            // Блокировка дня на телефоне ребёнка выставляет бюджетный расход равным бюджету — так
+            // обнуляется остаток. Это не потраченное время: без поправки карточка после блокировки
+            // показала бы «израсходовано 3 ч из 3 ч», хотя ребёнок потратил 1 ч 40 мин. Пока
+            // блокировка подтверждена, реальный расход = бюджет − остаток на момент блокировки.
+            val dayBlock = dayBlockState(
+                today,
+                policyRepository.dailyUsageBlock.first(),
+                policyRepository.dailyUsageReset.first(),
+                policyRepository.dailyUsageUnblock.first(),
+                child.health?.dayBlock
+            )
+            val todayBudgetMinutes = limits.limitFor(today.dayOfWeek)?.let {
+                dayBudgetMinutes(it, phoneBonusByDate[today] ?: 0, phonePenaltyByDate[today] ?: 0)
+            }
+            // Перерасход прибавляется отдельно: время, проведённое ребёнком после блокировки через
+            // смахнутый оверлей, копится именно в нём, и родитель обязан его видеть — терять его,
+            // подменяя расход расчётным, значило бы скрыть обход блокировки.
+            val todayOverrunSeconds = entries.filter { it.isOverrun && it.date == today }.sumOf { it.seconds }
+            val todaySeconds = if (dayBlock is DayBlockState.Confirmed && todayBudgetMinutes != null) {
+                (todayBudgetMinutes - dayBlock.minutesLeftBefore).coerceAtLeast(0) * 60 + todayOverrunSeconds
+            } else {
+                totalsByDate[today] ?: 0
+            }
             val week = (DAYS - 1 downTo 0).map { offset ->
                 val date = today.minusDays(offset.toLong())
                 DayUsage(
                     date = date,
-                    seconds = totalsByDate[date] ?: 0,
+                    // Столбик «сегодня» — с той же поправкой на блокировку, что и карточка.
+                    seconds = if (date == today) todaySeconds else totalsByDate[date] ?: 0,
                     // Бюджет дня = лимит этого дня недели + бонус − штраф, назначенные именно
                     // в этот день (dayBudgetMinutes — та же формула, что у enforcement).
                     budgetMinutes = limits.limitFor(date.dayOfWeek)?.let {
@@ -140,7 +174,6 @@ class StatisticsViewModel @Inject constructor(
                 )
             }
 
-            val todaySeconds = totalsByDate[today] ?: 0
             // isApp отсекает служебные маркеры дня (итог и перерасход) — иначе перерасход попал бы
             // в список «По приложениям» отдельной строкой с именем-маркером.
             val todayAppEntries = entries.filter { it.isApp && it.date == today && it.seconds > 0 }
@@ -175,7 +208,8 @@ class StatisticsViewModel @Inject constructor(
                 todayBonusMinutes = phoneBonusByDate[today] ?: 0,
                 todayPenaltyMinutes = phonePenaltyByDate[today] ?: 0,
                 week = week,
-                apps = apps
+                apps = apps,
+                dayBlock = dayBlock
             )
         }
     }

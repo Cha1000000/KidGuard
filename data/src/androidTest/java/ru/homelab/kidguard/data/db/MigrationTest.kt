@@ -118,7 +118,27 @@ class MigrationTest {
     }
 
     @Test
-    fun вся_цепочка_11_в_14_проходит_подряд() {
+    fun миграция14в15_добавляет_маркер_разблокировки_не_трогая_блокировку() {
+        helper.createDatabase(TEST_DB, 14).use { db ->
+            db.execSQL(
+                "INSERT INTO policy_flags(id, blockGoogleSearch, studyScheduleEnabled, sleepScheduleEnabled, " +
+                    "dailyUsageBlockDate, dailyUsageBlockAt) VALUES (0, 0, 0, 1, '2026-09-15', 1000)"
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, MIGRATION_14_15)
+
+        // Действующая блокировка и соседние флаги переживают миграцию.
+        assertEquals(1000, db.querySingleInt("SELECT dailyUsageBlockAt FROM policy_flags WHERE id = 0"))
+        assertEquals(1, db.querySingleInt("SELECT sleepScheduleEnabled FROM policy_flags WHERE id = 0"))
+        // Разблокировки у старой строки не было: признак возврата — «нет», а не NULL.
+        assertEquals(0, db.querySingleInt("SELECT dailyUsageUnblockRestore FROM policy_flags WHERE id = 0"))
+        assertTrue(db.isNull("SELECT dailyUsageUnblockAt FROM policy_flags WHERE id = 0"))
+        db.close()
+    }
+
+    @Test
+    fun вся_цепочка_11_в_15_проходит_подряд() {
         // По одной миграции проверяет каждый тест выше; здесь важно, что они совместимы между
         // собой — телефон, пропустивший несколько обновлений, идёт именно этим путём.
         helper.createDatabase(TEST_DB, 11).use { db ->
@@ -126,19 +146,25 @@ class MigrationTest {
         }
 
         val db = helper.runMigrationsAndValidate(
-            TEST_DB, 14, true,
-            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14
+            TEST_DB, 15, true,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15
         )
 
         assertEquals(1200, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-08-01'"))
         assertTrue(db.hasTable("penalty_grants"))
         assertTrue(db.hasColumn("app_screen_time", "bonusSpentSeconds"))
+        assertTrue(db.hasColumn("policy_flags", "dailyUsageUnblockAt"))
         db.close()
     }
 
     private fun SupportSQLiteDatabase.querySingleInt(sql: String): Int = query(sql).use { cursor ->
         assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
         cursor.getInt(0)
+    }
+
+    private fun SupportSQLiteDatabase.isNull(sql: String): Boolean = query(sql).use { cursor ->
+        assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
+        cursor.isNull(0)
     }
 
     private fun SupportSQLiteDatabase.hasTable(name: String): Boolean =

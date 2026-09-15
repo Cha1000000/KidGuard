@@ -1,5 +1,10 @@
 package ru.homelab.kidguard.feature.parent.statistics
 
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
+import ru.homelab.kidguard.core.domain.model.DayBlockState
+import androidx.compose.material3.Surface
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -212,11 +217,19 @@ private fun TodayCard(state: StatisticsUiState) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.statistics_today_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.statistics_today_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (state.dayBlock != DayBlockState.NotBlocked) {
+                            DayBlockChip(
+                                confirmed = state.dayBlock is DayBlockState.Confirmed,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
                     // Крупная цифра — всё экранное время: она совпадает с суммой блока
                     // «По приложениям». С бюджетом ниже сравнивается только та часть, что
                     // расходует лимит.
@@ -246,7 +259,44 @@ private fun TodayCard(state: StatisticsUiState) {
                 }
             }
 
-            when (budget) {
+            val blocked = state.dayBlock as? DayBlockState.Confirmed
+            if (blocked != null && budget !is DailyBudgetState.NoLimit) {
+                // Заблокированный день: шкала красная, вместо «осталось» — когда заблокировали и
+                // сколько оставалось. «Осталось N» здесь было бы неправдой: пользоваться этим
+                // временем ребёнок не может, пока его не разблокируют.
+                val budgetMinutes = when (budget) {
+                    is DailyBudgetState.Remaining -> budget.budgetMinutes
+                    is DailyBudgetState.Overrun -> budget.budgetMinutes
+                    DailyBudgetState.NoLimit -> 0
+                }
+                val usedWithin = when (budget) {
+                    is DailyBudgetState.Remaining -> budget.usedMinutes
+                    is DailyBudgetState.Overrun -> budget.usedMinutes - budget.overMinutes
+                    DailyBudgetState.NoLimit -> 0
+                }
+                val overMinutes = (budget as? DailyBudgetState.Overrun)?.overMinutes ?: 0
+                BudgetTrack(
+                    usedWithinBudgetMinutes = usedWithin,
+                    overMinutes = overMinutes,
+                    budgetMinutes = budgetMinutes,
+                    blocked = true
+                )
+                BudgetLine(budgetMinutes, state.todayLimitMinutes, state.todayBonusMinutes)
+                // Ребёнок пользовался телефоном сверх бюджета (смахивал оверлей) — показываем, как и
+                // вне блокировки: иначе обход блокировки остался бы незаметным.
+                if (overMinutes > 0) OverrunLine(overMinutes)
+                Text(
+                    text = stringResource(
+                        R.string.statistics_blocked_line,
+                        BLOCK_TIME_FORMAT.withZone(ZoneId.systemDefault()).format(blocked.appliedAt),
+                        formatMinutes(blocked.minutesLeftBefore)
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            } else when (budget) {
                 DailyBudgetState.NoLimit -> Text(
                     text = stringResource(R.string.statistics_budget_none),
                     style = MaterialTheme.typography.bodySmall,
@@ -313,7 +363,9 @@ private fun OutsideLimitLine(minutes: Int) {
 private fun BudgetTrack(
     usedWithinBudgetMinutes: Int,
     overMinutes: Int,
-    budgetMinutes: Int
+    budgetMinutes: Int,
+    /** День заблокирован родителем — израсходованная часть красная, как плашка блокировки. */
+    blocked: Boolean = false
 ) {
     val totalMinutes = maxOf(usedWithinBudgetMinutes + overMinutes, budgetMinutes)
     val restMinutes = totalMinutes - usedWithinBudgetMinutes - overMinutes
@@ -332,7 +384,7 @@ private fun BudgetTrack(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(usedWithinBudgetMinutes.toFloat())
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(if (blocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             )
         }
         if (overMinutes > 0) {
@@ -722,3 +774,38 @@ private val BarAreaHeight = 128.dp
 private val BudgetLineStroke = 2.dp
 private const val DashOnPx = 6f
 private const val DashOffPx = 6f
+
+private val BLOCK_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+/**
+ * Бейдж «Заблокировано» у заголовка «Сегодня». Золотой — телефон ребёнка ещё не подтвердил,
+ * красный — подтвердил (те же цвета, что у плашки на «Дневном лимите»).
+ */
+@Composable
+private fun DayBlockChip(confirmed: Boolean, modifier: Modifier = Modifier) {
+    val color = if (confirmed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+    Surface(
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = stringResource(R.string.statistics_blocked_badge),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = color,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+    }
+}

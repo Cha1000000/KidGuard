@@ -492,6 +492,28 @@
     <string name="daily_limit_block_today_title">Заблокировать на сегодня?</string>
     <string name="daily_limit_block_today_message">Доступное на сегодня время обнулится — телефон ребёнка будет заблокирован до конца дня. Вернуть время можно кнопкой «Сбросить сегодняшний лимит» или бонусом.</string>
     <string name="daily_limit_block_today_action">Заблокировать</string>
+    <!-- Статус блокировки дня (плашка вверху «Дневного лимита») -->
+    <string name="day_block_pending_title">Блокировка отправлена</string>
+    <string name="day_block_pending_text">Ждём телефон ребёнка — блокировка включится, как только он выйдет в сеть.</string>
+    <string name="day_block_confirmed_title">День заблокирован</string>
+    <string name="day_block_confirmed_text">С %1$s · у ребёнка оставалось %2$s. «Разблокировать» вернёт это время.</string>
+    <!-- Разблокировка -->
+    <string name="daily_limit_unblock">Разблокировать</string>
+    <string name="daily_limit_unblock_title">Разблокировать день?</string>
+    <string name="daily_limit_unblock_message">%1$s снова сможет пользоваться телефоном: вернутся %2$s, которые оставались до блокировки.</string>
+    <string name="daily_limit_unblock_action">Разблокировать</string>
+    <string name="daily_limit_cancel_block_title">Отменить блокировку?</string>
+    <string name="daily_limit_cancel_block_message">Блокировка ещё не дошла до телефона ребёнка — её просто отменим, и время у ребёнка останется как было.</string>
+    <!-- Имя ребёнка неизвестно (нет сети) — подставляется в «%1$s снова сможет…» -->
+    <string name="day_block_child_fallback">Ребёнок</string>
+    <string name="daily_limit_cancel_block_action">Отменить блокировку</string>
+    <!-- Подсказка в блоке бонуса телефона, пока день заблокирован -->
+    <string name="bonus_blocked_note_confirmed">Выдача снимет блокировку дня. Оставшиеся до блокировки %1$s при этом не вернутся.</string>
+    <string name="bonus_blocked_note_pending">Выдача снимет блокировку дня. Время, которое оставалось до блокировки, при этом не вернётся.</string>
+    <!-- Бейджи блокировки на «Дети» и «Статистике» -->
+    <string name="child_blocked_today_badge">Заблокирован сегодня</string>
+    <string name="statistics_blocked_badge">Заблокировано</string>
+    <string name="statistics_blocked_line">Заблокировано родителем в %1$s · оставалось %2$s</string>
     <string name="limit_value_hm">%1$d ч %2$02d мин</string>
     <string name="limit_value_h">%1$d ч</string>
     <string name="limit_value_m">%1$d мин</string>

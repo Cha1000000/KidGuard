@@ -6,6 +6,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
+import ru.homelab.kidguard.core.domain.model.DailyUsageUnblock
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -63,6 +64,9 @@ interface PolicyRepository {
 
     /** Маркер блокировки на сегодня из текущей политики (null — блокировки нет). */
     val dailyUsageBlock: Flow<DailyUsageBlock?>
+
+    /** Маркер разблокировки дня (см. [DailyUsageUnblock]); null — ни разу не разблокировали. */
+    val dailyUsageUnblock: Flow<DailyUsageUnblock?>
 
     /** Задать лимит (минут) на день недели; null убирает лимит (в этот день без ограничения). */
     suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?)
@@ -123,6 +127,9 @@ interface PolicyRepository {
 
     /** Родитель: выставить маркер блокировки на сегодня с меткой времени нажатия. */
     suspend fun setDailyUsageBlock(date: LocalDate, issuedAt: Long)
+
+    /** Поставить маркер разблокировки дня; [restoreRemaining] — вернуть ли ребёнку остаток. */
+    suspend fun setDailyUsageUnblock(date: LocalDate, issuedAt: Long, restoreRemaining: Boolean)
 
     /**
      * Транзакционно заменить всю политику разом — применение серверного документа при

@@ -22,7 +22,14 @@ data class DeviceHealthDto(
     val lastExitKind: String? = null,
     /** ISO-8601, как и lastSeenAt: сервер хранит health непрозрачным JSON и в поля не вникает. */
     val lastExitAt: String? = null,
-    val lastExitDescription: String? = null
+    val lastExitDescription: String? = null,
+    // Применённая блокировка дня — подтверждение для родителя. Все поля с дефолтами по той же
+    // причине, что и lastExit*: отчёт старой сборки должен читаться как «блокировки нет».
+    val dayBlockDate: String? = null,
+    val dayBlockIssuedAt: Long? = null,
+    /** ISO-8601. */
+    val dayBlockAppliedAt: String? = null,
+    val dayBlockMinutesLeft: Int? = null
 )
 
 @Serializable

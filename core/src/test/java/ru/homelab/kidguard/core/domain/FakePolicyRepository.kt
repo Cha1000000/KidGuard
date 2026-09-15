@@ -7,6 +7,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
+import ru.homelab.kidguard.core.domain.model.DailyUsageUnblock
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -49,6 +50,7 @@ class FakePolicyRepository(
     override val breakRules: Flow<BreakRules> = flowOf(BreakRules.EMPTY)
     override val dailyUsageReset: Flow<DailyUsageReset?> = flowOf(null)
     override val dailyUsageBlock: Flow<DailyUsageBlock?> = flowOf(null)
+    override val dailyUsageUnblock: Flow<DailyUsageUnblock?> = flowOf(null)
 
     override suspend fun setDailyLimit(day: DayOfWeek, minutes: Int?) = Unit
     override suspend fun setAppLimit(packageName: String, minutes: Int?) = Unit
@@ -69,5 +71,6 @@ class FakePolicyRepository(
     override suspend fun resetBreaks() = Unit
     override suspend fun setDailyUsageReset(date: LocalDate, issuedAt: Long) = Unit
     override suspend fun setDailyUsageBlock(date: LocalDate, issuedAt: Long) = Unit
+    override suspend fun setDailyUsageUnblock(date: LocalDate, issuedAt: Long, restoreRemaining: Boolean) = Unit
     override suspend fun replaceAll(snapshot: PolicySnapshot) = Unit
 }

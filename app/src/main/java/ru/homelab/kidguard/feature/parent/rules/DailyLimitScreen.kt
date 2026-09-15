@@ -1,5 +1,10 @@
 package ru.homelab.kidguard.feature.parent.rules
 
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
+import ru.homelab.kidguard.core.ui.components.formatDurationMinutes
+import ru.homelab.kidguard.core.domain.model.DayBlockState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -7,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -81,6 +88,9 @@ fun DailyLimitScreen(
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetTodayConfirm by remember { mutableStateOf(false) }
     var showBlockTodayConfirm by remember { mutableStateOf(false) }
+    var showUnblockConfirm by remember { mutableStateOf(false) }
+    val dayBlock by viewModel.dayBlock.collectAsStateWithLifecycle()
+    val isDayBlocked = dayBlock.state != DayBlockState.NotBlocked
     // Сбрасывать нечего, если ни на один день лимит не задан — тогда кнопка неактивна.
     val hasAnyLimit = DayOfWeek.entries.any { limits.limitFor(it) != null }
     // Сбрасывать сегодняшний расход нечего, если на сегодня лимит вообще не задан.
@@ -99,6 +109,11 @@ fun DailyLimitScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
+            // Статус блокировки — первым на экране: родитель заходит сюда именно проверить,
+            // сработало ли нажатие, и не должен искать ответ под лимитами.
+            AnimatedVisibility(visible = isDayBlocked) {
+                DayBlockBanner(dayBlock, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+            }
             Text(
                 text = stringResource(R.string.daily_limit_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
@@ -106,13 +121,18 @@ fun DailyLimitScreen(
                 modifier = Modifier.padding(vertical = 12.dp)
             )
             GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                BonusSection(
-                    activeBonusMinutes = phoneBonus,
-                    subtitleRes = R.string.bonus_subtitle_phone,
-                    onAdd = { viewModel.addPhoneBonus(it) },
-                    onClear = { viewModel.clearPhoneBonus() },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    BonusSection(
+                        activeBonusMinutes = phoneBonus,
+                        subtitleRes = R.string.bonus_subtitle_phone,
+                        onAdd = { viewModel.addPhoneBonus(it) },
+                        onClear = { viewModel.clearPhoneBonus() },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    // Бонус во время блокировки снимает её и остаток не возвращает — предупреждаем
+                    // заранее, иначе родитель потеряет время ребёнка, не заметив этого.
+                    if (isDayBlocked) BonusBlockedNote(dayBlock.state)
+                }
             }
             // Скелетон, пока едет расход, и плавное исчезновение, когда штрафовать нечего:
             // блок либо появляется уже готовым, либо пропадает без рывка.
@@ -151,10 +171,14 @@ fun DailyLimitScreen(
                     }
                 }
             }
+            // Высота ряда — по самой высокой кнопке, и обе растягиваются на неё: подписи бывают в
+            // одну строку («Разблокировать») и в две («Сбросить сегодняшний лимит»), и без этого
+            // нижние границы кнопок расходились.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(top = 16.dp)
+                    .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Золотая (tertiary) окантовка и контент в обеих темах; при выключенной кнопке
@@ -167,7 +191,7 @@ fun DailyLimitScreen(
                     border = BorderStroke(1.dp, resetGold.copy(alpha = if (todayHasLimit) 1f else 0.3f)),
                     shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
@@ -184,27 +208,55 @@ fun DailyLimitScreen(
                         )
                     }
                 }
-                // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
-                GlassDangerButton(
-                    onClick = { showBlockTodayConfirm = true },
-                    enabled = todayHasLimit,
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(26.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.daily_limit_block_today),
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
+                if (isDayBlocked) {
+                    // Бирюзовая, а не красная: это возврат времени, а не опасное действие.
+                    val unblockColor = MaterialTheme.colorScheme.primary
+                    OutlinedButton(
+                        onClick = { showUnblockConfirm = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = unblockColor),
+                        border = BorderStroke(1.dp, unblockColor),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(R.drawable.ic_lock_open),
+                                contentDescription = null,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.daily_limit_unblock),
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                } else {
+                    // Тёмно-красная (danger) кнопка блокировки — обнуляет доступное на сегодня время.
+                    GlassDangerButton(
+                        onClick = { showBlockTodayConfirm = true },
+                        enabled = todayHasLimit,
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp, horizontal = 12.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.daily_limit_block_today),
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+                        }
                     }
                 }
             }
@@ -310,6 +362,17 @@ fun DailyLimitScreen(
                     Text(stringResource(R.string.common_cancel))
                 }
             }
+        )
+    }
+
+    if (showUnblockConfirm) {
+        UnblockDialog(
+            ui = dayBlock,
+            onConfirm = {
+                viewModel.unblockToday()
+                showUnblockConfirm = false
+            },
+            onDismiss = { showUnblockConfirm = false }
         )
     }
 
@@ -455,3 +518,139 @@ private fun DayOfWeek.nameRes(): Int = when (this) {
 private const val DEFAULT_MINUTES = 120
 private const val MAX_MINUTES = 300
 private const val STEP_MINUTES = 15
+
+private val BLOCK_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+/**
+ * Плашка статуса блокировки дня: золотая, пока телефон ребёнка не подтвердил применение, красная —
+ * когда подтвердил. Два этапа — решение Володи 15.09.2026: без первого родитель при выключенном
+ * телефоне ребёнка снова не понял бы, сработало ли нажатие.
+ */
+@Composable
+private fun DayBlockBanner(ui: DayBlockUi, modifier: Modifier = Modifier) {
+    val state = ui.state
+    // Во время исчезновения AnimatedVisibility рисует содержимое уже со снятым статусом.
+    if (state == DayBlockState.NotBlocked) return
+    val confirmed = state as? DayBlockState.Confirmed
+    val accent = if (confirmed != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+    Surface(
+        color = accent.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.4f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(22.dp)
+            )
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (confirmed == null) {
+                        CircularProgressIndicator(
+                            color = accent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = stringResource(
+                            if (confirmed != null) R.string.day_block_confirmed_title else R.string.day_block_pending_title
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = accent
+                    )
+                }
+                Text(
+                    text = if (confirmed != null) {
+                        stringResource(
+                            R.string.day_block_confirmed_text,
+                            BLOCK_TIME_FORMAT.withZone(ZoneId.systemDefault()).format(confirmed.appliedAt),
+                            formatDurationMinutes(confirmed.minutesLeftBefore)
+                        )
+                    } else {
+                        stringResource(R.string.day_block_pending_text)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 3.dp)
+                )
+            }
+        }
+    }
+}
+
+/** Подсказка в блоке бонуса телефона, пока день заблокирован. */
+@Composable
+private fun BonusBlockedNote(state: DayBlockState) {
+    val gold = MaterialTheme.colorScheme.tertiary
+    Surface(
+        color = gold.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+    ) {
+        Text(
+            text = (state as? DayBlockState.Confirmed)
+                ?.let { stringResource(R.string.bonus_blocked_note_confirmed, formatDurationMinutes(it.minutesLeftBefore)) }
+                ?: stringResource(R.string.bonus_blocked_note_pending),
+            style = MaterialTheme.typography.bodySmall,
+            color = gold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+        )
+    }
+}
+
+/**
+ * Диалог разблокировки. Если блокировка ещё не дошла до телефона, честно говорим, что её просто
+ * отменят: обещать «вернутся 1 ч 20 мин» было бы нечем — остатка телефон ещё не посчитал.
+ */
+@Composable
+private fun UnblockDialog(ui: DayBlockUi, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val confirmed = ui.state as? DayBlockState.Confirmed
+    val childName = ui.childName ?: stringResource(R.string.day_block_child_fallback)
+    GlassDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (confirmed != null) R.string.daily_limit_unblock_title else R.string.daily_limit_cancel_block_title
+                )
+            )
+        },
+        text = {
+            Text(
+                if (confirmed != null) {
+                    stringResource(
+                        R.string.daily_limit_unblock_message,
+                        childName,
+                        formatDurationMinutes(confirmed.minutesLeftBefore)
+                    )
+                } else {
+                    stringResource(R.string.daily_limit_cancel_block_message)
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(
+                        if (confirmed != null) R.string.daily_limit_unblock_action else R.string.daily_limit_cancel_block_action
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(if (confirmed != null) R.string.common_cancel else R.string.common_back))
+            }
+        }
+    )
+}

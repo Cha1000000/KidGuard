@@ -1,11 +1,13 @@
 package ru.homelab.kidguard.data.network
 
 import ru.homelab.kidguard.core.domain.model.Child
+import ru.homelab.kidguard.core.domain.model.AppliedDayBlock
 import ru.homelab.kidguard.core.domain.model.DeviceHealth
 import ru.homelab.kidguard.core.domain.model.ProcessExitKind
 import ru.homelab.kidguard.core.domain.model.ProcessExitRecord
 import timber.log.Timber
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * Разбор [ChildDto] в доменного [Child] — раньше жил приватным методом внутри `ChildRepositoryImpl`,
@@ -41,8 +43,25 @@ private fun DeviceHealthDto.toDomain() = DeviceHealth(
     deviceAdmin = deviceAdmin,
     vpn = vpn,
     batteryOptimization = batteryOptimization,
-    lastExit = toLastExit()
+    lastExit = toLastExit(),
+    dayBlock = toDayBlock()
 )
+
+/**
+ * Подтверждение блокировки дня — тоже целиком или никак. Без даты или метки блокировки его нельзя
+ * сопоставить с маркером в политике, а частичное подтверждение хуже отсутствующего: родитель увидел
+ * бы «заблокировано» по отчёту о чужой блокировке.
+ */
+private fun DeviceHealthDto.toDayBlock(): AppliedDayBlock? {
+    val date = dayBlockDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return null
+    val issuedAt = dayBlockIssuedAt ?: return null
+    val appliedAt = dayBlockAppliedAt?.let { raw ->
+        runCatching { Instant.parse(raw) }
+            .onFailure { e -> Timber.w(e, "Не разобрал dayBlockAppliedAt: %s", raw) }
+            .getOrNull()
+    } ?: return null
+    return AppliedDayBlock(date, issuedAt, appliedAt, dayBlockMinutesLeft ?: 0)
+}
 
 /**
  * Причина смерти нужна целиком или никак: без времени её нечего показать родителю, а незнакомое
