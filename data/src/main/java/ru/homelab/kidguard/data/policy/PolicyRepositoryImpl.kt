@@ -9,6 +9,7 @@ import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
+import ru.homelab.kidguard.core.domain.model.DailyUsageUnblock
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.PinProtection
 import ru.homelab.kidguard.core.domain.model.PolicySnapshot
@@ -105,6 +106,16 @@ class PolicyRepositoryImpl @Inject constructor(
         val date = flags?.dailyUsageBlockDate
         val at = flags?.dailyUsageBlockAt
         if (date != null && at != null) DailyUsageBlock(LocalDate.parse(date), at) else null
+    }
+
+    override val dailyUsageUnblock: Flow<DailyUsageUnblock?> = policyDao.policyFlags().map { flags ->
+        val date = flags?.dailyUsageUnblockDate
+        val at = flags?.dailyUsageUnblockAt
+        if (date != null && at != null) {
+            DailyUsageUnblock(LocalDate.parse(date), at, flags.dailyUsageUnblockRestore)
+        } else {
+            null
+        }
     }
 
     override val pinProtection: Flow<PinProtection?> = policyDao.pin().map { entity ->
@@ -216,6 +227,10 @@ class PolicyRepositoryImpl @Inject constructor(
         policyDao.setDailyUsageBlock(date.toString(), issuedAt)
     }
 
+    override suspend fun setDailyUsageUnblock(date: LocalDate, issuedAt: Long, restoreRemaining: Boolean) {
+        policyDao.setDailyUsageUnblock(date.toString(), issuedAt, restoreRemaining)
+    }
+
     override suspend fun replaceAll(snapshot: PolicySnapshot) {
         val hash = snapshot.pinHash
         val salt = snapshot.pinSalt
@@ -236,7 +251,10 @@ class PolicyRepositoryImpl @Inject constructor(
                     dailyUsageResetDate = snapshot.dailyUsageReset?.date?.toString(),
                     dailyUsageResetAt = snapshot.dailyUsageReset?.issuedAt,
                     dailyUsageBlockDate = snapshot.dailyUsageBlock?.date?.toString(),
-                    dailyUsageBlockAt = snapshot.dailyUsageBlock?.issuedAt
+                    dailyUsageBlockAt = snapshot.dailyUsageBlock?.issuedAt,
+                    dailyUsageUnblockDate = snapshot.dailyUsageUnblock?.date?.toString(),
+                    dailyUsageUnblockAt = snapshot.dailyUsageUnblock?.issuedAt,
+                    dailyUsageUnblockRestore = snapshot.dailyUsageUnblock?.restoreRemaining ?: false
                 ),
                 pin = if (hash != null && salt != null) PinEntity(pinHash = hash, pinSalt = salt) else null,
                 breakRules = snapshot.breakRules.toEntity(),

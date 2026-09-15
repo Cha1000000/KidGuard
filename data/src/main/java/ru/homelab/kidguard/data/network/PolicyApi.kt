@@ -45,7 +45,10 @@ data class PolicyDocumentDto(
     // null — обратная совместимость: старый документ без поля читается как «сброса нет».
     val dailyUsageReset: DailyUsageResetDto? = null,
     // null — обратная совместимость: старый документ без поля читается как «блокировки нет».
-    val dailyUsageBlock: DailyUsageBlockDto? = null
+    val dailyUsageBlock: DailyUsageBlockDto? = null,
+    // Маркер разблокировки дня. Дефолт null обязателен: на детских телефонах стоят сборки без
+    // поля, и документ от нового родителя должен у них читаться без ошибки.
+    val dailyUsageUnblock: DailyUsageUnblockDto? = null
 )
 
 /** Маркер сброса дневного лимита: родитель обнуляет израсходованное сегодня время ребёнку. */
@@ -55,6 +58,10 @@ data class DailyUsageResetDto(val date: String, val issuedAt: Long)
 /** Маркер блокировки на сегодня: родитель обнуляет доступное ребёнку время. */
 @Serializable
 data class DailyUsageBlockDto(val date: String, val issuedAt: Long)
+
+/** Маркер разблокировки дня; [restoreRemaining] — вернуть ли ребёнку остаток до блокировки. */
+@Serializable
+data class DailyUsageUnblockDto(val date: String, val issuedAt: Long, val restoreRemaining: Boolean)
 
 /** Окно блокировки в минутах от полуночи; `end < start` — переход через полночь. */
 @Serializable

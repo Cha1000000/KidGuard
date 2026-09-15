@@ -1,5 +1,7 @@
 package ru.homelab.kidguard.feature.parent.children
 
+import java.time.LocalDate
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -75,6 +77,11 @@ internal fun ChildCard(child: Child, onClick: () -> Unit, onHealthClick: () -> U
                 if (child.isControlBroken(now)) {
                     HealthWarningBadge(child = child, now = now, onClick = onHealthClick)
                 }
+                // Только подтверждённая телефоном блокировка: политику других детей родительский
+                // телефон локально не хранит, а отчёт с телефона приходит по всем.
+                if (child.isDayBlockedToday()) {
+                    DayBlockBadge()
+                }
             }
         }
     }
@@ -112,6 +119,48 @@ private fun HealthWarningBadge(child: Child, now: Instant, onClick: () -> Unit) 
             color = HealthDangerColor,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
+    }
+}
+
+/**
+ * Блокировка дня применена на телефоне сегодня. Дату сверяем здесь: вчерашний отчёт после полуночи
+ * может провисеть до следующего heartbeat ребёнка (до 15 минут).
+ *
+ * Источник — **только отчёт телефона**, намеренно даже для активного ребёнка, чья политика лежит
+ * локально. Бейдж отвечает на вопрос «заблокирован ли телефон ребёнка сейчас», и телефон
+ * действительно остаётся заблокированным, пока не получит разблокировку. Поэтому после нажатия
+ * «Разблокировать» бейдж гаснет не сразу, а когда телефон её применит (у онлайн-телефона — за
+ * секунды), тогда как плашка на «Дневном лимите» уходит мгновенно: та показывает команду родителя,
+ * а не состояние телефона.
+ */
+private fun Child.isDayBlockedToday(): Boolean = health?.dayBlock?.date == LocalDate.now()
+
+/** Красный бейдж «Заблокирован сегодня» — в той же гамме, что плашка поломки контроля. */
+@Composable
+private fun DayBlockBadge() {
+    Surface(
+        color = HealthDangerColor.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(top = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                tint = HealthDangerColor,
+                modifier = Modifier.size(13.dp)
+            )
+            Text(
+                text = stringResource(R.string.child_blocked_today_badge),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = HealthDangerColor,
+                modifier = Modifier.padding(start = 5.dp)
+            )
+        }
     }
 }
 

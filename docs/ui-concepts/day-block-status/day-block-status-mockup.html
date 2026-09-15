@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>KidGuard — Статус блокировки дня</title>
+<style>
+    :root {
+        --accent: #4FC3B0;
+        --glass-bg: rgba(23, 40, 46, 0.4);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-main: #E6EEF0;
+        --text-secondary: #9DB2B8;
+        --danger: #E5534B;
+        --danger-bg: rgba(229, 83, 75, 0.12);
+        --gold: #E8B84A;
+        --gold-bg: rgba(232, 184, 74, 0.12);
+    }
+    body { margin: 0; padding: 32px; background: #0A1216; font-family: 'Inter', -apple-system, sans-serif; color: var(--text-main); }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+    .sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 28px; max-width: 900px; line-height: 1.5; }
+    .layout { display: flex; gap: 32px; align-items: flex-start; }
+    .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; flex: 1; }
+    .case { width: 360px; }
+    .case-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+    .case-note { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.45; min-height: 34px; }
+
+    .phone { width: 360px; border-radius: 32px; padding: 20px 16px; box-sizing: border-box;
+        background: radial-gradient(circle at 30% 20%, #0E1C21 0%, #04312B 60%, #0A161A 100%);
+        border: 1px solid rgba(255,255,255,0.06); }
+    .topbar { display: flex; align-items: center; gap: 12px; margin: 0 0 6px 2px; font-size: 20px; }
+    .back { color: var(--text-secondary); }
+    .screen-title { font-size: 26px; font-weight: 400; margin: 4px 0 14px 4px; }
+    .hint { font-size: 12.5px; color: var(--text-secondary); margin: 4px 4px 12px; line-height: 1.4; }
+
+    .card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px; padding: 14px 16px; margin-bottom: 12px; }
+    .muted { color: var(--text-secondary); font-size: 12.5px; line-height: 1.4; }
+    .sec-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+
+    /* Плашка статуса — вверху экрана «Дневной лимит» */
+    .status { border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
+    .status .ic { font-size: 22px; line-height: 1; margin-top: 1px; }
+    .status .t { font-size: 15px; font-weight: 700; }
+    .status .d { font-size: 12.5px; margin-top: 3px; line-height: 1.4; color: var(--text-main); opacity: .85; }
+    .status.pending { background: var(--gold-bg); border: 1px solid rgba(232,184,74,.35); }
+    .status.pending .t { color: var(--gold); }
+    .status.blocked { background: var(--danger-bg); border: 1px solid rgba(229,83,75,.4); }
+    .status.blocked .t { color: var(--danger); }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--gold); border-right-color: transparent; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
+
+    .chips { display: flex; gap: 8px; margin-top: 10px; }
+    .chip { border: 1px solid var(--glass-border); border-radius: 12px; padding: 7px 12px; font-size: 13px; }
+    .note-inline { margin-top: 10px; background: var(--gold-bg); border-radius: 10px; padding: 8px 10px; font-size: 12px; color: var(--gold); line-height: 1.4; }
+
+    .days .d { display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .days .d:last-child { border-bottom: none; }
+    .days .today { color: var(--accent); font-weight: 600; }
+
+    .btns { display: flex; gap: 12px; margin-top: 4px; }
+    .bigbtn { flex: 1; border-radius: 20px; padding: 12px 8px; text-align: center; font-size: 14px; line-height: 1.25; }
+    .bigbtn .i { font-size: 22px; display: block; margin-bottom: 6px; }
+    .b-reset { border: 1px solid var(--gold); color: var(--gold); }
+    .b-block { background: rgba(229,83,75,.18); border: 1px solid rgba(229,83,75,.5); color: #FF8A83; }
+    .b-unblock { background: rgba(79,195,176,.16); border: 1px solid var(--accent); color: var(--accent); }
+
+    /* Диалог */
+    .dialog { background: #1B2E34; border-radius: 26px; padding: 20px 22px; margin-top: 8px; border: 1px solid rgba(255,255,255,.08); }
+    .dialog h3 { margin: 0 0 10px; font-size: 18px; }
+    .dialog p { margin: 0 0 16px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; }
+    .dialog .acts { display: flex; justify-content: flex-end; gap: 22px; font-weight: 600; font-size: 14px; }
+    .dialog .acts .ok { color: var(--accent); }
+    .dialog .acts .no { color: var(--text-secondary); }
+
+    /* Карточка ребёнка */
+    .child { display: flex; gap: 14px; align-items: center; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; flex: none; background: linear-gradient(135deg, #7E57C2, #EC407A); }
+    .avatar.b { background: linear-gradient(135deg, #26A69A, #42A5F5); }
+    .name { font-size: 16px; font-weight: 600; }
+    .paired { font-size: 13px; color: var(--accent); margin-top: 2px; }
+    .badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; background: var(--danger-bg); border-radius: 8px; padding: 3px 9px; font-size: 12.5px; font-weight: 600; color: var(--danger); }
+
+    /* Статистика */
+    .big { font-size: 34px; font-weight: 300; margin: 6px 0 2px; }
+    .track { height: 8px; border-radius: 4px; background: rgba(255,255,255,.1); margin: 10px 0 6px; overflow: hidden; }
+    .track i { display: block; height: 100%; width: 100%; background: var(--danger); opacity: .75; }
+
+    .notes { width: 330px; flex: none; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; font-size: 13px; line-height: 1.55; color: var(--text-secondary); position: sticky; top: 20px; }
+    .notes h2 { font-size: 15px; color: var(--text-main); margin: 0 0 10px; }
+    .notes b { color: var(--text-main); }
+    .notes ul { padding-left: 18px; margin: 6px 0 14px; }
+    .notes li { margin-bottom: 5px; }
+    .alt { color: var(--accent); }
+</style>
+</head>
+<body>
+<h1>Статус блокировки дня — макет для согласования</h1>
+<div class="sub">Родитель после «Заблокировать на сегодня» видит, дошла ли блокировка до телефона ребёнка, когда
+она применилась и сколько времени у ребёнка оставалось. Кнопка превращается в «Разблокировать» и возвращает
+именно этот остаток. Цвета: <span style="color:#E8B84A">золотой</span> — ждём телефон,
+<span style="color:#E5534B">красный</span> — заблокировано, <span style="color:#4FC3B0">бирюзовый</span> — действие «вернуть время».</div>
+
+<div class="layout">
+<div class="row">
+
+    <!-- 1. Ожидание -->
+    <div class="case">
+        <div class="case-title">1. «Дневной лимит» — ждём телефон ребёнка</div>
+        <div class="case-note">Сразу после подтверждения в диалоге. Телефон выключен или без сети — плашка висит, пока он не выйдет в сеть.</div>
+        <div class="phone">
+            <div class="topbar"><span class="back">←</span> Дневной лимит</div>
+            <div class="status pending">
+                <div class="ic">🔒</div>
+                <div>
+                    <div class="t"><span class="spinner"></span>Блокировка отправлена</div>
+                    <div class="d">Ждём телефон Alina — блокировка включится, как только он выйдет в сеть.</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="sec-title">⏱ Дополнительное время</div>
+                <div class="muted">Добавить время сверх дневного лимита — только на сегодня.</div>
+                <div class="chips"><span class="chip">+15 мин</span><span class="chip">+30 мин</span><span class="chip">Другое…</span></div>
+                <div class="note-inline">Выдача снимет блокировку дня. Время, которое оставалось до блокировки, при этом не вернётся.</div>
+            </div>
+            <div class="card days">
+                <div class="d"><span>Понедельник</span><span class="today">3 ч 00 мин</span></div>
+                <div class="d"><span>Вторник</span><span>3 ч 00 мин</span></div>
+                <div class="d"><span>…</span><span></span></div>
+            </div>
+            <div class="btns">
+                <div class="bigbtn b-reset"><span class="i">↻</span>Сбросить сегодняшний лимит</div>
+                <div class="bigbtn b-unblock"><span class="i">🔓</span>Разблокировать</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Заблокировано -->
+    <div class="case">
+        <div class="case-title">2. «Дневной лимит» — заблокировано</div>
+        <div class="case-note">Телефон ребёнка подтвердил. Видно, когда включилась блокировка и сколько времени у ребёнка оставалось.</div>
+        <div class="phone">
+            <div class="topbar"><span class="back">←</span> Дневной лимит</div>
+            <div class="status blocked">
+                <div class="ic">🔒</div>
+                <div>
+                    <div class="t">День заблокирован</div>
+                    <div class="d">С 14:32 · у Alina оставалось <b>1 ч 20 мин</b>. «Разблокировать» вернёт это время.</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="sec-title">⏱ Дополнительное время</div>
+                <div class="muted">Добавить время сверх дневного лимита — только на сегодня.</div>
+                <div class="chips"><span class="chip">+15 мин</span><span class="chip">+30 мин</span><span class="chip">Другое…</span></div>
+                <div class="note-inline">Выдача снимет блокировку дня. Оставшиеся до блокировки 1 ч 20 мин при этом не вернутся.</div>
+            </div>
+            <div class="card days">
+                <div class="d"><span>Понедельник</span><span class="today">3 ч 00 мин</span></div>
+                <div class="d"><span>Вторник</span><span>3 ч 00 мин</span></div>
+                <div class="d"><span>…</span><span></span></div>
+            </div>
+            <div class="btns">
+                <div class="bigbtn b-reset"><span class="i">↻</span>Сбросить сегодняшний лимит</div>
+                <div class="bigbtn b-unblock"><span class="i">🔓</span>Разблокировать</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Диалог разблокировки -->
+    <div class="case">
+        <div class="case-title">3. Диалог «Разблокировать»</div>
+        <div class="case-note">Сверху — блокировка подтверждена; снизу — ещё не дошла до телефона.</div>
+        <div class="phone">
+            <div class="dialog">
+                <h3>Разблокировать день?</h3>
+                <p>Alina снова сможет пользоваться телефоном: вернутся <b style="color:#E6EEF0">1 ч 20 мин</b>, которые оставались до блокировки.</p>
+                <div class="acts"><span class="no">Отмена</span><span class="ok">Разблокировать</span></div>
+            </div>
+            <div class="dialog" style="margin-top:18px">
+                <h3>Отменить блокировку?</h3>
+                <p>Блокировка ещё не дошла до телефона Alina — её просто отменим, и время у ребёнка останется как было.</p>
+                <div class="acts"><span class="no">Назад</span><span class="ok">Отменить блокировку</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Дети -->
+    <div class="case">
+        <div class="case-title">4. «Дети» — бейдж на карточке</div>
+        <div class="case-note">Только подтверждённая телефоном блокировка. У второго ребёнка карточка не меняется.</div>
+        <div class="phone">
+            <div class="screen-title">Дети</div>
+            <div class="card child">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Alina</div>
+                    <div class="paired">Привязан</div>
+                    <div class="badge">🔒 Заблокирован сегодня</div>
+                </div>
+            </div>
+            <div class="card child">
+                <div class="avatar b"></div>
+                <div>
+                    <div class="name">Олег</div>
+                    <div class="paired">Привязан</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Статистика -->
+    <div class="case">
+        <div class="case-title">5. «Статистика» — карточка «Сегодня»</div>
+        <div class="case-note">Бейдж над цифрами и строка с остатком на момент блокировки.</div>
+        <div class="phone">
+            <div class="screen-title">Статистика</div>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="sec-title">Сегодня</div>
+                    <div class="badge" style="margin-top:0">🔒 Заблокировано</div>
+                </div>
+                <div class="big">1 ч 40 мин</div>
+                <div class="muted">израсходовано из 3 ч</div>
+                <div class="track"><i></i></div>
+                <div class="muted">Заблокировано родителем в 14:32 · оставалось <b style="color:#E6EEF0">1 ч 20 мин</b></div>
+            </div>
+            <div class="card"><div class="sec-title">Последние 7 дней</div><div class="muted" style="height:90px">…график без изменений…</div></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="notes">
+    <h2>Что согласовать</h2>
+    <b>Тексты плашки</b> (варианты):
+    <ul>
+        <li>«День заблокирован» · «С 14:32 · у Alina оставалось 1 ч 20 мин» <span class="alt">— в макете</span></li>
+        <li>«Лимит на сегодня заблокирован по вашей инициативе»</li>
+        <li>«Телефон Alina заблокирован до конца дня»</li>
+    </ul>
+    <b>Бейдж на «Дети»:</b>
+    <ul>
+        <li>«Заблокирован сегодня» <span class="alt">— в макете</span></li>
+        <li>«Заблокирован» (короче, но без «сегодня» похоже на навсегда)</li>
+        <li>«День заблокирован»</li>
+    </ul>
+    <b>Кнопка «Разблокировать»</b> — бирюзовая, а не красная: это возврат времени, не опасное действие.
+    Можно оставить красной для симметрии с «Заблокировать».
+    <br><br>
+    <b>Подсказка у бонуса</b> — видна только пока день заблокирован: предупреждает, что бонус снимет блокировку
+    и остаток не вернёт.
+    <br><br>
+    <b>«Дети»</b> показывает только подтверждённую блокировку: политика других детей на телефоне родителя не хранится,
+    а отчёт с телефона есть по всем. Золотое «ждём телефон» видно на «Дневном лимите» и «Статистике».
+    <br><br>
+    <b>Разблокировка</b> — без ожидания: кнопка сразу возвращается в «Заблокировать на сегодня».
+</div>
+</div>
+</body>
+</html>

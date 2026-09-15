@@ -119,6 +119,19 @@ interface PolicyDao {
         updateDailyUsageBlock(date, issuedAt)
     }
 
+    /** Родитель: выставить маркер разблокировки дня. */
+    @Transaction
+    suspend fun setDailyUsageUnblock(date: String, issuedAt: Long, restoreRemaining: Boolean) {
+        ensurePolicyFlagsRow()
+        updateDailyUsageUnblock(date, issuedAt, restoreRemaining)
+    }
+
+    @Query(
+        "UPDATE policy_flags SET dailyUsageUnblockDate = :date, dailyUsageUnblockAt = :issuedAt, " +
+            "dailyUsageUnblockRestore = :restoreRemaining WHERE id = 0"
+    )
+    suspend fun updateDailyUsageUnblock(date: String, issuedAt: Long, restoreRemaining: Boolean)
+
     @Query("UPDATE policy_flags SET blockGoogleSearch = :enabled WHERE id = 0")
     suspend fun updateBlockGoogleSearch(enabled: Boolean)
 

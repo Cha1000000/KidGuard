@@ -47,6 +47,11 @@ class ChildrenViewModel @Inject constructor(
         viewModelScope.launch {
             syncRepository.childPaired.collect { refresh() }
         }
+        // Отчёт телефона ребёнка изменился (поломка контроля, применённая или снятая блокировка
+        // дня) — без этого бейдж на карточке появлялся бы только по свайпу.
+        viewModelScope.launch {
+            syncRepository.childHealthChanged.collect { refresh() }
+        }
     }
 
     fun refresh() {

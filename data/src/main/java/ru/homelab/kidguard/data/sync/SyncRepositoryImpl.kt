@@ -1,5 +1,7 @@
 package ru.homelab.kidguard.data.sync
 
+import java.time.Instant
+import androidx.datastore.preferences.core.MutablePreferences
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -28,6 +30,9 @@ import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
 import ru.homelab.kidguard.core.domain.model.DailyUsageReset
+import ru.homelab.kidguard.core.domain.model.shouldApplyUnblock
+import ru.homelab.kidguard.core.domain.model.AppliedDayBlock
+import ru.homelab.kidguard.core.domain.model.DailyUsageUnblock
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.BONUS_SPENT_PREFIX
 import ru.homelab.kidguard.core.domain.model.OVERRUN_PACKAGE
@@ -57,6 +62,7 @@ import ru.homelab.kidguard.data.network.DeviceHealthApi
 import ru.homelab.kidguard.data.network.EmergencyContactDto
 import ru.homelab.kidguard.data.network.TimeWindowDto
 import ru.homelab.kidguard.data.network.DailyUsageBlockDto
+import ru.homelab.kidguard.data.network.DailyUsageUnblockDto
 import ru.homelab.kidguard.data.network.DailyUsageResetDto
 import ru.homelab.kidguard.data.network.DeviceHealthDto
 import ru.homelab.kidguard.data.network.DeviceHealthRequest
@@ -119,6 +125,16 @@ class SyncRepositoryImpl @Inject constructor(
 
         /** `issuedAt` последнего применённого маркера блокировки на сегодня — идемпотентный ключ. */
         val LAST_USAGE_BLOCK_AT = longPreferencesKey("last_usage_block_at")
+        val LAST_USAGE_UNBLOCK_AT = longPreferencesKey("last_usage_unblock_at")
+
+        // Снимок момента, когда телефон применил блокировку дня: сколько бюджета было израсходовано
+        // (к этому значению разблокировка возвращает расход) и сколько времени оставалось (это видит
+        // родитель). Живёт до разблокировки, сброса или полуночи.
+        val BLOCK_SNAPSHOT_DATE = stringPreferencesKey("block_snapshot_date")
+        val BLOCK_SNAPSHOT_ISSUED_AT = longPreferencesKey("block_snapshot_issued_at")
+        val BLOCK_SNAPSHOT_APPLIED_AT = stringPreferencesKey("block_snapshot_applied_at")
+        val BLOCK_SNAPSHOT_SECONDS = intPreferencesKey("block_snapshot_seconds")
+        val BLOCK_SNAPSHOT_MINUTES_LEFT = intPreferencesKey("block_snapshot_minutes_left")
     }
 
     private val json = Json
@@ -185,6 +201,7 @@ class SyncRepositoryImpl @Inject constructor(
             .combine(policyRepository.breakRules) { _, _ -> Unit }
             .combine(policyRepository.dailyUsageReset) { _, _ -> Unit }
             .combine(policyRepository.dailyUsageBlock) { _, _ -> Unit }
+            .combine(policyRepository.dailyUsageUnblock) { _, _ -> Unit }
             .debounce(PUSH_DEBOUNCE_MS)
             .collect {
                 runCatching {
@@ -312,6 +329,7 @@ class SyncRepositoryImpl @Inject constructor(
      */
     private suspend fun pushHealth() {
         val health = deviceHealthSource.current()
+        val dayBlock = appliedDayBlockToday()
         deviceHealthApi.sendHealth(
             DeviceHealthRequest(
                 DeviceHealthDto(
@@ -322,7 +340,11 @@ class SyncRepositoryImpl @Inject constructor(
                     batteryOptimization = health.batteryOptimization,
                     lastExitKind = health.lastExit?.kind?.name,
                     lastExitAt = health.lastExit?.at?.toString(),
-                    lastExitDescription = health.lastExit?.description?.takeIf { it.isNotBlank() }
+                    lastExitDescription = health.lastExit?.description?.takeIf { it.isNotBlank() },
+                    dayBlockDate = dayBlock?.date?.toString(),
+                    dayBlockIssuedAt = dayBlock?.issuedAt,
+                    dayBlockAppliedAt = dayBlock?.appliedAt?.toString(),
+                    dayBlockMinutesLeft = dayBlock?.minutesLeftBefore
                 )
             )
         )
@@ -428,6 +450,7 @@ class SyncRepositoryImpl @Inject constructor(
         applyDocument(data)
         applyDailyUsageReset(childId, data)
         applyDailyBlock(data)
+        applyDailyUnblock(data)
         saveSyncedState(canonicalJson(data), response.updatedAt)
         Timber.tag(TAG).d("Политика применена из сервера (updatedAt=%s)", response.updatedAt)
     }
@@ -450,8 +473,13 @@ class SyncRepositoryImpl @Inject constructor(
             // очистить сегодня, иначе экран «Статистика» у родителя покажет доисбросные цифры.
             runCatching { usageApi.clearUsage(childId, today.toString()) }
                 .onFailure { Timber.tag(TAG).w(it, "Не удалось очистить серверную статистику за день") }
-            context.syncDataStore.edit { it[Keys.LAST_USAGE_RESET_AT] = marker!!.issuedAt }
+            context.syncDataStore.edit {
+                it[Keys.LAST_USAGE_RESET_AT] = marker!!.issuedAt
+                // Сброс снимает и блокировку — подтверждение о ней родителю больше не нужно.
+                clearBlockSnapshot(it)
+            }
             Timber.tag(TAG).d("Дневной лимит сброшен родителем (issuedAt=%d)", marker!!.issuedAt)
+            healthReportTrigger.requestNow()
         }
     }
 
@@ -468,16 +496,96 @@ class SyncRepositoryImpl @Inject constructor(
         val today = currentDateProvider.today()
         val lastApplied = context.syncDataStore.data.first()[Keys.LAST_USAGE_BLOCK_AT] ?: 0L
         if (shouldApplyBlock(marker, today, lastApplied)) {
+            // Снимок берём ДО выставления расхода: после него остаток всегда нулевой.
+            val usedSeconds = usageRepository.screenTimeSeconds(today).first()
+            var minutesLeft = 0
             val limitMinutes = policyRepository.dailyLimits.first().limitFor(today.dayOfWeek)
             if (limitMinutes != null) {
                 val bonusMinutes = bonusRepository.phoneBonusMinutes(today).first()
                 val penaltyMinutes = penaltyRepository.phonePenalty(today).first()?.minutes ?: 0
                 val budgetMinutes = dayBudgetMinutes(limitMinutes, bonusMinutes, penaltyMinutes)
+                minutesLeft = ((budgetMinutes * 60 - usedSeconds).coerceAtLeast(0)) / 60
                 usageRepository.setScreenTime(today, budgetMinutes * 60)
             }
-            context.syncDataStore.edit { it[Keys.LAST_USAGE_BLOCK_AT] = marker!!.issuedAt }
-            Timber.tag(TAG).d("Заблокировано на сегодня родителем (issuedAt=%d)", marker!!.issuedAt)
+            context.syncDataStore.edit {
+                it[Keys.LAST_USAGE_BLOCK_AT] = marker!!.issuedAt
+                it[Keys.BLOCK_SNAPSHOT_DATE] = today.toString()
+                it[Keys.BLOCK_SNAPSHOT_ISSUED_AT] = marker.issuedAt
+                it[Keys.BLOCK_SNAPSHOT_APPLIED_AT] = Instant.now().toString()
+                it[Keys.BLOCK_SNAPSHOT_SECONDS] = usedSeconds
+                it[Keys.BLOCK_SNAPSHOT_MINUTES_LEFT] = minutesLeft
+            }
+            Timber.tag(TAG).d(
+                "Заблокировано на сегодня родителем (issuedAt=%d, оставалось %d мин)",
+                marker!!.issuedAt, minutesLeft
+            )
+            // Родитель ждёт подтверждения — не держим его до следующего 15-минутного тика.
+            healthReportTrigger.requestNow()
         }
+    }
+
+    /**
+     * Применяет разблокировку дня — после [applyDailyBlock], чтобы блокировка и разблокировка,
+     * приехавшие одним pull (телефон был офлайн), дали честный итог «ничего не поменялось».
+     *
+     * С возвратом остатка расход дня откатывается к снимку, сделанному в момент блокировки.
+     * Перерасход, накопленный за время блокировки (ребёнок смахивал оверлей), лежит в отдельном
+     * счётчике и возвращённое время не съедает. Возврат выполняется, только если снимок относится
+     * именно к снимаемой блокировке: иначе мы откатили бы расход к чужому моменту.
+     *
+     * Без возврата (разблокировка выдачей бонуса) расход не трогаем — время даёт сам бонус.
+     *
+     * На родительском телефоне этот путь тоже выполняется (он зовёт [pullAndApply] по WS-сигналу),
+     * но безвреден: своего расхода и снимка там нет.
+     */
+    private suspend fun applyDailyUnblock(data: PolicyDocumentDto) {
+        val marker = data.dailyUsageUnblock?.let {
+            runCatching { DailyUsageUnblock(LocalDate.parse(it.date), it.issuedAt, it.restoreRemaining) }.getOrNull()
+        }
+        val block = data.dailyUsageBlock
+            ?.let { runCatching { DailyUsageBlock(LocalDate.parse(it.date), it.issuedAt) }.getOrNull() }
+        val today = currentDateProvider.today()
+        val prefs = context.syncDataStore.data.first()
+        if (!shouldApplyUnblock(marker, block, today, prefs[Keys.LAST_USAGE_UNBLOCK_AT] ?: 0L)) return
+
+        val savedSeconds = prefs[Keys.BLOCK_SNAPSHOT_SECONDS]
+        val snapshotMatches = prefs[Keys.BLOCK_SNAPSHOT_DATE] == today.toString() &&
+            prefs[Keys.BLOCK_SNAPSHOT_ISSUED_AT] == block!!.issuedAt
+        if (marker!!.restoreRemaining && snapshotMatches && savedSeconds != null) {
+            usageRepository.setScreenTime(today, savedSeconds)
+        }
+        context.syncDataStore.edit {
+            it[Keys.LAST_USAGE_UNBLOCK_AT] = marker.issuedAt
+            clearBlockSnapshot(it)
+        }
+        Timber.tag(TAG).d(
+            "Разблокировано родителем (issuedAt=%d, возврат остатка: %s)",
+            marker.issuedAt, marker.restoreRemaining && snapshotMatches
+        )
+        healthReportTrigger.requestNow()
+    }
+
+    private fun clearBlockSnapshot(prefs: MutablePreferences) {
+        prefs.remove(Keys.BLOCK_SNAPSHOT_DATE)
+        prefs.remove(Keys.BLOCK_SNAPSHOT_ISSUED_AT)
+        prefs.remove(Keys.BLOCK_SNAPSHOT_APPLIED_AT)
+        prefs.remove(Keys.BLOCK_SNAPSHOT_SECONDS)
+        prefs.remove(Keys.BLOCK_SNAPSHOT_MINUTES_LEFT)
+    }
+
+    /** Применённая сегодня блокировка дня — для отчёта родителю; null — сегодня не блокирован. */
+    private suspend fun appliedDayBlockToday(): AppliedDayBlock? {
+        val prefs = context.syncDataStore.data.first()
+        val date = prefs[Keys.BLOCK_SNAPSHOT_DATE] ?: return null
+        // После полуночи вчерашняя блокировка уже не действует, хотя снимок ещё не стёрт.
+        if (date != currentDateProvider.today().toString()) return null
+        return AppliedDayBlock(
+            date = LocalDate.parse(date),
+            issuedAt = prefs[Keys.BLOCK_SNAPSHOT_ISSUED_AT] ?: return null,
+            appliedAt = prefs[Keys.BLOCK_SNAPSHOT_APPLIED_AT]
+                ?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null,
+            minutesLeftBefore = prefs[Keys.BLOCK_SNAPSHOT_MINUTES_LEFT] ?: 0
+        )
     }
 
     /** Целиком заменяет локальную политику (включая бонусы) содержимым серверного документа. */
@@ -503,6 +611,11 @@ class SyncRepositoryImpl @Inject constructor(
                 },
                 dailyUsageBlock = data.dailyUsageBlock?.let {
                     runCatching { DailyUsageBlock(LocalDate.parse(it.date), it.issuedAt) }.getOrNull()
+                },
+                dailyUsageUnblock = data.dailyUsageUnblock?.let {
+                    runCatching {
+                        DailyUsageUnblock(LocalDate.parse(it.date), it.issuedAt, it.restoreRemaining)
+                    }.getOrNull()
                 }
             )
         )
@@ -617,7 +730,9 @@ class SyncRepositoryImpl @Inject constructor(
             dailyUsageReset = policyRepository.dailyUsageReset.first()
                 ?.let { DailyUsageResetDto(it.date.toString(), it.issuedAt) },
             dailyUsageBlock = policyRepository.dailyUsageBlock.first()
-                ?.let { DailyUsageBlockDto(it.date.toString(), it.issuedAt) }
+                ?.let { DailyUsageBlockDto(it.date.toString(), it.issuedAt) },
+            dailyUsageUnblock = policyRepository.dailyUsageUnblock.first()
+                ?.let { DailyUsageUnblockDto(it.date.toString(), it.issuedAt, it.restoreRemaining) }
         )
     }
 
@@ -657,38 +772,8 @@ class SyncRepositoryImpl @Inject constructor(
         message = message
     )
 
-    /**
-     * Стабильное строковое представление документа для сравнения содержимого: map/list
-     * приводятся к отсортированному порядку, чтобы перестановка ключей не выглядела изменением.
-     */
-    private fun canonicalJson(document: PolicyDocumentDto): String = json.encodeToString(
-        PolicyDocumentDto.serializer(),
-        PolicyDocumentDto(
-            dailyLimits = document.dailyLimits.toSortedMap(),
-            appLimits = document.appLimits.toSortedMap(),
-            whitelist = document.whitelist.sorted(),
-            blockedApps = document.blockedApps.sorted(),
-            bonuses = document.bonuses.sortedWith(compareBy({ it.date }, { it.packageName })),
-            penalties = document.penalties.sortedWith(compareBy({ it.date }, { it.packageName })),
-            // Скаляры — сортировать нечего, но включаем как есть, иначе разница в PIN не попадёт
-            // в снапшот сравнения и push/pull будут пинг-понговать.
-            pinHash = document.pinHash,
-            pinSalt = document.pinSalt,
-            blockedSites = document.blockedSites.sortedBy { it.domain },
-            blockGoogleSearch = document.blockGoogleSearch,
-            studySchedule = document.studySchedule.toSortedMap(),
-            sleepSchedule = document.sleepSchedule.toSortedMap(),
-            studyScheduleEnabled = document.studyScheduleEnabled,
-            sleepScheduleEnabled = document.sleepScheduleEnabled,
-            emergencyContacts = document.emergencyContacts.sortedBy { it.phone },
-            // hours сортируем по той же причине, что и остальные списки выше: порядок элементов в
-            // множестве часов не несёт смысла, а без сортировки перестановка выглядела бы правкой.
-            breaks = document.breaks.copy(hours = document.breaks.hours.sorted()),
-            // Скаляр (как pinHash/blockGoogleSearch выше) — сортировать нечего, включаем как есть.
-            dailyUsageReset = document.dailyUsageReset,
-            dailyUsageBlock = document.dailyUsageBlock
-        )
-    )
+    /** Стабильное представление документа для сравнения — см. [canonicalPolicyJson]. */
+    private fun canonicalJson(document: PolicyDocumentDto): String = canonicalPolicyJson(json, document)
 
     private suspend fun lastSyncedSnapshot(): String? =
         context.syncDataStore.data.first()[Keys.LAST_SYNCED_SNAPSHOT]

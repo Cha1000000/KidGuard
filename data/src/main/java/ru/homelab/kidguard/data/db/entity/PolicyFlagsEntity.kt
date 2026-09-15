@@ -24,5 +24,11 @@ data class PolicyFlagsEntity(
     /** Дата маркера блокировки на сегодня («ГГГГ-ММ-ДД»); null — блокировки нет. */
     val dailyUsageBlockDate: String? = null,
     /** Метка времени (epoch-ms) нажатия кнопки блокировки; null — блокировки нет. */
-    val dailyUsageBlockAt: Long? = null
+    val dailyUsageBlockAt: Long? = null,
+    /** Дата маркера разблокировки дня («ГГГГ-ММ-ДД»); null — не разблокировали. */
+    val dailyUsageUnblockDate: String? = null,
+    /** Метка времени (epoch-ms) разблокировки; null — не разблокировали. */
+    val dailyUsageUnblockAt: Long? = null,
+    /** Возвращать ли ребёнку остаток до блокировки (кнопка — да, выдача бонуса — нет). */
+    val dailyUsageUnblockRestore: Boolean = false
 )

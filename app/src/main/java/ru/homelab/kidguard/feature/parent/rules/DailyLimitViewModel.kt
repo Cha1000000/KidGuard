@@ -3,27 +3,34 @@ package ru.homelab.kidguard.feature.parent.rules
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.DailyBudgetState
 import ru.homelab.kidguard.core.domain.model.DailyLimits
 import ru.homelab.kidguard.core.domain.model.DailyUsageBlock
-import ru.homelab.kidguard.core.domain.model.DailyUsageReset
+import ru.homelab.kidguard.core.domain.model.Child
+import ru.homelab.kidguard.core.domain.model.DayBlockState
 import ru.homelab.kidguard.core.domain.model.PenaltyGrant
 import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.model.dailyBudgetState
+import ru.homelab.kidguard.core.domain.model.dayBlockState
+import ru.homelab.kidguard.core.domain.model.isDayBlockActive
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.repository.SyncRepository
+import ru.homelab.kidguard.core.domain.repository.todayFlow
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.feature.parent.ChildUsageProvider
 import java.time.DayOfWeek
@@ -63,6 +70,21 @@ sealed interface PenaltyUiState {
     ) : PenaltyUiState
 }
 
+/**
+ * Статус блокировки дня для экрана: само состояние и имя ребёнка для текстов плашки и диалогов.
+ * Имя может быть неизвестно (список детей ещё не загружен или нет сети) — тексты тогда нейтральные.
+ */
+data class DayBlockUi(
+    val state: DayBlockState = DayBlockState.NotBlocked,
+    val childName: String? = null
+)
+
+/**
+ * «Сегодня» во всех потоках экрана приходит из [todayFlow], а не берётся один раз при подписке:
+ * экран может провисеть открытым через полночь, и тогда блокировка, штраф и бонус считались бы по
+ * вчерашней дате. Тот же класс бага, что нашли на обкатке 22.07.2026 (см. `todayFlow`).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DailyLimitViewModel @Inject constructor(
     private val policyRepository: PolicyRepository,
@@ -70,16 +92,48 @@ class DailyLimitViewModel @Inject constructor(
     private val penaltyRepository: PenaltyRepository,
     private val currentDateProvider: CurrentDateProvider,
     private val childUsageProvider: ChildUsageProvider,
+    private val childRepository: ChildRepository,
+    private val syncRepository: SyncRepository,
     observeScheduleState: ObserveScheduleStateUseCase
 ) : ViewModel() {
+
+    /**
+     * Активный ребёнок вместе с отчётом его телефона: из отчёта берётся подтверждение блокировки.
+     * Грузится при входе на экран и перезапрашивается по WS-сигналу об изменении отчёта — так
+     * плашка «ждём телефон» сменяется на «заблокировано» без перезахода.
+     */
+    private val activeChild = MutableStateFlow<Child?>(null)
+
+    init {
+        viewModelScope.launch {
+            syncRepository.childHealthChanged.collect { childId ->
+                if (childId == syncRepository.activeChildId.first()) loadActiveChild()
+            }
+        }
+    }
+
+    /** Состояние блокировки дня: маркеры общей политики плюс подтверждение с телефона ребёнка. */
+    val dayBlock: StateFlow<DayBlockUi> = currentDateProvider.todayFlow().flatMapLatest { today ->
+        combine(
+            policyRepository.dailyUsageBlock,
+            policyRepository.dailyUsageReset,
+            policyRepository.dailyUsageUnblock,
+            activeChild
+        ) { block, reset, unblock, child ->
+            DayBlockUi(
+                state = dayBlockState(today, block, reset, unblock, child?.health?.dayBlock),
+                childName = child?.name
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DayBlockUi())
 
     val dailyLimits: StateFlow<DailyLimits> = policyRepository.dailyLimits
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DailyLimits.EMPTY)
 
     /** Активное «Дополнительное время» телефона на сегодня (минут). */
-    val phoneBonusMinutes: StateFlow<Int> = flow {
-        emitAll(bonusRepository.phoneBonusMinutes(currentDateProvider.today()))
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val phoneBonusMinutes: StateFlow<Int> = currentDateProvider.todayFlow()
+        .flatMapLatest { bonusRepository.phoneBonusMinutes(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /**
      * Израсходованное ребёнком сегодня время.
@@ -103,9 +157,7 @@ class DailyLimitViewModel @Inject constructor(
         data class Loaded(val minutes: Int) : UsageLoad
     }
 
-    val penaltyState: StateFlow<PenaltyUiState> = flow {
-        val today = currentDateProvider.today()
-        emitAll(
+    val penaltyState: StateFlow<PenaltyUiState> = currentDateProvider.todayFlow().flatMapLatest { today ->
             combine(
                 policyRepository.dailyLimits,
                 bonusRepository.phoneBonusMinutes(today),
@@ -114,18 +166,19 @@ class DailyLimitViewModel @Inject constructor(
                 observeScheduleState()
             ) { limits, bonus, penalty, block, schedule ->
                 RawInputs(limits, bonus, penalty, block, schedule)
-            }.combine(policyRepository.dailyUsageReset) { raw, reset ->
+            }.combine(
+                combine(policyRepository.dailyUsageReset, policyRepository.dailyUsageUnblock) { r, u -> r to u }
+            ) { raw, (reset, unblock) ->
                 PenaltyInputs(
                     limits = raw.limits,
                     bonusMinutes = raw.bonusMinutes,
                     penalty = raw.penalty,
-                    blocked = isBlockedToday(today, raw.block, reset),
+                    blocked = isDayBlockActive(today, raw.block, reset, unblock),
                     schedule = raw.schedule
                 )
             }.combine(usedMinutes) { inputs, used ->
                 penaltyState(today, inputs, used)
             }
-        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PenaltyUiState.Loading)
 
     private val _refreshingUsage = MutableStateFlow(false)
@@ -134,6 +187,7 @@ class DailyLimitViewModel @Inject constructor(
     fun refreshUsage() {
         if (_refreshingUsage.value) return
         _refreshingUsage.value = true
+        viewModelScope.launch { loadActiveChild() }
         viewModelScope.launch {
             val entries = childUsageProvider.loadActiveChildUsage(days = 1).getOrNull()
             usedMinutes.value = if (entries == null) {
@@ -160,7 +214,16 @@ class DailyLimitViewModel @Inject constructor(
 
     /** Добавить телефону дополнительное время на сегодня (суммируется). */
     fun addPhoneBonus(minutes: Int) {
-        viewModelScope.launch { bonusRepository.addBonus(currentDateProvider.today(), null, minutes) }
+        viewModelScope.launch {
+            val today = currentDateProvider.today()
+            // Бонус во время блокировки снимает её (решение Володи 15.09.2026), но остаток до
+            // блокировки не возвращает — время даёт сам бонус. Маркер нужен, потому что у бонуса
+            // нет метки времени, и без него статус «заблокировано» остался бы висеть.
+            if (dayBlock.value.state != DayBlockState.NotBlocked) {
+                policyRepository.setDailyUsageUnblock(today, System.currentTimeMillis(), restoreRemaining = false)
+            }
+            bonusRepository.addBonus(today, null, minutes)
+        }
     }
 
     /** Отменить дополнительное время телефона на сегодня. */
@@ -202,11 +265,33 @@ class DailyLimitViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Снять блокировку дня и вернуть ребёнку время, которое оставалось у него до неё. Если
+     * блокировка ещё не дошла до телефона, возвращать нечего — телефон применит обе команды разом
+     * и итог будет «ничего не поменялось».
+     */
+    fun unblockToday() {
+        viewModelScope.launch {
+            policyRepository.setDailyUsageUnblock(
+                currentDateProvider.today(),
+                System.currentTimeMillis(),
+                restoreRemaining = true
+            )
+        }
+    }
+
     /** Заблокировать доступное на сегодня время: ставим маркер блокировки с меткой времени нажатия. */
     fun blockToday() {
         viewModelScope.launch {
             policyRepository.setDailyUsageBlock(currentDateProvider.today(), System.currentTimeMillis())
         }
+    }
+
+    private suspend fun loadActiveChild() {
+        val activeId = syncRepository.activeChildId.first() ?: return
+        // Нет сети — оставляем прежнее значение: плашка «ждём телефон» честнее, чем пропавший статус.
+        val children = childRepository.listChildren().getOrNull() ?: return
+        activeChild.value = children.firstOrNull { it.id == activeId }
     }
 
     private fun penaltyState(
@@ -251,25 +336,6 @@ class DailyLimitViewModel @Inject constructor(
                 applied?.let { PenaltyUiState.Available(remainingMinutes = 0, penalty = it) }
                     ?: PenaltyUiState.Unavailable
         }
-    }
-
-    /**
-     * Действует ли сейчас принудительная блокировка дня.
-     *
-     * Мало проверить, что маркер сегодняшний: «Сбросить сегодняшний лимит» блокировку снимает
-     * (на детском устройстве расход обнуляется поверх выставленного блокировкой), но сам маркер
-     * из политики никуда не девается. Поэтому сравниваем метки времени: блокировка жива, только
-     * если она новее сброса — иначе после сброса штрафовать было бы нельзя, хотя время у
-     * ребёнка уже есть.
-     */
-    private fun isBlockedToday(
-        today: LocalDate,
-        block: DailyUsageBlock?,
-        reset: DailyUsageReset?
-    ): Boolean {
-        if (block == null || block.date != today) return false
-        val resetToday = reset?.takeIf { it.date == today } ?: return true
-        return block.issuedAt > resetToday.issuedAt
     }
 
     /** Промежуточный кортеж: типизированный `combine` берёт максимум пять потоков. */
