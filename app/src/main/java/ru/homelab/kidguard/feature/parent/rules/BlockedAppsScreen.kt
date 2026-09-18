@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.homelab.kidguard.R
+import ru.homelab.kidguard.core.domain.usecase.matchesAppQuery
 import ru.homelab.kidguard.core.ui.components.AppIconImage
 import ru.homelab.kidguard.core.ui.components.CompactTopBar
 import ru.homelab.kidguard.core.ui.components.GlassCard
@@ -50,7 +51,7 @@ fun BlockedAppsScreen(
     var query by remember { mutableStateOf("") }
     val filtered = remember(apps, query) {
         val list = apps.orEmpty()
-        if (query.isBlank()) list else list.filter { it.label.contains(query, ignoreCase = true) }
+        list.filter { matchesAppQuery(it.label, it.packageName, query) }
     }
 
     Column(modifier = modifier.fillMaxSize()) {

@@ -48,6 +48,7 @@ import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
 import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
 import ru.homelab.kidguard.core.domain.repository.UsageRepository
 import ru.homelab.kidguard.data.auth.AuthLocalStore
@@ -98,7 +99,8 @@ class SyncRepositoryImpl @Inject constructor(
     private val currentDateProvider: CurrentDateProvider,
     private val authLocalStore: AuthLocalStore,
     private val policySocket: PolicySocket,
-    private val healthReportTrigger: HealthReportTrigger
+    private val healthReportTrigger: HealthReportTrigger,
+    private val settingsRepository: SettingsRepository
 ) : SyncRepository {
 
     private object Keys {
@@ -345,7 +347,10 @@ class SyncRepositoryImpl @Inject constructor(
                     dayBlockIssuedAt = dayBlock?.issuedAt,
                     dayBlockAppliedAt = dayBlock?.appliedAt?.toString(),
                     dayBlockMinutesLeft = dayBlock?.minutesLeftBefore,
-                    foreignAccessibilityServices = health.foreignAccessibilityServices
+                    foreignAccessibilityServices = health.foreignAccessibilityServices,
+                    // Ручной шаг настройки: состояние закрепления карточки система не отдаёт, его
+                    // подтверждает родитель в мастере — поэтому берём из настроек, а не из health.
+                    recentsLockConfirmed = settingsRepository.recentsLockConfirmed.first()
                 )
             )
         )

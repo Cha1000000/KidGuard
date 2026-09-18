@@ -2,11 +2,20 @@ package ru.homelab.kidguard.platform.accessibility
 
 import ru.homelab.kidguard.platform.call.callAudioModeFlow
 import ru.homelab.kidguard.core.domain.usecase.shouldDismissRecentsPinOnCall
+import ru.homelab.kidguard.core.domain.usecase.nextStackSync
+import ru.homelab.kidguard.core.domain.usecase.isRecentsButtonClick
+import ru.homelab.kidguard.core.domain.usecase.isRecentsLockMenuItem
+import ru.homelab.kidguard.core.domain.usecase.isRecentsUnlockMenuItem
+import ru.homelab.kidguard.core.domain.usecase.recentsConfirmedByContent
+import ru.homelab.kidguard.core.domain.usecase.recentsLockIconIdsFor
+import ru.homelab.kidguard.core.domain.usecase.recentsViewIdsFor
+import ru.homelab.kidguard.core.domain.usecase.shouldCloseBlockedServiceWindow
 import ru.homelab.kidguard.core.domain.usecase.shouldDismissPinOverlayOnWindowEvent
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
@@ -17,6 +26,7 @@ import androidx.core.net.toUri
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -24,6 +34,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
+import ru.homelab.kidguard.core.domain.repository.RecentsLockAutomation
+import ru.homelab.kidguard.core.domain.repository.SettingsRepository
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.security.PinVerifyResult
@@ -90,7 +102,19 @@ class KidGuardAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var accessibilityLiveness: AccessibilityLiveness
 
+    @Inject
+    lateinit var recentsLockAutomation: RecentsLockAutomation
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Цикл сверки переднего плана со стеком окон — один на сервис, см. [syncForegroundWithStack]. */
+    private var stackSyncJob: Job? = null
+
+    /** Подписки на политику и звонки текущего подключения сервиса — см. [onServiceConnected]. */
+    private val connectionJobs = mutableListOf<Job>()
 
     /**
      * Задан ли родителем PIN — кеш в памяти, обновляется потоком в [onServiceConnected].
@@ -102,6 +126,18 @@ class KidGuardAccessibilityService : AccessibilityService() {
      */
     @Volatile
     private var pinConfigured = false
+
+    /**
+     * Запрещённые родителем пакеты — кеш в памяти для закрытия их служебных окон (игровая панель).
+     * Тот же довод, что у [pinConfigured]: до очистки из панели у ребёнка ~1,5 с, диск на этом пути нельзя.
+     */
+    @Volatile
+    private var blockedAppsCache: Set<String> = emptySet()
+
+    /** elapsedRealtime() последнего закрытия служебного окна — пауза против очереди «Назад». */
+    private var lastServiceWindowCloseAt = 0L
+
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
      * elapsedRealtime() последней успешной проверки PIN для каждого типа критичного экрана.
@@ -195,7 +231,16 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // Сторож судит о живости контроля в первую очередь по этому флагу — см. [AccessibilityLiveness].
         accessibilityLiveness.onConnected()
         // Держим наличие PIN в памяти, чтобы перехват обзора не читал DataStore на горячем пути.
-        scope.launch { policyRepository.pinProtection.collect { pinConfigured = it != null } }
+        // Подписки этого подключения. Система может вызвать onServiceConnected повторно без отключения —
+        // прежние отменяем, иначе с каждым переподключением копились бы живые дубли.
+        connectionJobs.forEach { it.cancel() }
+        connectionJobs.clear()
+        connectionJobs += scope.launch { policyRepository.pinProtection.collect { pinConfigured = it != null } }
+        connectionJobs += scope.launch { policyRepository.blockedApps.collect { blockedAppsCache = it } }
+        // Закрепление карточки в списке последних по кнопке родителя (см. RecentsLockAutomation).
+        connectionJobs += scope.launch(Dispatchers.Main) {
+            recentsLockAutomation.requests.collect { recentsLockAutomation.report(lockOwnRecentsCard()) }
+        }
         // Отдаём оверлею WindowManager сервиса — только окно accessibility-типа показывается
         // поверх защищённых системных экранов (см. PinOverlayManager).
         getSystemService(WindowManager::class.java)?.let {
@@ -207,7 +252,7 @@ class KidGuardAccessibilityService : AccessibilityService() {
         // Звонок снимает PIN над списком последних: ребёнок должен иметь возможность ответить.
         // Коллектор на главном потоке — там же, где события окон меняют pinOverlayScreen и флаги
         // перехвата, чтобы им не гоняться между потоками.
-        scope.launch(Dispatchers.Main) {
+        connectionJobs += scope.launch(Dispatchers.Main) {
             applicationContext.callAudioModeFlow(includeRinging = true).collect { callActive ->
                 if (pinOverlayManager.isShowing() && shouldDismissRecentsPinOnCall(
                         overlayForRecents = pinOverlayScreen == CriticalScreen.RECENTS,
@@ -221,10 +266,50 @@ class KidGuardAccessibilityService : AccessibilityService() {
                 }
             }
         }
+        // Щуп стека окон для контроллера блокировки: перед повтором блокировки он проверяет, что
+        // приложение действительно на экране, а не только в (возможно залипшем) мониторе.
+        foregroundAppMonitor.attachStackProbe { windowSnapshots() }
+        // Сверка переднего плана со стеком — на главном потоке, как и события окон: кэш имён окон
+        // общий и без синхронизации. Система может вызвать onServiceConnected повторно без отключения —
+        // второй бесконечный цикл был бы лишней нагрузкой, поэтому прежний отменяем.
+        stackSyncJob?.cancel()
+        stackSyncJob = scope.launch(Dispatchers.Main) { syncForegroundWithStack() }
         // Система подключила сервис — главный кейс задержки watchdog: родитель только что выдал
         // (или переустановкой сбросил и восстановил) accessibility-разрешение. Не ждём следующий
         // 15-минутный тик, шлём heartbeat сразу.
         healthReportTrigger.requestNow()
+    }
+
+    /**
+     * Периодически сверяет монитор переднего плана со стеком окон и снимает залипание.
+     *
+     * События окон не гарантируют правду: опоздавшее событие лаунчера перезаписывало приложение,
+     * которое уже снова на экране, а приложение, которым просто пользуются, новых событий смены окна
+     * не шлёт. Запрещённое приложение так оставалось открытым без блокировки минутами (эмулятор,
+     * 17.09.2026). Решение, когда стеку верить, — в [nextStackSync]: два одинаковых чтения подряд.
+     *
+     * При выключенном экране не опрашиваем: пользоваться телефоном нельзя, а IPC зря будит процесс.
+     */
+    private suspend fun syncForegroundWithStack() {
+        val powerManager = getSystemService(PowerManager::class.java)
+        var candidate: String? = null
+        while (true) {
+            delay(STACK_SYNC_INTERVAL_MS)
+            if (powerManager?.isInteractive != true) {
+                candidate = null
+                continue
+            }
+            val step = nextStackSync(
+                current = foregroundAppMonitor.currentPackage.value,
+                observed = resolveForegroundPackage(windowSnapshots()),
+                candidate = candidate
+            )
+            candidate = step.candidate
+            step.accept?.let { packageName ->
+                foregroundAppMonitor.update(packageName)
+                Timber.tag(TAG).d("Активное приложение (сверка со стеком, монитор залип): %s", packageName)
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -241,10 +326,22 @@ class KidGuardAccessibilityService : AccessibilityService() {
             }
             return
         }
+        // Нажатие по кнопке «Обзор» на панели навигации — самый ранний сигнал: приходит в момент касания,
+        // тогда как об открытии самого обзора система сообщает только к концу анимации (а при повороте
+        // экрана ещё позже). Замок ставим здесь, до того как список последних появится на экране.
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val label = event.text.joinToString(" ").ifBlank { event.contentDescription?.toString().orEmpty() }
+            if (isRecentsButtonClick(event.packageName?.toString(), shellPackages + SYSTEM_UI_PACKAGE, label)) {
+                Timber.tag(TAG).d("Нажата кнопка «Обзор» (%s) — ставлю замок заранее", label)
+                maybeInterceptWithPin(CriticalScreen.RECENTS)
+            }
+            return
+        }
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val packageName = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
         updateForeground(event.windowId, packageName)
+        maybeCloseBlockedServiceWindow(event, packageName)
 
         val title = screenTitle(event)
         // Диагностический лог (только debug — Timber-дерево плантится лишь в debug-сборке): по нему
@@ -273,6 +370,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
             maybeInterceptWithPin(criticalScreen)
             return
         }
+        // Заголовок обзора не распознан, но событие от лаунчера — проверяем содержимое окна: HiOS иногда
+        // присылает при открытии обзора заголовок главного экрана.
+        if (packageName in launcherPackages) scheduleRecentsContentCheck(packageName)
         // Экран не критичный. Оверлей убираем ТОЛЬКО при реальном уходе на другое приложение
         // (лаунчер и т.п.). НЕ реагируем на: события самого оверлея (наш пакет — иначе оверлей
         // скрыл бы себя своим же window-событием) и под-окна того же хоста настроек/инсталлера
@@ -364,24 +464,32 @@ class KidGuardAccessibilityService : AccessibilityService() {
         if (recentsInterceptRunning || pinOverlayManager.isShowing()) return
         recentsInterceptRunning = true
         pinOverlayScreen = CriticalScreen.RECENTS
+        cardLockChecked = false
+        // Сначала уводим с обзора, и только потом рисуем PIN. Показ нового окна во время поворота
+        // экрана (обзор из горизонтальной игры) занимал до 900 мс, и ребёнок успевал нажать
+        // «Очистить всё» до первого кадра замка — контроль убит на телефоне Олега 17.09.2026.
+        // «Домой» не ждёт отрисовки нашего окна: лаунчер выходит из обзора, и нажатие приходится на
+        // рабочий стол. Верный PIN откроет обзор заново (onUnlocked).
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        keepAwayFromRecentsUntilLockVisible()
         pinOverlayManager.show(
             verifyPin = ::verifyPin,
             onUnlocked = {
-                // Уводить никуда не надо: список последних уже открыт, оверлей просто уходит с
-                // дороги, и родитель разбирает карточки.
                 pinOverlayScreen = null
                 recentsInterceptRunning = false
+                // Окно разблокировки ставим ДО открытия обзора — иначе его же перехватим снова.
                 lastUnlockedAt[CriticalScreen.RECENTS] = SystemClock.elapsedRealtime()
+                performGlobalAction(GLOBAL_ACTION_RECENTS)
+                // Родитель открыл список последних — самый спокойный момент проверить закрепление.
+                mainHandler.postDelayed({ checkOwnCardLock() }, CARD_LOCK_CHECK_DELAY_MS)
             },
             onCancel = {
                 pinOverlayScreen = null
                 recentsInterceptRunning = false
-                // ВОТ ЗДЕСЬ уводим ребёнка, а не до показа оверлея. Так вышло не от красоты:
-                // закрыть список ДО оверлея не удаётся — лаунчер остаётся в режиме списка, и
-                // после закрытия оверлея система показывает его снова (проверено на эмуляторе и
-                // с GLOBAL_ACTION_BACK, и с GLOBAL_ACTION_HOME, и с паузой между ними). А уход
-                // домой в момент отказа срабатывает надёжно и даёт ровно требуемое поведение:
-                // отказался от PIN — списка не увидел.
+                // С обзора уже ушли до показа замка (см. начало функции); «Домой» здесь — страховка:
+                // до 17.09.2026 на эмуляторе лаунчер после закрытия оверлея возвращал список, если
+                // уйти только один раз. С уходом до показа и после отказа список не возвращается
+                // (проверено на эмуляторе и телефоне Олега 17.09.2026).
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 Timber.tag(TAG).d("Список последних закрыт без PIN — увожу на домашний экран")
             },
@@ -397,6 +505,379 @@ class KidGuardAccessibilityService : AccessibilityService() {
      * здесь родитель разбирает карточки — двадцати секунд на это мало. Плюс список мы открываем
      * сами после верного PIN, и короткое окно означало бы, что он перехватится повторно.
      */
+    /**
+     * Служебное окно запрещённого пакета — игровая панель с кнопкой очистки и подобные — закрываем сразу.
+     * Когда именно — решает [shouldCloseBlockedServiceWindow]; здесь только размер окна и действие.
+     *
+     * «Назад» закрывает выдвижную панель, не трогая игру под ней. Если окно через [SERVICE_WINDOW_RECHECK_MS]
+     * всё ещё на экране — уводим домой: игра прерывается, но кнопка очистки до нажатия не доживает.
+     */
+    private fun maybeCloseBlockedServiceWindow(event: AccessibilityEvent, packageName: String) {
+        if (packageName !in blockedAppsCache) return
+        val windowId = event.windowId
+        val window = runCatching { windows.firstOrNull { it.id == windowId } }
+            .onFailure { Timber.tag(TAG).w(it, "Не удалось прочитать окно %d служебного пакета %s", windowId, packageName) }
+            .getOrNull()
+        val bounds = android.graphics.Rect()
+        if (window != null) window.getBoundsInScreen(bounds) else event.source?.getBoundsInScreen(bounds)
+        val metrics = resources.displayMetrics
+        val screenArea = metrics.widthPixels.toLong() * metrics.heightPixels
+        val areaFraction = if (bounds.isEmpty || screenArea <= 0) null else {
+            bounds.width().toLong() * bounds.height() / screenArea.toFloat()
+        }
+        val now = SystemClock.elapsedRealtime()
+        val close = shouldCloseBlockedServiceWindow(
+            packageName = packageName,
+            windowKind = window?.let { windowKindOf(it.type) },
+            windowAreaFraction = areaFraction,
+            blockedApps = blockedAppsCache,
+            protectedPackages = launcherPackages + applicationContext.packageName + SYSTEM_UI_PACKAGE,
+            millisSinceLastClose = now - lastServiceWindowCloseAt
+        )
+        if (!close) return
+        lastServiceWindowCloseAt = now
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        Timber.tag(TAG).d("Служебное окно запрещённого пакета %s (%.0f%% экрана) — закрываю", packageName, (areaFraction ?: 0f) * 100)
+        mainHandler.postDelayed({
+            // Не смогли проверить — считаем, что окно на месте: лишний уход домой дешевле нажатой очистки.
+            val stillShown = runCatching { windows.any { it.id == windowId } }
+                .onFailure { Timber.tag(TAG).w(it, "Не удалось проверить окно %d — увожу домой на всякий случай", windowId) }
+                .getOrDefault(true)
+            if (stillShown) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                Timber.tag(TAG).d("Окно %s не закрылось по «Назад» — увожу домой", packageName)
+            }
+        }, SERVICE_WINDOW_RECHECK_MS)
+    }
+
+    /**
+     * Проверяет по значку на карточке, закреплена ли она, и запоминает результат для отчёта родителю.
+     *
+     * Пассивно: ничего не нажимает, только читает дерево. Карточку в списке может быть не видно (её
+     * ещё не нарисовали, или она за экраном) — тогда ничего не меняем, чтобы не гасить верный ответ
+     * прошлой проверки. Так же и на оболочке без закрепления: значка нет ни у кого, вывод «не знаем».
+     */
+    private fun checkOwnCardLock(): Boolean {
+        val launcher = launcherPackages.firstOrNull() ?: return false
+        val roots = allRoots()
+        val title = roots.firstNotNullOfOrNull { root ->
+            root.findAccessibilityNodeInfosByText(ownAppLabel()).firstOrNull { it.isVisibleToUser }
+        } ?: return false
+        val titleBounds = android.graphics.Rect().also { title.getBoundsInScreen(it) }
+        val lockIcons = recentsLockIconIdsFor(launcher).flatMap { id ->
+            roots.flatMap { it.findAccessibilityNodeInfosByViewId(id) }
+        }.filter { it.isVisibleToUser }
+        // Значка нет и мы его никогда не видели: либо оболочка не умеет закреплять, либо карточку
+        // ещё не дорисовали. Вывода «не закреплена» в этом случае не делаем.
+        if (lockIcons.isEmpty() && !cardLockIconSeenEver) return false
+        val locked = lockIcons.any { icon ->
+            val bounds = android.graphics.Rect().also { icon.getBoundsInScreen(it) }
+            kotlin.math.abs(bounds.centerY() - titleBounds.centerY()) < CARD_LOCK_ICON_MAX_DISTANCE_PX
+        }
+        if (lockIcons.isNotEmpty()) cardLockIconSeenEver = true
+        cardLockKnownLocked = locked
+        scope.launch {
+            if (settingsRepository.recentsLockConfirmed.first() != locked) {
+                settingsRepository.setRecentsLockConfirmed(locked)
+                healthReportTrigger.requestNow()
+                Timber.tag(TAG).d("Карточка KidGuard в списке последних: %s", if (locked) "закреплена" else "НЕ закреплена")
+            }
+        }
+        return true
+    }
+
+    /**
+     * Видели ли мы значок закрепления на этой прошивке хоть раз. Пока не видели — «нет значка» может
+     * означать и «оболочка не умеет закреплять», поэтому вывод «не закреплена» не делаем.
+     */
+    private var cardLockIconSeenEver = false
+
+    /** Последний прочитанный со значка ответ: закреплена ли карточка. */
+    private var cardLockKnownLocked = false
+
+    /**
+     * Пока окно замка не видно на экране — повторно уводим с обзора.
+     *
+     * При повороте (обзор из горизонтальной игры) система прячет наше окно на время поворота, и замок,
+     * хотя и добавлен, ребёнку не мешает: 18.09.2026 Володя в этой щели успевал нажать «Очистить всё».
+     * Поэтому «Домой» повторяется короткими попытками, пока замок не появится на экране или пока не
+     * выйдет [RECENTS_KEEP_AWAY_WINDOW_MS]. Как только замок виден — прекращаем: дальше он сам держит экран.
+     */
+    private fun keepAwayFromRecentsUntilLockVisible() {
+        mainHandler.removeCallbacks(recentsKeepAway)
+        hiddenLockSteps = 0
+        recentsKeepAwayUntil = SystemClock.elapsedRealtime() + RECENTS_KEEP_AWAY_WINDOW_MS
+        mainHandler.postDelayed(recentsKeepAway, RECENTS_KEEP_AWAY_STEP_MS)
+    }
+
+    private var recentsKeepAwayUntil = 0L
+    private var hiddenLockSteps = 0
+
+    /** Удалось ли за это открытие обзора посмотреть, закреплена ли карточка (см. [checkOwnCardLock]). */
+    private var cardLockChecked = false
+
+    private val recentsKeepAway = object : Runnable {
+        override fun run() {
+            if (pinOverlayScreen != CriticalScreen.RECENTS || !recentsInterceptRunning) return
+            // Следим весь поворот: система прячет окно не один раз — бывает, что замок мелькнул и снова
+            // скрыт (телефон Олега, 18.09.2026). Поэтому уводим с обзора на каждой проверке, где он скрыт.
+            // Пока список последних ещё на экране (мы только что с него ушли), успеваем посмотреть,
+            // закреплена ли наша карточка: другого момента увидеть её у сервиса нет.
+            if (!cardLockChecked) cardLockChecked = checkOwnCardLock()
+            if (!pinOverlayManager.isVisibleOnScreen()) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                hiddenLockSteps++
+            }
+            if (SystemClock.elapsedRealtime() < recentsKeepAwayUntil) {
+                mainHandler.postDelayed(this, RECENTS_KEEP_AWAY_STEP_MS)
+            } else if (hiddenLockSteps > 0) {
+                Timber.tag(TAG).d("Замок обзора был скрыт %d проверок подряд — уводил с обзора", hiddenLockSteps)
+            }
+        }
+    }
+
+    /**
+     * Проверка обзора по содержимому окна лаунчера — страховка к распознаванию по заголовку (см.
+     * [recentsViewIdsFor]). После события лаунчера окно опрашивается раз в [RECENTS_CONTENT_POLL_MS] в
+     * течение [RECENTS_CONTENT_POLL_WINDOW_MS]; обзор признаём, когда две проверки подряд его увидели
+     * ([recentsConfirmedByContent]). Новое событие опрос не перезапускает, а продлевает: иначе частые
+     * события лаунчера при открытии обзора отодвигали подтверждение (замер на телефоне Олега 17.09.2026).
+     */
+    private fun scheduleRecentsContentCheck(launcherPackage: String) {
+        recentsContentLauncher = launcherPackage
+        recentsContentDeadline = SystemClock.elapsedRealtime() + RECENTS_CONTENT_POLL_WINDOW_MS
+        if (recentsContentPolling) return
+        recentsContentPolling = true
+        recentsContentLastSaw = false
+        mainHandler.postDelayed(recentsContentPoll, RECENTS_CONTENT_POLL_MS)
+    }
+
+    private var recentsContentLauncher: String? = null
+    private var recentsContentDeadline = 0L
+    private var recentsContentPolling = false
+    private var recentsContentLastSaw = false
+
+    private val recentsContentPoll = object : Runnable {
+        override fun run() {
+            val launcher = recentsContentLauncher
+            if (launcher == null || pinOverlayManager.isShowing()) {
+                recentsContentPolling = false
+                return
+            }
+            val saw = launcherShowsRecents(launcher)
+            if (recentsConfirmedByContent(recentsContentLastSaw, saw)) {
+                recentsContentPolling = false
+                Timber.tag(TAG).d("Список последних распознан по содержимому окна (заголовок не совпал)")
+                maybeInterceptWithPin(CriticalScreen.RECENTS)
+                return
+            }
+            recentsContentLastSaw = saw
+            if (SystemClock.elapsedRealtime() < recentsContentDeadline) {
+                mainHandler.postDelayed(this, RECENTS_CONTENT_POLL_MS)
+            } else {
+                recentsContentPolling = false
+            }
+        }
+    }
+
+    /**
+     * Видны ли в окне лаунчера элементы обзора. Ошибку чтения логируем и считаем «не видно».
+     *
+     * Опрос идёт после каждого события лаунчера, включая обычное «Домой», поэтому обращений к системе
+     * здесь минимум: корень активного окна одним вызовом (обзор — активное окно лаунчера), `root` у окна
+     * читается один раз, поиск по id останавливается на первом видимом элементе.
+     */
+    private fun launcherShowsRecents(launcherPackage: String): Boolean = try {
+        val root = rootInActiveWindow?.takeIf { it.packageName == launcherPackage }
+        root != null && recentsViewIdsFor(launcherPackage).any { id ->
+            root.findAccessibilityNodeInfosByViewId(id).any { it.isVisibleToUser }
+        }
+    } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "Не удалось проверить содержимое лаунчера на обзор")
+        false
+    }
+
+    /**
+     * Закрепляет карточку KidGuard в списке последних так же, как это сделал бы родитель: открывает
+     * список, долгим нажатием на нашей карточке вызывает меню и жмёт пункт замка.
+     *
+     * Почему «руками», а не через API: состояние закрепления вендорское, программного доступа к нему
+     * нет ни на чтение, ни на запись. Зато закреплённая карточка переживает и «Очистить всё», и
+     * перезагрузку (проверено на телефоне Олега 18.09.2026) — ради этого стоит потерпеть хрупкость.
+     *
+     * Чужой оболочке не вредим: каждый шаг ограничен таймаутом, пункты меню ищем по подписи
+     * ([isRecentsLockMenuItem]), и при любой заминке просто уходим на рабочий стол. Если карточка уже
+     * закреплена — в меню будет обратный пункт, это [RecentsLockAutomation.Result.AlreadyLocked].
+     */
+    private suspend fun lockOwnRecentsCard(): RecentsLockAutomation.Result {
+        // Свой же перехват обзора на время операции выключаем — иначе закроем список себе.
+        lastUnlockedAt[CriticalScreen.RECENTS] = SystemClock.elapsedRealtime()
+        if (pinOverlayManager.isShowing()) pinOverlayManager.hide()
+        performGlobalAction(GLOBAL_ACTION_RECENTS)
+        val launcher = launcherPackages.firstOrNull()
+            ?: return RecentsLockAutomation.Result.Failed.also { goHomeAfterAutomation() }
+        if (!awaitCondition { launcherShowsRecents(launcher) }) {
+            return RecentsLockAutomation.Result.Failed.also { goHomeAfterAutomation() }
+        }
+        val label = ownAppLabel()
+        // Сначала читаем состояние: если карточка уже закреплена, трогать чужое меню незачем.
+        if (awaitCondition { checkOwnCardLock() } && cardLockKnownLocked) {
+            Timber.tag(TAG).d("Карточка уже закреплена — меню не открываем")
+            goHomeAfterAutomation()
+            return RecentsLockAutomation.Result.AlreadyLocked
+        }
+        val card = awaitNode { roots ->
+            roots.firstNotNullOfOrNull { root ->
+                root.findAccessibilityNodeInfosByText(label).firstOrNull { it.isVisibleToUser }
+            }
+        } ?: return RecentsLockAutomation.Result.Failed.also { goHomeAfterAutomation() }
+        if (!openCardMenu(launcher, card)) return RecentsLockAutomation.Result.Failed.also { goHomeAfterAutomation() }
+
+        var result = RecentsLockAutomation.Result.Failed
+        awaitCondition {
+            val items = allRoots().flatMap(::menuItems)
+            val unlock = items.firstOrNull { isRecentsUnlockMenuItem(it.second) }
+            val lock = items.firstOrNull { isRecentsLockMenuItem(it.second) }
+            when {
+                unlock != null -> { result = RecentsLockAutomation.Result.AlreadyLocked; true }
+                lock != null -> {
+                    val clicked = lock.first.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    result = if (clicked) RecentsLockAutomation.Result.Success else RecentsLockAutomation.Result.Failed
+                    true
+                }
+                else -> false
+            }
+        }
+        Timber.tag(TAG).d("Автозакрепление карточки в списке последних: %s", result)
+        goHomeAfterAutomation()
+        return result
+    }
+
+    /**
+     * Корни всех окон на экране. Меню карточки в списке последних открывается ОТДЕЛЬНЫМ окном, и в
+     * активном окне его узлов нет (телефон Олега, 18.09.2026) — поэтому ищем по всем окнам сразу.
+     */
+    private fun allRoots(): List<AccessibilityNodeInfo> =
+        runCatching { windows.mapNotNull { it.root } }
+            .onFailure { Timber.tag(TAG).w(it, "Не удалось прочитать окна для автозакрепления") }
+            .getOrDefault(emptyList())
+
+    /** Видимые подписи пунктов меню карточки: текст либо описание. */
+    private fun menuItems(root: AccessibilityNodeInfo): List<Pair<AccessibilityNodeInfo, String>> {
+        val items = mutableListOf<Pair<AccessibilityNodeInfo, String>>()
+        fun walk(node: AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > MAX_TREE_DEPTH) return
+            val label = node.text?.toString()?.takeIf { it.isNotBlank() }
+                ?: node.contentDescription?.toString()?.takeIf { it.isNotBlank() }
+            if (label != null && node.isVisibleToUser) items += node to label
+            repeat(node.childCount) { walk(node.getChild(it), depth + 1) }
+        }
+        walk(root, 0)
+        return items
+    }
+
+    /**
+     * Открывает меню карточки. На HiOS оно вызывается стрелкой рядом с названием приложения
+     * (`task_arrow`), а не долгим нажатием — проверено на телефоне Олега 18.09.2026: после долгого
+     * нажатия в дереве не появлялось ни одного пункта. Долгое нажатие оставлено запасным путём:
+     * на других оболочках меню вызывается именно им.
+     */
+    private suspend fun openCardMenu(launcherPackage: String, card: AccessibilityNodeInfo): Boolean {
+        val cardBounds = android.graphics.Rect().also { card.getBoundsInScreen(it) }
+        fun nearestById(idName: String): AccessibilityNodeInfo? = allRoots()
+            .flatMap { it.findAccessibilityNodeInfosByViewId("$launcherPackage:id/$idName") }
+            .filter { it.isVisibleToUser }
+            .minByOrNull { node ->
+                val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+                kotlin.math.abs(bounds.centerY() - cardBounds.centerY())
+            }
+
+        // Способ открытия меню карточки у каждой оболочки свой: на HiOS это строка с названием и
+        // стрелкой над карточкой, на AOSP-подобных — долгое нажатие по самой карточке. Пробуем по
+        // очереди и после каждой попытки смотрим, появились ли пункты меню.
+        val attempts: List<Pair<String, () -> Boolean>> = listOf(
+            "стрелка" to { nearestById(RECENTS_CARD_ARROW_ID)?.let(::clickSelfOrParent) == true },
+            "строка названия" to { nearestById(RECENTS_CARD_TITLE_ROW_ID)?.let(::clickSelfOrParent) == true },
+            // Оболочка может не принимать программные нажатия — тогда шлём НАСТОЯЩЕЕ касание.
+            "касание по стрелке" to { nearestById(RECENTS_CARD_ARROW_ID)?.let { tapOn(it) } == true },
+            "касание по названию" to { nearestById(RECENTS_CARD_TITLE_ROW_ID)?.let { tapOn(it) } == true },
+            "долгое нажатие" to { longClick(card) },
+            "долгое касание по карточке" to { longPressOn(card) }
+        )
+        for ((name, attempt) in attempts) {
+            if (!attempt()) continue
+            if (awaitCondition { allRoots().flatMap(::menuItems).any { isRecentsLockMenuItem(it.second) || isRecentsUnlockMenuItem(it.second) } }) {
+                Timber.tag(TAG).d("Меню карточки открылось: %s", name)
+                return true
+            }
+        }
+        return false
+    }
+
+    /** Настоящее касание в центр узла — когда оболочка не принимает программные нажатия. */
+    private fun tapOn(node: AccessibilityNodeInfo): Boolean = dispatchTouch(node, TAP_DURATION_MS)
+
+    /** Настоящее долгое касание в центр узла. */
+    private fun longPressOn(node: AccessibilityNodeInfo): Boolean = dispatchTouch(node, LONG_PRESS_DURATION_MS)
+
+    private fun dispatchTouch(node: AccessibilityNodeInfo, durationMs: Long): Boolean {
+        val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+        if (bounds.isEmpty) return false
+        val path = android.graphics.Path().apply { moveTo(bounds.exactCenterX(), bounds.exactCenterY()) }
+        val gesture = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, durationMs))
+            .build()
+        return dispatchGesture(gesture, null, null)
+    }
+
+    /** Клик по узлу или ближайшему кликабельному предку. */
+    private fun clickSelfOrParent(node: AccessibilityNodeInfo): Boolean {
+        var current: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (current != null && depth < LONG_CLICK_PARENT_DEPTH) {
+            if (current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            current = current.parent
+            depth++
+        }
+        return false
+    }
+
+    /** Долгое нажатие по карточке: сам узел может быть не кликабельным — поднимаемся к предку. */
+    private fun longClick(node: AccessibilityNodeInfo): Boolean {
+        var current: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (current != null && depth < LONG_CLICK_PARENT_DEPTH) {
+            if (current.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)) return true
+            current = current.parent
+            depth++
+        }
+        return false
+    }
+
+    private suspend fun awaitNode(find: (List<AccessibilityNodeInfo>) -> AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        var found: AccessibilityNodeInfo? = null
+        awaitCondition {
+            found = find(allRoots())
+            found != null
+        }
+        return found
+    }
+
+    /** Ждёт условие, опрашивая раз в [AUTOMATION_POLL_MS], не дольше [AUTOMATION_STEP_TIMEOUT_MS]. */
+    private suspend fun awaitCondition(condition: () -> Boolean): Boolean {
+        val deadline = SystemClock.elapsedRealtime() + AUTOMATION_STEP_TIMEOUT_MS
+        while (SystemClock.elapsedRealtime() < deadline) {
+            if (runCatching(condition).getOrDefault(false)) return true
+            delay(AUTOMATION_POLL_MS)
+        }
+        return false
+    }
+
+    private fun goHomeAfterAutomation() {
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        lastUnlockedAt.remove(CriticalScreen.RECENTS)
+    }
+
     private fun unlockWindowFor(screen: CriticalScreen): Long =
         if (screen == CriticalScreen.RECENTS) RECENTS_UNLOCK_WINDOW_MS else UNLOCK_WINDOW_MS
 
@@ -689,6 +1170,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         accessibilityLiveness.onDisconnected()
+        mainHandler.removeCallbacksAndMessages(null)
+        recentsContentPolling = false
+        foregroundAppMonitor.detachStackProbe()
         scope.cancel()
         detachOverlays()
         return super.onUnbind(intent)
@@ -696,6 +1180,9 @@ class KidGuardAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         accessibilityLiveness.onDisconnected()
+        mainHandler.removeCallbacksAndMessages(null)
+        recentsContentPolling = false
+        foregroundAppMonitor.detachStackProbe()
         scope.cancel()
         detachOverlays()
         super.onDestroy()
@@ -729,6 +1216,47 @@ class KidGuardAccessibilityService : AccessibilityService() {
     private companion object {
         const val TAG = "KidGuardA11y"
         const val UNLOCK_WINDOW_MS = 20_000L
+
+        /**
+         * Шаг сверки переднего плана со стеком окон. Залипание снимается за два шага (~3 с): быстрее
+         * ребёнок в запрещённом приложении ничего не успеет, а IPC раз в 1,5 с при включённом
+         * экране — копейки на фоне потока событий окон.
+         */
+        const val STACK_SYNC_INTERVAL_MS = 1_500L
+
+        /** Через сколько проверить, закрылось ли служебное окно по «Назад». */
+        const val SERVICE_WINDOW_RECHECK_MS = 400L
+
+        /** Шаг опроса окна лаунчера на обзор и сколько опрашивать после последнего события лаунчера. */
+        /** Шаг и предел повторного увода с обзора, пока окно замка скрыто поворотом экрана. */
+        /** Опрос и таймаут одного шага автозакрепления карточки. */
+        /** Пауза перед проверкой значка закрепления и допуск по расстоянию до названия карточки. */
+        const val CARD_LOCK_CHECK_DELAY_MS = 350L
+        const val CARD_LOCK_ICON_MAX_DISTANCE_PX = 400
+
+        const val AUTOMATION_POLL_MS = 120L
+        const val AUTOMATION_STEP_TIMEOUT_MS = 2_500L
+
+        /** На сколько предков подниматься в поисках того, кто примет долгое нажатие. */
+        const val LONG_CLICK_PARENT_DEPTH = 4
+
+        /** Длительности настоящих касаний для открытия меню карточки. */
+        const val TAP_DURATION_MS = 60L
+        const val LONG_PRESS_DURATION_MS = 700L
+
+        /** Стрелка меню карточки в списке последних (HiOS). На других оболочках её просто не найдём. */
+        const val RECENTS_CARD_ARROW_ID = "task_arrow"
+
+        /** Строка с названием над карточкой (HiOS) — второй способ открыть меню карточки. */
+        const val RECENTS_CARD_TITLE_ROW_ID = "task_top_title_layout"
+
+        const val RECENTS_KEEP_AWAY_STEP_MS = 200L
+        const val RECENTS_KEEP_AWAY_WINDOW_MS = 2_500L
+
+        const val RECENTS_CONTENT_POLL_MS = 150L
+        const val RECENTS_CONTENT_POLL_WINDOW_MS = 1_200L
+
+        const val SYSTEM_UI_PACKAGE = "com.android.systemui"
         // Окно разблокировки списка последних приравнено к остальным экранам (20 с, решение Володи
         // 15.09.2026). Прежние 2 минуты давали ребёнку слишком много времени на «Очистить всё»,
         // если родитель ввёл PIN и передал телефон. 20 с хватает разобрать карточки; после этого

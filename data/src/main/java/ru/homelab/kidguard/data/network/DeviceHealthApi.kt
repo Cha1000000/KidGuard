@@ -32,7 +32,10 @@ data class DeviceHealthDto(
     val dayBlockMinutesLeft: Int? = null,
     // Посторонние службы доступности (компоненты «пакет/класс»). Дефолт — пустой список: отчёт
     // старой сборки читается как «посторонних служб нет».
-    val foreignAccessibilityServices: List<String> = emptyList()
+    val foreignAccessibilityServices: List<String> = emptyList(),
+    // Закреплена ли карточка KidGuard в списке последних (подтверждает родитель вручную). Дефолт
+    // true: отчёт сборки, которая про это не знает, не должен выглядеть как «шаг не сделан».
+    val recentsLockConfirmed: Boolean = true
 )
 
 @Serializable

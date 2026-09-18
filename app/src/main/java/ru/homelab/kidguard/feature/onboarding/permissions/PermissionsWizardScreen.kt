@@ -68,6 +68,9 @@ fun PermissionsWizardScreen(
     viewModel: PermissionsViewModel = hiltViewModel()
 ) {
     val statuses by viewModel.statuses.collectAsStateWithLifecycle()
+    val recentsLockConfirmed by viewModel.recentsLockConfirmed.collectAsStateWithLifecycle()
+    val autoLockRunning by viewModel.autoLockRunning.collectAsStateWithLifecycle()
+    val autoLockMessage by viewModel.autoLockMessage.collectAsStateWithLifecycle()
     var showMissingRequiredWarning by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(StartActivityForResult()) {
@@ -180,7 +183,13 @@ fun PermissionsWizardScreen(
                     )
                 }
                 item {
-                    RecentsLockCard()
+                    RecentsLockCard(
+                        confirmed = recentsLockConfirmed,
+                        autoRunning = autoLockRunning,
+                        autoMessageRes = autoLockMessage,
+                        onAutoLock = viewModel::autoLockRecentsCard,
+                        onConfirmedChange = viewModel::setRecentsLockConfirmed
+                    )
                 }
                 item {
                     AlwaysOnVpnCard(
@@ -287,12 +296,62 @@ private fun AutostartCard(
  * то есть без этого шага мастер закрывал не ту дверь.
  */
 @Composable
-private fun RecentsLockCard(modifier: Modifier = Modifier) {
-    InfoActionCard(
-        title = stringResource(R.string.recents_lock_title),
-        description = stringResource(R.string.recents_lock_desc),
-        modifier = modifier.fillMaxWidth()
-    )
+private fun RecentsLockCard(
+    confirmed: Boolean,
+    autoRunning: Boolean,
+    autoMessageRes: Int?,
+    onAutoLock: () -> Unit,
+    onConfirmedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.recents_lock_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(
+                    if (confirmed) R.string.recents_lock_desc_done else R.string.recents_lock_desc
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            // Итог автозакрепления: на чужой оболочке меню карточки может отличаться, и родителю
+            // нужно понимать, сработало ли, чтобы при неудаче сделать шаг вручную.
+            autoMessageRes?.let { messageRes ->
+                Text(
+                    text = stringResource(messageRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 12.dp)
+            ) {
+                if (!confirmed) {
+                    OutlinedButton(onClick = onAutoLock, enabled = !autoRunning) {
+                        Text(
+                            stringResource(
+                                if (autoRunning) R.string.recents_lock_auto_running else R.string.recents_lock_auto
+                            )
+                        )
+                    }
+                }
+                TextButton(onClick = { onConfirmedChange(!confirmed) }) {
+                    Text(
+                        stringResource(
+                            if (confirmed) R.string.recents_lock_undo else R.string.recents_lock_confirm
+                        )
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**

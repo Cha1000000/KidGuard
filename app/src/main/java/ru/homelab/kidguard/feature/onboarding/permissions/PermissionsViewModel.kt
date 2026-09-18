@@ -7,7 +7,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.homelab.kidguard.core.domain.model.DevicePermission
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.repository.HealthReportTrigger
+import ru.homelab.kidguard.core.domain.repository.RecentsLockAutomation
+import ru.homelab.kidguard.core.domain.repository.SettingsRepository
+import ru.homelab.kidguard.R
 import ru.homelab.kidguard.platform.permissions.PermissionsManager
 import javax.inject.Inject
 
@@ -18,8 +25,60 @@ import javax.inject.Inject
 @HiltViewModel
 class PermissionsViewModel @Inject constructor(
     private val permissionsManager: PermissionsManager,
-    private val healthReportTrigger: HealthReportTrigger
+    private val healthReportTrigger: HealthReportTrigger,
+    private val settingsRepository: SettingsRepository,
+    private val recentsLockAutomation: RecentsLockAutomation
 ) : ViewModel() {
+
+    private val _autoLockRunning = MutableStateFlow(false)
+
+    /** Идёт ли автоматическое закрепление карточки — на это время кнопка блокируется. */
+    val autoLockRunning: StateFlow<Boolean> = _autoLockRunning.asStateFlow()
+
+    private val _autoLockMessage = MutableStateFlow<Int?>(null)
+
+    /** Текст итога последней попытки закрепления (ресурс строки), либо null. */
+    val autoLockMessage: StateFlow<Int?> = _autoLockMessage.asStateFlow()
+
+    /**
+     * Закрепить карточку автоматически: сервис откроет список последних и нажмёт пункт замка.
+     * Успех (в том числе «уже закреплена») сразу проставляет отметку — родителю не надо жать ещё раз.
+     */
+    fun autoLockRecentsCard() {
+        if (_autoLockRunning.value) return
+        _autoLockRunning.value = true
+        _autoLockMessage.value = null
+        viewModelScope.launch {
+            val result = recentsLockAutomation.request()
+            if (result == RecentsLockAutomation.Result.Success || result == RecentsLockAutomation.Result.AlreadyLocked) {
+                settingsRepository.setRecentsLockConfirmed(true)
+                healthReportTrigger.requestNow()
+            }
+            _autoLockMessage.value = when (result) {
+                RecentsLockAutomation.Result.Success -> R.string.recents_lock_auto_done
+                RecentsLockAutomation.Result.AlreadyLocked -> R.string.recents_lock_auto_already
+                RecentsLockAutomation.Result.Failed -> R.string.recents_lock_auto_failed
+                RecentsLockAutomation.Result.NoService -> R.string.recents_lock_auto_no_service
+            }
+            _autoLockRunning.value = false
+        }
+    }
+
+    /**
+     * Подтвердил ли родитель закрепление карточки KidGuard в списке последних.
+     *
+     * Статус не проверяется программно — состояние закрепления система наружу не отдаёт. Это отметка
+     * родителя: она уходит в отчёт о здоровье, чтобы в родительском приложении было видно, сделан ли шаг.
+     */
+    val recentsLockConfirmed: StateFlow<Boolean> = settingsRepository.recentsLockConfirmed
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setRecentsLockConfirmed(confirmed: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setRecentsLockConfirmed(confirmed)
+            healthReportTrigger.requestNow()
+        }
+    }
 
     private val _statuses = MutableStateFlow(emptyStatuses())
     val statuses: StateFlow<Map<DevicePermission, Boolean>> = _statuses.asStateFlow()

@@ -24,6 +24,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val ROLE = stringPreferencesKey("role")
         val SETUP_COMPLETED = booleanPreferencesKey("setup_completed")
         val CONTROL_EVER_CONFIGURED = booleanPreferencesKey("control_ever_configured")
+        val RECENTS_LOCK_CONFIRMED = booleanPreferencesKey("recents_lock_confirmed")
     }
 
     override val role: Flow<Role?> = context.settingsDataStore.data.map { prefs ->
@@ -46,6 +47,14 @@ class SettingsRepositoryImpl @Inject constructor(
         context.settingsDataStore.edit { prefs -> prefs[Keys.CONTROL_EVER_CONFIGURED] = true }
     }
 
+    override val recentsLockConfirmed: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[Keys.RECENTS_LOCK_CONFIRMED] ?: false
+    }
+
+    override suspend fun setRecentsLockConfirmed(confirmed: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[Keys.RECENTS_LOCK_CONFIRMED] = confirmed }
+    }
+
     override suspend fun setSetupCompleted(completed: Boolean) {
         context.settingsDataStore.edit { prefs -> prefs[Keys.SETUP_COMPLETED] = completed }
     }
@@ -55,6 +64,7 @@ class SettingsRepositoryImpl @Inject constructor(
             prefs.remove(Keys.ROLE)
             prefs.remove(Keys.SETUP_COMPLETED)
             prefs.remove(Keys.CONTROL_EVER_CONFIGURED)
+            prefs.remove(Keys.RECENTS_LOCK_CONFIRMED)
         }
     }
 }
