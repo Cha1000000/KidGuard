@@ -1,10 +1,13 @@
 package ru.homelab.kidguard.feature.parent.children
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.res.stringResource
 import ru.homelab.kidguard.R
 import java.time.Duration
 import java.time.Instant
+import kotlinx.coroutines.delay
 
 /**
  * «Сколько назад» для плашки и листа watchdog: «6 мин», «14 ч», «3 дн».
@@ -21,3 +24,30 @@ fun formatAgo(from: Instant, now: Instant): String {
         else -> stringResource(R.string.duration_days, (minutes / (60 * 24)).toInt())
     }
 }
+
+/**
+ * «Сейчас» для плашки и листа watchdog, которое идёт само.
+ *
+ * Раньше было `remember(child) { Instant.now() }`: время бралось один раз и пересчитывалось только
+ * при смене данных ребёнка. Но молчащий телефон данных как раз не меняет — сервер отдаёт тот же
+ * `lastSeenAt` — поэтому «сейчас» замирало, и плашка «не выходил на связь» не появлялась ни на
+ * открытом экране, ни после обновления свайпом (найдено 17.09.2026: тревога о молчании Олега
+ * родителю не показалась).
+ *
+ * [keys] перезапускают отсчёт немедленно — при новых данных ребёнка «сейчас» свежее сразу, а не
+ * через [PERIOD_MS].
+ */
+@Composable
+fun rememberTickingNow(vararg keys: Any?): Instant {
+    val now by produceState(initialValue = Instant.now(), *keys) {
+        value = Instant.now()
+        while (true) {
+            delay(PERIOD_MS)
+            value = Instant.now()
+        }
+    }
+    return now
+}
+
+/** Шаг «сейчас»: порог молчания 40 минут, плашка с точностью до минуты — полминуты с запасом. */
+private const val PERIOD_MS = 30_000L

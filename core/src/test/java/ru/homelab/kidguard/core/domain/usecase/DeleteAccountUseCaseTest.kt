@@ -146,10 +146,12 @@ class DeleteAccountUseCaseTest {
         override val role: Flow<Role?> = flowOf(Role.PARENT)
         override val setupCompleted: Flow<Boolean> = flowOf(true)
         override val controlEverConfigured: Flow<Boolean> = flowOf(false)
+        override val recentsLockConfirmed: Flow<Boolean> = flowOf(false)
 
         override suspend fun setRole(role: Role) = Unit
         override suspend fun setSetupCompleted(completed: Boolean) = Unit
         override suspend fun markControlConfigured() = Unit
+        override suspend fun setRecentsLockConfirmed(confirmed: Boolean) = Unit
 
         override suspend fun resetSetup() {
             setupReset = true

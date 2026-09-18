@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -44,7 +43,7 @@ import java.time.Instant
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
-    val now = remember(child) { Instant.now() }
+    val now = rememberTickingNow(child)
     val broken = child.health?.brokenPermissions().orEmpty()
     val risky = child.health?.riskyAccessibilityServices().orEmpty()
     val otherForeign = child.health?.foreignAccessibilityServices.orEmpty() - risky.toSet()
@@ -78,6 +77,10 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
             }
             // Прочие посторонние службы — не поломка, но родителю стоит знать, что они включены.
             if (otherForeign.isNotEmpty()) ForeignServicesNote(otherForeign)
+
+            // Ручной шаг настройки: закреплённая карточка — единственная защита от «Очистить всё»,
+            // которая работает и в ту долю секунды, когда система прячет PIN-замок при повороте экрана.
+            if (child.health?.recentsLockConfirmed == false) RecentsLockNote()
 
             // Причина прошлой смерти процесса — главный ответ на вопрос «контроль пропал сам или
             // его выключили». Раньше его взять было негде: на HiOS логи вытесняются за минуты.
@@ -197,6 +200,30 @@ private fun RiskyMenuRow() {
  * Посторонние службы доступности, которые опасными не считаются (например, TalkBack). Показываем
  * коротким именем пакета: полный компонент родителю ничего не скажет.
  */
+@Composable
+private fun RecentsLockNote() {
+    Surface(
+        color = HealthDangerColor.copy(alpha = 0.09f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(R.string.child_health_recents_lock),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = HealthDangerColor
+            )
+            Text(
+                text = stringResource(R.string.child_health_recents_lock_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun ForeignServicesNote(components: List<String>) {
     val names = components.joinToString(", ") { it.substringBefore('/').substringAfterLast('.') }

@@ -63,6 +63,31 @@ class PinOverlayManager @Inject constructor(
     /** Сервис отдаёт свой WindowManager при подключении — от него зависит показ поверх настроек. */
     fun attach(serviceWindowManager: WindowManager) {
         windowManager = serviceWindowManager
+        runOnMain { warmUp(serviceWindowManager) }
+    }
+
+    /**
+     * Прогрев: добавить и сразу убрать невидимое окно 1×1.
+     *
+     * Первый показ PIN после старта процесса на HiOS занимал ~850 мс — оболочка подгружает свои классы
+     * при первом addView (телефон Олега, 17.09.2026). Для списка последних это щель, в которую успевают
+     * нажать «Очистить всё». Окно живёт миг и на показ PIN никак не влияет: держать постоянное окно-носитель
+     * нельзя — после поворота HiOS менял его размер, и замок переставал показываться.
+     */
+    private fun warmUp(manager: WindowManager) {
+        val probe = View(context)
+        val params = WindowManager.LayoutParams(
+            1,
+            1,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            android.graphics.PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        val added = runCatching { manager.addView(probe, params) }
+            .onFailure { Timber.w(it, "Прогрев окна PIN не удался — первый показ может быть медленнее") }
+            .isSuccess
+        // Удаление отдельно: окно-заглушка не должно пережить ошибку, иначе убрать его будет нечем.
+        if (added) runCatching { manager.removeView(probe) }.onFailure { Timber.w(it, "Не удалось убрать окно прогрева PIN") }
     }
 
     /**
@@ -85,6 +110,16 @@ class PinOverlayManager @Inject constructor(
 
     /** Показан ли оверлей сейчас (сервис использует, чтобы решить, нужно ли его убирать). */
     fun isShowing(): Boolean = overlayView != null
+
+    /**
+     * Видно ли окно замка НА ЭКРАНЕ, а не только добавлено.
+     *
+     * При повороте экрана система прячет наше окно сама (`AsyncRotation: fadeWindowToken hide`) и
+     * возвращает только после поворота — до секунды. Всё это время `isShowing()` отвечает «да», а
+     * ребёнок видит список последних с кнопкой «Очистить всё» (телефон Олега, 18.09.2026). Вызывающая
+     * сторона по этому признаку решает, нужно ли уводить с обзора повторно.
+     */
+    fun isVisibleOnScreen(): Boolean = overlayView?.let { it.isShown && it.windowVisibility == View.VISIBLE } == true
 
     /**
      * Показать PIN-оверлей (idempotent — повторный вызов, пока уже показан, ничего не делает).

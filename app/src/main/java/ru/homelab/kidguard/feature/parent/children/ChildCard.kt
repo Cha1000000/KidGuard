@@ -18,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,9 +44,8 @@ internal val HealthDangerColor = Color(0xFFE5534B)
 
 @Composable
 internal fun ChildCard(child: Child, onClick: () -> Unit, onHealthClick: () -> Unit) {
-    // Считаем «сейчас» на каждой рекомпозиции: экран живёт недолго и обновляется при входе
-    // (LaunchedEffect → refresh), точности до минуты для порога в 12 ч заведомо хватает.
-    val now = remember(child) { Instant.now() }
+    // «Сейчас» идёт само: молчащий ребёнок не меняет данных, и замороженное время прятало бы плашку.
+    val now = rememberTickingNow(child)
 
     GlassCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(

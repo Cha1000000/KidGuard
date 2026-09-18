@@ -59,3 +59,14 @@ fun resolveForegroundPackage(windows: List<WindowSnapshot>): String? = windows
     .filter { it.kind == WindowKind.APPLICATION && !it.packageName.isNullOrBlank() }
     .maxByOrNull { it.layer }
     ?.packageName
+
+/**
+ * Пакеты ВСЕХ видимых прикладных окон, а не только верхнего.
+ *
+ * Мини-окно, разделённый экран, «картинка в картинке» показывают приложение, не делая его верхним или
+ * активным. Блокировка, смотревшая только на активное окно, такое приложение не видела: на телефоне
+ * Олега 17.09.2026 так утекло 44 минуты «Времени учёбы» — игры в мини-окне поверх рабочего стола.
+ */
+fun visibleApplicationPackages(windows: List<WindowSnapshot>): Set<String> = windows
+    .filter { it.kind == WindowKind.APPLICATION }
+    .mapNotNullTo(mutableSetOf()) { it.packageName?.takeIf(String::isNotBlank) }

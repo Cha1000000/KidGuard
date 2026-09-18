@@ -45,7 +45,8 @@ private fun DeviceHealthDto.toDomain() = DeviceHealth(
     batteryOptimization = batteryOptimization,
     lastExit = toLastExit(),
     dayBlock = toDayBlock(),
-    foreignAccessibilityServices = foreignAccessibilityServices
+    foreignAccessibilityServices = foreignAccessibilityServices,
+    recentsLockConfirmed = recentsLockConfirmed
 )
 
 /**

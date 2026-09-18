@@ -95,4 +95,15 @@ class ForegroundWindowTest {
     fun `пустой список окон — переднего плана нет`() {
         assertNull(resolveForegroundPackage(emptyList()))
     }
+
+    @Test
+    fun `видимые прикладные окна — все, включая мини-окно`() {
+        val windows = listOf(
+            window(1, WindowKind.APPLICATION, layer = 10, packageName = "com.transsion.hilauncher"),
+            window(2, WindowKind.APPLICATION, layer = 5, packageName = "ru.oneme.app"),
+            window(3, WindowKind.SYSTEM, layer = 100, packageName = "com.android.systemui"),
+            window(4, WindowKind.APPLICATION, layer = 1, packageName = null)
+        )
+        assertEquals(setOf("com.transsion.hilauncher", "ru.oneme.app"), visibleApplicationPackages(windows))
+    }
 }

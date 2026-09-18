@@ -2,16 +2,25 @@ package ru.homelab.kidguard.platform.overlay
 
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import androidx.core.content.getSystemService
 import android.content.pm.PackageManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -20,8 +29,12 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveAppLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
+import ru.homelab.kidguard.core.domain.usecase.backgroundVisibleCandidates
+import ru.homelab.kidguard.core.domain.usecase.confirmedAcrossChecks
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
+import ru.homelab.kidguard.core.domain.usecase.shouldRepeatBlock
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.accessibility.BlockingUiState
 import ru.homelab.kidguard.platform.accessibility.ForegroundAppMonitor
 import ru.homelab.kidguard.platform.apps.AlwaysAllowedPackages
 import timber.log.Timber
@@ -46,6 +59,7 @@ class BlockingController @Inject constructor(
     private val overlayManager: OverlayManager,
     private val pinOverlayManager: PinOverlayManager,
     private val pinGuard: PinGuard,
+    private val blockingUiState: BlockingUiState,
     alwaysAllowedPackages: AlwaysAllowedPackages
 ) {
 
@@ -63,8 +77,11 @@ class BlockingController @Inject constructor(
     private val bypassedPackage = MutableStateFlow<String?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun run() {
+    suspend fun run() = coroutineScope {
         Timber.tag(TAG).d("Контроллер блокировки запущен")
+        // Параллельно основному пути — проверка приложений, которые видны, но не активны (мини-окно,
+        // разделённый экран). Основной путь смотрит только на активное окно.
+        launch { watchVisibleWindows() }
         // Личный лимит зависит от активного пакета, поэтому на каждую его смену пересобираем
         // подписку (flatMapLatest): наблюдаем usage+limit именно текущего приложения.
         foregroundAppMonitor.currentPackage
@@ -100,37 +117,157 @@ class BlockingController @Inject constructor(
                     activePackage, inputs.limitState, inputs.appLimitState, inputs.whitelist,
                     alwaysAllowed, inputs.blockedApps, studyTimeActive, hasPass
                 )
-                // Причина для оверлея (в том же порядке приоритета, что и в shouldBlock):
-                // 1. Пакет в blockedApps (и не alwaysAllowed) — запрет родителя бьёт всё остальное.
-                // 2. Иначе, если идёт «Время учёбы» — оно и есть причина мягкой блокировки.
-                // 3. Иначе — обычный исчерпанный дневной лимит.
-                val reason = when {
-                    activePackage != null && activePackage !in alwaysAllowed && activePackage in inputs.blockedApps ->
-                        BlockReason.BLOCKED_BY_PARENT
-                    studyTimeActive -> BlockReason.STUDY_TIME
-                    else -> BlockReason.LIMIT_EXPIRED
-                }
-                // Время окончания для оверлея нужно только при STUDY_TIME — в остальных случаях
-                // untilText остаётся null (общая формулировка без времени).
-                val untilText = (inputs.scheduleState as? ScheduleState.Study)
-                    ?.takeIf { reason == BlockReason.STUDY_TIME }
-                    ?.endsAt
-                    ?.format(TIME_FORMATTER)
-                BlockDecision(block, reason, untilText, activePackage)
+                describe(block, activePackage, inputs.blockedApps, inputs.scheduleState)
             }
-        }.distinctUntilChanged().collect { decision ->
+        }.distinctUntilChanged().collectLatest { decision ->
             // Скрытие оверлея сюда намеренно не добавляем: он уходит сам по таймеру внутри
             // OverlayManager. Если бы скрытие шло отсюда, уход на домашний экран ниже сразу же
             // «снял» бы блокировку — лаунчер всегда разрешён.
-            if (decision.block) {
-                val onPinRequested = decision.activePackage?.let { pkg ->
-                    { requestPinBypass(pkg) }
-                }
-                overlayManager.show(decision.reason, decision.untilText, onPinRequested)
-                sendHome()
-                Timber.tag(TAG).d("Блокировка активна (причина=%s)", decision.reason)
+            if (!decision.block) return@collectLatest
+            enforce(decision)
+            Timber.tag(TAG).d("Блокировка активна (причина=%s)", decision.reason)
+            holdBlock(decision)
+        }
+    }
+
+    /**
+     * Держит блокировку, пока действует решение «блокировать»; новое решение отменяет цикл
+     * (`collectLatest`).
+     *
+     * Раньше блокировка срабатывала один раз, на смене решения. Если переход «приложение → рабочий
+     * стол → приложение» терялся — быстрые значения склеивались, или HiOS не присылал событие
+     * рабочего стола, — решение повторялось тем же значением и отфильтровывалось, оверлей уходил сам
+     * через несколько секунд, а приложение оставалось открытым (эмулятор, 17.09.2026). Когда
+     * повторять — решает [shouldRepeatBlock]: только если приложение на экране и по монитору, и по
+     * свежему чтению стека окон.
+     */
+    private suspend fun holdBlock(decision: BlockDecision) {
+        val blockedPackage = decision.activePackage ?: return
+        while (true) {
+            delay(REPEAT_CHECK_MS)
+            // Стек окон читает accessibility-сервис на главном потоке — там же живёт его кэш окон.
+            val repeat = withContext(Dispatchers.Main) {
+                shouldRepeatBlock(
+                    blockedPackage = blockedPackage,
+                    currentPackage = foregroundAppMonitor.currentPackage.value,
+                    onScreenPackage = foregroundAppMonitor.probeOnScreenPackage(),
+                    blockingUiVisible = blockingUiState.blockingVisible()
+                )
+            }
+            if (repeat) {
+                runCatching { enforce(decision) }
+                    .onFailure { Timber.tag(TAG).e(it, "Повтор блокировки %s не удался", blockedPackage) }
+                    .onSuccess { Timber.tag(TAG).d("Повтор блокировки: %s снова на экране (причина=%s)", blockedPackage, decision.reason) }
             }
         }
+    }
+
+    /**
+     * Причина и текст для оверлея — в том же порядке приоритета, что и в [shouldBlock]:
+     * 1. Пакет в blockedApps (и не alwaysAllowed) — запрет родителя бьёт всё остальное.
+     * 2. Иначе, если идёт «Время учёбы» — оно и есть причина мягкой блокировки.
+     * 3. Иначе — обычный исчерпанный дневной лимит.
+     * Время окончания нужно только при STUDY_TIME — в остальных случаях формулировка без времени.
+     */
+    private fun describe(
+        block: Boolean,
+        packageName: String?,
+        blockedApps: Set<String>,
+        scheduleState: ScheduleState
+    ): BlockDecision {
+        val reason = when {
+            packageName != null && packageName !in alwaysAllowed && packageName in blockedApps ->
+                BlockReason.BLOCKED_BY_PARENT
+            scheduleState is ScheduleState.Study -> BlockReason.STUDY_TIME
+            else -> BlockReason.LIMIT_EXPIRED
+        }
+        val untilText = (scheduleState as? ScheduleState.Study)
+            ?.takeIf { reason == BlockReason.STUDY_TIME }
+            ?.endsAt
+            ?.format(TIME_FORMATTER)
+        return BlockDecision(block, reason, untilText, packageName)
+    }
+
+    /**
+     * Приложения, которые видны на экране, но не активны: мини-окно поверх рабочего стола, вторая
+     * половина разделённого экрана, «картинка в картинке».
+     *
+     * Основной путь решает по активному окну, и такое приложение для него невидимо. На телефоне Олега
+     * 17.09.2026 игры в мини-окне HiOS шли во «Время учёбы» 44 минуты: пока активен рабочий стол,
+     * блокировки не было вовсе. Раз в [VISIBLE_CHECK_MS] проверяем все видимые окна по тем же правилам
+     * ([shouldBlock]) и блокируем подтверждённое двумя проверками подряд ([confirmedAcrossChecks]).
+     *
+     * «Домой» мини-окно не закрывает — поэтому оверлей возвращается после каждого своего ухода, пока
+     * окно видно. Закрыть его — дело ребёнка; на это у него есть время, пока оверлей скрыт.
+     */
+    private suspend fun watchVisibleWindows() {
+        val powerManager = context.getSystemService<PowerManager>()
+        var previous = emptySet<String>()
+        while (true) {
+            delay(VISIBLE_CHECK_MS)
+            // Ошибка одной проверки (чтение Room/DataStore, стек окон) не должна гасить ни этот цикл, ни
+            // основной путь блокировки: они в одном coroutineScope, и исключение отменило бы оба насовсем.
+            previous = try {
+                checkVisibleWindows(powerManager, previous)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Проверка видимых окон не удалась — пробую на следующем шаге")
+                emptySet()
+            }
+        }
+    }
+
+    /** Один шаг [watchVisibleWindows]; возвращает запрещённые видимые окна этого шага для подтверждения. */
+    private suspend fun checkVisibleWindows(powerManager: PowerManager?, previous: Set<String>): Set<String> {
+        // Оверлеи меняют состояние на главном потоке, и читать их флаги надо оттуда же — иначе проверка
+        // может не увидеть только что открытый PIN родителя и заблокировать поверх него.
+        val (uiVisible, visible) = withContext(Dispatchers.Main) {
+            blockingUiState.blockingVisible() to foregroundAppMonitor.probeVisiblePackages()
+        }
+        if (powerManager?.isInteractive != true || uiVisible) return emptySet()
+        val candidates = backgroundVisibleCandidates(
+            visible = visible,
+            activePackage = foregroundAppMonitor.currentPackage.value,
+            alwaysAllowed = alwaysAllowed,
+            bypassedPackage = bypassedPackage.value
+        )
+        val blocked = if (candidates.isEmpty()) emptySet() else blockedAmong(candidates)
+        val confirmed = confirmedAcrossChecks(previous, blocked)
+        val packageName = confirmed.minOrNull() ?: return blocked
+        val decision = describe(
+            block = true,
+            packageName = packageName,
+            blockedApps = policyRepository.blockedApps.first(),
+            scheduleState = observeScheduleStateUseCase().first()
+        )
+        enforce(decision)
+        Timber.tag(TAG).d("Блокировка видимого неактивного окна: %s (причина=%s)", packageName, decision.reason)
+        return emptySet()
+    }
+
+    /** Какие из [candidates] сейчас заблокированы — по той же матрице, что и активное приложение. */
+    private suspend fun blockedAmong(candidates: Set<String>): Set<String> {
+        val limitState = observeLimitStateUseCase().first()
+        val whitelist = policyRepository.whitelist.first()
+        val blockedApps = policyRepository.blockedApps.first()
+        val studyTimeActive = observeScheduleStateUseCase().first() is ScheduleState.Study
+        val passes = observeBonusPassesUseCase().first()
+        return candidates.filterTo(mutableSetOf()) { packageName ->
+            shouldBlock(
+                packageName, limitState, observeAppLimitStateUseCase(packageName).first(), whitelist,
+                alwaysAllowed, blockedApps, studyTimeActive, packageName in passes
+            )
+        }
+    }
+
+    /** Показать оверлей и увести на рабочий стол. */
+    private fun enforce(decision: BlockDecision) {
+        val onPinRequested = decision.activePackage?.let { pkg ->
+            { requestPinBypass(pkg) }
+        }
+        overlayManager.show(decision.reason, decision.untilText, onPinRequested)
+        sendHome()
     }
 
     /**
@@ -191,5 +328,14 @@ class BlockingController @Inject constructor(
 
         /** Формат времени окончания «Времени учёбы» на оверлее — «14:00». */
         val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+        /**
+         * Шаг проверки «не вернулся ли ребёнок в заблокированное приложение». Больше, чем шаг сверки
+         * монитора со стеком (1,5 с), не нужно: повтор всё равно подтверждается свежим чтением стека.
+         */
+        const val REPEAT_CHECK_MS = 1_000L
+
+        /** Шаг проверки видимых неактивных окон. С подтверждением двумя проверками — блок за ~2 с. */
+        const val VISIBLE_CHECK_MS = 1_000L
     }
 }
