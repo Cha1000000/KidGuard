@@ -53,6 +53,16 @@ fun GuideScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             titleRes = R.string.guide_section2_sub3_title,
             bodyRes = listOf(R.string.guide_section2_sub3_p1)
         ),
+        DocSection(
+            titleRes = R.string.guide_section2_sub4_title,
+            bodyRes = listOf(
+                R.string.guide_section2_sub4_p1,
+                R.string.guide_section2_sub4_p2,
+                R.string.guide_section2_sub4_p3,
+                R.string.guide_section2_sub4_p4,
+                R.string.guide_section2_sub4_p5
+            )
+        ),
 
         DocSection(
             titleRes = R.string.guide_section3_title,
