@@ -50,12 +50,18 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
     // «Молчит» — только если нет ни сломанных разрешений, ни опасного меню: иначе лист открылся бы
     // с заголовком про выключенный телефон, хотя телефон на связи и доложил о меню.
     val isSilent = broken.isEmpty() && risky.isEmpty()
+    // Лист открыт с жёлтой плашки: контроль работает, не сделан только шаг с закреплением карточки.
+    val reminderOnly = !child.isControlBroken(now)
 
     GlassBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
                 text = stringResource(
-                    if (isSilent) R.string.child_health_silent_title else R.string.child_health_broken_title
+                    when {
+                        reminderOnly -> R.string.child_health_setup_title
+                        isSilent -> R.string.child_health_silent_title
+                        else -> R.string.child_health_broken_title
+                    }
                 ),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -69,11 +75,14 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
             )
 
-            if (isSilent) {
-                StaleHealthNote()
-            } else {
-                broken.forEach { HealthIssueRow(it) }
-                if (risky.isNotEmpty()) RiskyMenuRow()
+            // Лист-напоминание: поломок нет, поэтому ни «данные могли устареть», ни списка разрешений.
+            if (!reminderOnly) {
+                if (isSilent) {
+                    StaleHealthNote()
+                } else {
+                    broken.forEach { HealthIssueRow(it) }
+                    if (risky.isNotEmpty()) RiskyMenuRow()
+                }
             }
             // Прочие посторонние службы — не поломка, но родителю стоит знать, что они включены.
             if (otherForeign.isNotEmpty()) ForeignServicesNote(otherForeign)
@@ -88,7 +97,7 @@ internal fun HealthSheet(child: Child, onDismiss: () -> Unit) {
                 ?.takeIf { it.kind.worthReporting }
                 ?.let { LastExitNote(record = it, now = now) }
 
-            HowToFix(isSilent = isSilent)
+            if (reminderOnly) RecentsLockHowTo() else HowToFix(isSilent = isSilent)
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -196,14 +205,12 @@ private fun RiskyMenuRow() {
     }
 }
 
-/**
- * Посторонние службы доступности, которые опасными не считаются (например, TalkBack). Показываем
- * коротким именем пакета: полный компонент родителю ничего не скажет.
- */
+/** Карточка KidGuard не закреплена в списке последних — жёлтым: это шаг настройки, а не поломка. */
 @Composable
 private fun RecentsLockNote() {
+    val color = MaterialTheme.colorScheme.tertiary
     Surface(
-        color = HealthDangerColor.copy(alpha = 0.09f),
+        color = color.copy(alpha = 0.09f),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
     ) {
@@ -212,7 +219,7 @@ private fun RecentsLockNote() {
                 text = stringResource(R.string.child_health_recents_lock),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = HealthDangerColor
+                color = color
             )
             Text(
                 text = stringResource(R.string.child_health_recents_lock_hint),
@@ -224,6 +231,36 @@ private fun RecentsLockNote() {
     }
 }
 
+/**
+ * Как закрепить карточку. Автоматически закрепление замечаем только там, где известен значок замка
+ * в лаунчере (HiOS: Tecno, Infinix), — на остальных телефонах нужна ручная отметка в мастере.
+ */
+@Composable
+private fun RecentsLockHowTo() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                    append(stringResource(R.string.child_health_howto_label))
+                }
+                append(" ")
+                append(stringResource(R.string.child_health_recents_lock_howto))
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+        )
+    }
+}
+
+/**
+ * Посторонние службы доступности, которые опасными не считаются (например, TalkBack). Показываем
+ * коротким именем пакета: полный компонент родителю ничего не скажет.
+ */
 @Composable
 private fun ForeignServicesNote(components: List<String>) {
     val names = components.joinToString(", ") { it.substringBefore('/').substringAfterLast('.') }

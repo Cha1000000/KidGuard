@@ -74,6 +74,10 @@ internal fun ChildCard(child: Child, onClick: () -> Unit, onHealthClick: () -> U
                 // (решение Володи — лишняя строка при норме превращается в шум).
                 if (child.isControlBroken(now)) {
                     HealthWarningBadge(child = child, now = now, onClick = onHealthClick)
+                } else if (child.needsRecentsLock()) {
+                    // Не поломка, а незавершённый шаг настройки — поэтому жёлтая и только когда красной нет:
+                    // при поломке этот пункт виден в листе подробностей под ней.
+                    RecentsLockBadge(onClick = onHealthClick)
                 }
                 // Только подтверждённая телефоном блокировка: политику других детей родительский
                 // телефон локально не хранит, а отчёт с телефона приходит по всем.
@@ -122,6 +126,43 @@ private fun HealthWarningBadge(child: Child, now: Instant, onClick: () -> Unit) 
             color = HealthDangerColor,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
+    }
+}
+
+/**
+ * Карточка KidGuard не закреплена в списке последних. Условие привязки — как у плашки поломки:
+ * у непривязанного ребёнка отчёта нет. Старые сборки поле не присылают, для них оно `true`.
+ */
+internal fun Child.needsRecentsLock(): Boolean = paired && health?.recentsLockConfirmed == false
+
+/** Жёлтая плашка «Закрепите в «Последних»». Тап — лист с подсказкой, что сделать. */
+@Composable
+private fun RecentsLockBadge(onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.tertiary
+    Surface(
+        onClick = onClick,
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(top = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_push_pin),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(13.dp)
+            )
+            Text(
+                text = stringResource(R.string.child_recents_lock_badge),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = color,
+                modifier = Modifier.padding(start = 5.dp)
+            )
+        }
     }
 }
 
