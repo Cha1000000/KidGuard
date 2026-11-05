@@ -40,4 +40,10 @@ interface BreakRuntimeRepository {
 
     /** Сохранить снимок накопления (периодически и на системных событиях). */
     suspend fun saveUsageSnapshot(snapshot: ContinuousUsageSession)
+
+    /**
+     * Удалить снимок: цикл очищен (перерывы выключены/неприменимы) или завершён перерыв.
+     * После рестарта накопление начнётся с чистого цикла.
+     */
+    suspend fun clearUsageSnapshot()
 }

@@ -33,6 +33,10 @@ class BreakRuntimeRepositoryImpl @Inject constructor(
         dao.upsertUsageSnapshot(snapshot.toEntity())
     }
 
+    override suspend fun clearUsageSnapshot() {
+        dao.deleteUsageSnapshot()
+    }
+
     private fun BreakSessionEntity.toDomain() = BreakSession(
         id = sessionId,
         mode = BreakMode.valueOf(mode),

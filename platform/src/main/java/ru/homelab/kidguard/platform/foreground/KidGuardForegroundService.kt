@@ -16,9 +16,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import ru.homelab.kidguard.core.domain.model.BreakMode
+import ru.homelab.kidguard.core.domain.model.breaksApplyToday
+import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.SyncRepository
+import ru.homelab.kidguard.core.domain.repository.todayFlow
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.notification.NotificationIds
 import ru.homelab.kidguard.platform.overlay.BlockingController
@@ -66,6 +72,9 @@ class KidGuardForegroundService : Service() {
     @Inject
     lateinit var syncRepository: SyncRepository
 
+    @Inject
+    lateinit var currentDateProvider: CurrentDateProvider
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trackingJob: Job? = null
     private var blockingJob: Job? = null
@@ -108,7 +117,21 @@ class KidGuardForegroundService : Service() {
             // главном цикле трекера, и блокирующее чтение подвесило бы его.
             stickinessJob = scope.launch {
                 launch {
-                    policyRepository.breakRules.collect { breakResetSeconds = it.durationMinutes * 60 }
+                    // Накопление ведётся, только когда перерывы INTERVAL применимы: включены,
+                    // настроены и день подходит по лимиту (план «исправление перерывов», этап 3).
+                    // Иначе цикл очищается — включение после долгого использования в выключенном
+                    // состоянии не должно ронять замок мгновенно (D11).
+                    combine(
+                        policyRepository.breakRules,
+                        policyRepository.dailyLimits,
+                        currentDateProvider.todayFlow()
+                    ) { rules, limits, today ->
+                        breakResetSeconds = rules.durationMinutes * 60
+                        val allowed = rules.isConfigured &&
+                            rules.mode == BreakMode.INTERVAL &&
+                            breaksApplyToday(limits.limitFor(today.dayOfWeek))
+                        stickinessTracker.setCountingAllowed(allowed)
+                    }.collect {}
                 }
                 stickinessTracker.run { breakResetSeconds }
             }
