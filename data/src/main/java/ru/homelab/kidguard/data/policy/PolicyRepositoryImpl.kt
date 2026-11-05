@@ -79,19 +79,21 @@ class PolicyRepositoryImpl @Inject constructor(
     override val emergencyContacts: Flow<List<EmergencyContact>> =
         policyDao.emergencyContacts().map { rows -> rows.map { EmergencyContact(it.name, it.phone) } }
 
-    // Строка настроек + отдельная таблица часов режима HOURS склеиваются в одну модель домена.
+    // Строка настроек и её часы читаются одним @Relation-запросом в одной транзакции (D18):
+    // наблюдатель не видит полуприменённую запись, чего combine двух flow не гарантирует.
     override val breakRules: Flow<BreakRules> =
-        combine(policyDao.breakRules(), policyDao.breakHours()) { row, hours ->
-            if (row == null) {
+        policyDao.breakRulesWithHours().map { row ->
+            val rules = row?.rules
+            if (rules == null) {
                 BreakRules.EMPTY
             } else {
                 BreakRules(
-                    enabled = row.enabled,
-                    mode = BreakMode.valueOf(row.mode),
-                    intervalMinutes = row.intervalMinutes,
-                    hours = hours.toSet(),
-                    durationMinutes = row.durationMinutes,
-                    message = row.message
+                    enabled = rules.enabled,
+                    mode = BreakMode.valueOf(rules.mode),
+                    intervalMinutes = rules.intervalMinutes,
+                    hours = row.hours.map { it.minuteOfDay }.toSet(),
+                    durationMinutes = rules.durationMinutes,
+                    message = rules.message
                 )
             }
         }
@@ -213,8 +215,8 @@ class PolicyRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setBreakRules(rules: BreakRules) {
-        policyDao.upsertBreakRules(rules.toEntity())
-        policyDao.replaceBreakHours(rules.hours)
+        // Одна транзакция: правила и часы либо применяются вместе, либо не применяются вовсе.
+        policyDao.replaceBreakRules(rules.toEntity(), rules.hours)
     }
 
     override suspend fun resetBreaks() = setBreakRules(BreakRules.EMPTY)

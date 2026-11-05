@@ -157,6 +157,51 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun миграция15в16_создаёт_runtime_таблицы_перерывов_не_трогая_данные() {
+        helper.createDatabase(TEST_DB, 15).use { db ->
+            db.execSQL("INSERT INTO screen_time(date, seconds) VALUES('2026-11-05', 1800)")
+            db.execSQL(
+                "INSERT INTO break_rules(id, enabled, mode, intervalMinutes, durationMinutes, message) " +
+                    "VALUES (0, 1, 'HOURS', 0, 15, 'отдохни')"
+            )
+            db.execSQL("INSERT INTO break_hour(minuteOfDay) VALUES (900)")
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, MIGRATION_15_16)
+
+        assertTrue(db.hasTable("break_session"))
+        assertTrue(db.hasTable("stickiness_state"))
+        // Часы привязаны к строке правил: колонка появилась, старые строки бэкфиллены нулём.
+        assertTrue(db.hasColumn("break_hour", "rulesId"))
+        assertEquals(0, db.querySingleInt("SELECT rulesId FROM break_hour WHERE minuteOfDay = 900"))
+        // Накопленный учёт и настройки перерывов переживают миграцию.
+        assertEquals(1800, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-11-05'"))
+        assertEquals(15, db.querySingleInt("SELECT durationMinutes FROM break_rules WHERE id = 0"))
+        assertEquals(900, db.querySingleInt("SELECT minuteOfDay FROM break_hour"))
+        // Runtime-таблицы рождаются пустыми: до миграции устойчивых сессий не существовало.
+        assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM break_session"))
+        assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM stickiness_state"))
+        db.close()
+    }
+
+    @Test
+    fun вся_цепочка_11_в_16_проходит_подряд() {
+        helper.createDatabase(TEST_DB, 11).use { db ->
+            db.execSQL("INSERT INTO screen_time(date, seconds) VALUES('2026-08-01', 1200)")
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 16, true,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16
+        )
+
+        assertEquals(1200, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-08-01'"))
+        assertTrue(db.hasTable("break_session"))
+        assertTrue(db.hasTable("stickiness_state"))
+        db.close()
+    }
+
     private fun SupportSQLiteDatabase.querySingleInt(sql: String): Int = query(sql).use { cursor ->
         assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
         cursor.getInt(0)

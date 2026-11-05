@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.core.domain.repository.AlertSettingsRepository
 import ru.homelab.kidguard.core.domain.repository.AuthRepository
 import ru.homelab.kidguard.core.domain.repository.BonusRepository
+import ru.homelab.kidguard.core.domain.repository.BreakRuntimeRepository
 import ru.homelab.kidguard.core.domain.repository.PenaltyRepository
 import ru.homelab.kidguard.core.domain.repository.ChildRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
@@ -20,6 +21,7 @@ import ru.homelab.kidguard.core.domain.repository.UsageWatermarkRepository
 import ru.homelab.kidguard.data.alerts.AlertSettingsRepositoryImpl
 import ru.homelab.kidguard.data.auth.AuthRepositoryImpl
 import ru.homelab.kidguard.data.bonus.BonusRepositoryImpl
+import ru.homelab.kidguard.data.breaks.BreakRuntimeRepositoryImpl
 import ru.homelab.kidguard.data.penalty.PenaltyRepositoryImpl
 import ru.homelab.kidguard.data.children.ChildRepositoryImpl
 import ru.homelab.kidguard.data.date.CurrentDateProviderImpl
@@ -51,6 +53,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPolicyRepository(impl: PolicyRepositoryImpl): PolicyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBreakRuntimeRepository(impl: BreakRuntimeRepositoryImpl): BreakRuntimeRepository
 
     @Binds
     @Singleton
