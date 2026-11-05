@@ -89,14 +89,18 @@ data class BreakRules(
 /** Текущее состояние перерывов на детском устройстве. */
 sealed interface BreakState {
     data object Idle : BreakState
-    /** Скоро перерыв — повод показать плашку. */
-    data object Warning : BreakState
+    /** Скоро перерыв — повод показать плашку; ключ стабилен внутри usage-цикла или окна HOURS. */
+    data class Warning(val warningKey: String = "") : BreakState
     /**
-     * Идёт перерыв; [secondsLeft] питает обратный отсчёт на замке, [message] — фраза родителя.
-     * Текст едет прямо в состоянии, чтобы замку не пришлось отдельно ходить за правилами.
-     * Пустая строка — родитель поле не заполнил, показывающая сторона подставит фразу-шаблон.
+     * Идёт перерыв; [secondsLeft] — производная проекция, а владельцем countdown служит
+     * [endsAtElapsedMs]. [sessionId] связывает отображение с устойчивой [BreakSession].
      */
-    data class Active(val secondsLeft: Int, val message: String = "") : BreakState
+    data class Active(
+        val secondsLeft: Int,
+        val message: String = "",
+        val sessionId: String = "",
+        val endsAtElapsedMs: Long = 0L
+    ) : BreakState
 }
 
 /**
@@ -110,7 +114,8 @@ fun breaksApplyToday(dayLimitMinutes: Int?): Boolean =
 const val BREAKS_LIMIT_THRESHOLD_MINUTES = 180
 
 /**
- * Состояние перерывов «здесь и сейчас».
+ * Чистая проекция перерывов «здесь и сейчас» без сохранения сессии. Устойчивым жизненным циклом
+ * в приложении управляет ObserveBreakStateUseCase; эта функция проверяет базовые правила отдельно.
  *
  * В режиме INTERVAL таймер перерыва идёт по тому же счётчику залипания: перерыв занимает отрезок
  * [порог; порог + длительность). Это не описка — счётчик копится только при включённом экране,
@@ -138,7 +143,7 @@ fun breakStateAt(
                 stickySeconds >= breakEnd -> BreakState.Idle
                 stickySeconds >= threshold ->
                     BreakState.Active(breakEnd - stickySeconds, rules.message)
-                stickySeconds >= threshold - WARNING_LEAD_SECONDS -> BreakState.Warning
+                stickySeconds >= threshold - WARNING_LEAD_SECONDS -> BreakState.Warning()
                 else -> BreakState.Idle
             }
         }
@@ -151,7 +156,7 @@ fun breakStateAt(
             val next = windows.firstOrNull { it.start.isAfter(now) }
             when {
                 next != null && Duration.between(now, next.start).seconds <= WARNING_LEAD_SECONDS ->
-                    BreakState.Warning
+                    BreakState.Warning()
                 else -> BreakState.Idle
             }
         }

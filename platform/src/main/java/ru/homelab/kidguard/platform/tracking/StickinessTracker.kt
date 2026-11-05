@@ -60,6 +60,8 @@ class StickinessTracker @Inject constructor(
 
     private val _stickySeconds = MutableStateFlow(0)
     override val stickySeconds: Flow<Int> = _stickySeconds.asStateFlow()
+    private val _usageSession = MutableStateFlow<ContinuousUsageSession?>(null)
+    override val usageSession: Flow<ContinuousUsageSession?> = _usageSession.asStateFlow()
 
     @Volatile
     private var paused = false
@@ -147,8 +149,9 @@ class StickinessTracker @Inject constructor(
     }
 
     private fun publish() {
-        val accumulatedMs = synchronized(lock) { accumulator.state?.accumulatedMs } ?: 0
-        val seconds = (accumulatedMs / 1000).toInt()
+        val snapshot = synchronized(lock) { accumulator.state }
+        _usageSession.value = snapshot
+        val seconds = ((snapshot?.accumulatedMs ?: 0) / 1000).toInt()
         if (_stickySeconds.value != seconds) {
             _stickySeconds.value = seconds
             if (seconds % 60 == 0 && seconds > 0) {

@@ -132,7 +132,7 @@ class BreakRulesTest {
         val r = rules(intervalMinutes = 30, durationMinutes = 10)
         val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 26 * 60, now = at(4, 10, 0))
-        assertEquals(BreakState.Warning, state)
+        assertEquals(BreakState.Warning(), state)
     }
 
     // --- Characterization: текущее поведение, которое сохраняется (план, этап 0) ---
@@ -166,7 +166,7 @@ class BreakRulesTest {
         val r = rules(intervalMinutes = 30, durationMinutes = 10)
         val atBoundary = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 25 * 60, now = at(4, 10, 0))
-        assertEquals(BreakState.Warning, atBoundary)
+        assertEquals(BreakState.Warning(), atBoundary)
         val beforeBoundary = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 25 * 60 - 1, now = at(4, 10, 0))
         assertEquals(BreakState.Idle, beforeBoundary)
@@ -234,7 +234,7 @@ class BreakRulesTest {
         val r = rules(mode = BreakMode.HOURS, hours = setOf(900), durationMinutes = 10)
         val warning = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 0, now = at(4, 14, 55, 30))
-        assertEquals(BreakState.Warning, warning)
+        assertEquals(BreakState.Warning(), warning)
         val tooEarly = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 0, now = at(4, 14, 54, 59))
         assertEquals(BreakState.Idle, tooEarly)
@@ -245,7 +245,7 @@ class BreakRulesTest {
         val r = rules(mode = BreakMode.HOURS, hours = setOf(0), durationMinutes = 10)
         val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
             stickySeconds = 0, now = at(4, 23, 57))
-        assertEquals(BreakState.Warning, state)
+        assertEquals(BreakState.Warning(), state)
     }
 
     @Test

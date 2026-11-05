@@ -516,7 +516,7 @@ private fun DayOfWeek.nameRes(): Int = when (this) {
 }
 
 private const val DEFAULT_MINUTES = 120
-private const val MAX_MINUTES = 300
+private const val MAX_MINUTES = 480
 private const val STEP_MINUTES = 15
 
 private val BLOCK_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")

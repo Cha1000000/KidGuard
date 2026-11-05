@@ -21,7 +21,6 @@ import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
-import ru.homelab.kidguard.core.domain.repository.StickinessSource
 import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.usecase.ObserveBreakStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
@@ -45,9 +44,8 @@ import javax.inject.Singleton
  * активного приложения: замок должен накрывать и рабочий стол, а `shouldBlock` первым делом
  * пропускает лаунчер. Поэтому — отдельный контроллер поверх состояния расписания и перерывов.
  *
- * Приоритет: **сон бьёт перерыв**. Отдельного правила для этого не нужно — внутри любого окна
- * расписания состояние перерыва и так `Idle` (см. `breakStateAt`), так что достаточно проверить
- * сон первым.
+ * Приоритет: **сон бьёт перерыв**. Активная сессия перерыва продолжается под расписанием,
+ * но на экране показывается ночной замок; жизненным циклом сессии контроллер не управляет.
  *
  * Замок уходит в случаях:
  * 1. окно сна закончилось / перерыв доиграл свой таймер;
@@ -67,7 +65,6 @@ class FullScreenLockController @Inject constructor(
     private val policyRepository: PolicyRepository,
     private val fullScreenLockOverlayManager: FullScreenLockOverlayManager,
     private val breakWarningOverlay: BreakWarningOverlay,
-    private val stickinessSource: StickinessSource,
     private val pinGuard: PinGuard,
     private val elapsedTimeSource: ElapsedTimeSource
 ) {
@@ -110,8 +107,6 @@ class FullScreenLockController @Inject constructor(
                 val sleep = scheduleState as? ScheduleState.Sleep
                 val activeBreak = breakState as? BreakState.Active
                 showWarningIfNeeded(breakState)
-                // Счётчик залипания замирает на время расписания: там перерывов нет, копить незачем.
-                stickinessSource.pause(scheduleState !is ScheduleState.Inactive)
                 if (activeBreak == null) breakUnlockedUntilScreenOff = false
 
                 when {
@@ -120,8 +115,7 @@ class FullScreenLockController @Inject constructor(
                         elapsedTimeSource.elapsedRealtimeMs() - callStartedAtMs < CALL_SETUP_GRACE_MS ->
                         hideIfShowing("идёт звонок — не мешаем")
 
-                    // Сон бьёт перерыв. Отдельного правила не нужно: под расписанием breakState
-                    // и так Idle, достаточно проверить сон первым.
+                    // Активная сессия перерыва продолжается под расписанием; здесь выбирается только UI.
                     sleep != null -> {
                         if (sleepUnlockedUntilScreenOff) {
                             hideIfShowing("ночной замок снят PIN-ом до гашения экрана")
@@ -143,7 +137,6 @@ class FullScreenLockController @Inject constructor(
             }
         } finally {
             runCatching { context.unregisterReceiver(screenOffReceiver) }
-            stickinessSource.pause(false)
         }
     }
 
