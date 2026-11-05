@@ -71,7 +71,7 @@ class ObserveBreakStateUseCase @Inject constructor(
             dayLimitMinutes = dailyLimits.limitFor(today),
             scheduleActive = scheduleState !is ScheduleState.Inactive,
             stickySeconds = stickySeconds,
-            nowMinuteOfDay = now.toMinuteOfDay()
+            now = now
         )
     }.distinctUntilChanged()
 
@@ -93,8 +93,6 @@ class ObserveBreakStateUseCase @Inject constructor(
 
     /** «Значимая» часть [ru.homelab.kidguard.core.domain.model.BreakRules] — смена любого поля тут требует сброса счётчика. */
     private data class BreakTiming(val mode: BreakMode, val interval: Int, val duration: Int)
-
-    private fun LocalDateTime.toMinuteOfDay(): Int = hour * 60 + minute
 
     private companion object {
         const val TICK_MS = 15_000L
