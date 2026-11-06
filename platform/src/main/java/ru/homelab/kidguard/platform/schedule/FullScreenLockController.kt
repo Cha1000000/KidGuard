@@ -1,12 +1,13 @@
 package ru.homelab.kidguard.platform.schedule
 
+import ru.homelab.kidguard.platform.call.CallSetupGrace
 import ru.homelab.kidguard.platform.call.callAudioModeFlow
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.media.AudioManager
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import ru.homelab.kidguard.core.domain.model.BreakState
 import ru.homelab.kidguard.core.domain.model.EmergencyContact
 import ru.homelab.kidguard.core.domain.model.ScheduleState
@@ -25,7 +27,10 @@ import ru.homelab.kidguard.core.domain.security.PinGuard
 import ru.homelab.kidguard.core.domain.usecase.ObserveBreakStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.platform.R
+import ru.homelab.kidguard.platform.overlay.BreakWarningAction
 import ru.homelab.kidguard.platform.overlay.BreakWarningOverlay
+import ru.homelab.kidguard.platform.overlay.BreakWarningPolicy
+import ru.homelab.kidguard.platform.overlay.BreakWarningPolicyState
 import ru.homelab.kidguard.platform.overlay.FullScreenLockModel
 import ru.homelab.kidguard.platform.overlay.FullScreenLockOverlayManager
 import ru.homelab.kidguard.platform.overlay.LOCK_KEY_NIGHT
@@ -54,8 +59,10 @@ import javax.inject.Singleton
  * 1. окно сна закончилось / перерыв доиграл свой таймер;
  * 2. родитель ввёл верный PIN — и ночной замок, и замок перерыва снимаются до ближайшего гашения
  *    экрана (телефон отложили — замок вернётся при следующем включении, если окно ещё идёт);
- * 3. идёт экстренный звонок — иначе замок накрыл бы собой вызов, который сам же и предложил
- *    (определяем по аудио-режиму системы, см. [callActiveFlow]).
+ * 3. идёт звонок — входящий (уже на рингтоне) или разговор: иначе замок накрыл бы вызов,
+ *    который сам же и предложил (определяем по аудио-режиму системы, см. [callActiveFlow]).
+ *    Между тапом по контакту и фактическим `IN_CALL` действует ограниченное окно
+ *    [CallSetupGrace], и только после реального действия звонка (D16).
  *
  * Проверка идёт по собственному тику плюс реактивно на смену состояний. Тик заодно работает как
  * страховка — если окно замка кто-то снял, следующий проход вернёт его на место.
@@ -81,18 +88,20 @@ class FullScreenLockController @Inject constructor(
     @Volatile
     private var breakUnlockedUntilScreenOff = false
 
-    /** Момент (elapsedRealtime) начала экстренного звонка. Пока система поднимает вызов, аудио-режим
-     * ещё не переключился в IN_CALL — на этот короткий промежуток держим замок скрытым по таймеру,
-     * чтобы тик не вернул его поверх набора (дальше замок удерживает скрытым сам аудио-режим). */
+    /** Момент (elapsedRealtime) начала экстренного звонка; `null` — звонка не было. Пока система
+     * поднимает вызов, аудио-режим ещё не переключился в IN_CALL — на этот короткий промежуток
+     * держим замок скрытым по таймеру, чтобы тик не вернул его поверх набора (дальше замок
+     * удерживает скрытым сам аудио-режим). Nullable принципиально: `0L` как «звонка не было»
+     * в первые секунды после boot давал ложный grace и прятал замок (D16). */
     @Volatile
-    private var callStartedAtMs = 0L
+    private var callStartedAtMs: Long? = null
 
     /**
-     * Плашку показываем один раз на перерыв. Тик контроллера идёт каждые 15 секунд, а окно
-     * предупреждения длится 5 минут — без этого флага плашка мигала бы двадцать раз подряд.
-     * Сбрасывается, когда предупреждение сменилось любым другим состоянием.
+     * Показанная плашка предупреждения: ключ запоминается только после успешного `addView`
+     * (см. [BreakWarningPolicy]), поэтому неудачная попытка не блокирует повтор, а одна и та же
+     * плашка не показывается заново на каждом 15-секундном тике.
      */
-    private var warningShown = false
+    private var warningPolicy = BreakWarningPolicyState()
 
     suspend fun run() {
         Timber.tag(TAG).d("Контроллер полноэкранных замков запущен")
@@ -103,13 +112,20 @@ class FullScreenLockController @Inject constructor(
                 observeBreakStateUseCase(),
                 callActiveFlow(),
                 policyRepository.emergencyContacts,
-                ticker()
+                triggerFlow()
             ) { scheduleState, breakState, callActive, contacts, _ ->
                 LockDecision(scheduleState, breakState, callActive, contacts)
             }.collect { (scheduleState, breakState, callActive, contacts) ->
                 val sleep = scheduleState as? ScheduleState.Sleep
                 val activeBreak = breakState as? BreakState.Active
-                showWarningIfNeeded(breakState)
+                // Плашку решает чистая политика: она же гасит её при старте перерыва, при активном
+                // расписании, звонке, отмене правил и смене ключа, и повторяет попытку, если
+                // показать не удалось или экран был неинтерактивен.
+                updateWarning(
+                    breakState = breakState,
+                    scheduleActive = scheduleState !is ScheduleState.Inactive,
+                    callActive = callActive
+                )
                 if (activeBreak == null) breakUnlockedUntilScreenOff = false
 
                 // Чистый выбор замка (приоритеты — в FullScreenLockReducer): звонок → сон → перерыв.
@@ -119,8 +135,11 @@ class FullScreenLockController @Inject constructor(
                         scheduleState = scheduleState,
                         breakState = breakState,
                         callActive = callActive,
-                        callGraceActive =
-                            elapsedTimeSource.elapsedRealtimeMs() - callStartedAtMs < CALL_SETUP_GRACE_MS,
+                        callGraceActive = CallSetupGrace.isActive(
+                            callStartedAtMs = callStartedAtMs,
+                            nowMs = elapsedTimeSource.elapsedRealtimeMs(),
+                            graceMs = CALL_SETUP_GRACE_MS
+                        ),
                         sleepUnlocked = sleepUnlockedUntilScreenOff,
                         breakUnlocked = breakUnlockedUntilScreenOff
                     )
@@ -135,20 +154,44 @@ class FullScreenLockController @Inject constructor(
         }
     }
 
-    /** Одна плашка на перерыв: см. [warningShown]. */
-    private fun showWarningIfNeeded(state: BreakState) {
-        if (state !is BreakState.Warning) {
-            warningShown = false
-            return
+    /** Плашка «скоро перерыв» — решение по чистой политике [BreakWarningPolicy]. */
+    private suspend fun updateWarning(
+        breakState: BreakState,
+        scheduleActive: Boolean,
+        callActive: Boolean
+    ) {
+        when (
+            val action = BreakWarningPolicy.decide(
+                state = warningPolicy,
+                breakState = breakState,
+                screenInteractive = isScreenInteractive(),
+                scheduleActive = scheduleActive,
+                callActive = callActive
+            )
+        ) {
+            is BreakWarningAction.Show -> {
+                Timber.tag(TAG).d("Показываю плашку: скоро перерыв (%s)", action.warningKey)
+                val shown = breakWarningOverlay.show(
+                    title = context.getString(R.string.break_warning_title),
+                    subtitle = context.getString(R.string.break_warning_subtitle)
+                )
+                // Ключ запоминается только после успешного addView — иначе неудачная попытка
+                // навсегда заблокировала бы повтор.
+                warningPolicy = BreakWarningPolicy.onShown(warningPolicy, action.warningKey, shown)
+                if (!shown) Timber.tag(TAG).w("Плашку показать не удалось — повторим позже")
+            }
+            is BreakWarningAction.Hide -> {
+                breakWarningOverlay.hide()
+                // Транзиторное скрытие (звонок, расписание, экран) ключ не забывает — иначе та же
+                // плашка показалась бы второй раз после SCREEN_ON/конца звонка.
+                warningPolicy = BreakWarningPolicy.onHidden(warningPolicy, action.forgetShownKey)
+            }
+            BreakWarningAction.Keep -> Unit
         }
-        if (warningShown) return
-        warningShown = true
-        Timber.tag(TAG).d("Показываю плашку: скоро перерыв")
-        breakWarningOverlay.show(
-            title = context.getString(R.string.break_warning_title),
-            subtitle = context.getString(R.string.break_warning_subtitle)
-        )
     }
+
+    private fun isScreenInteractive(): Boolean =
+        context.getSystemService(PowerManager::class.java)?.isInteractive ?: false
 
     private fun showSleepLock(sleep: ScheduleState.Sleep, contacts: List<EmergencyContact>) {
         fullScreenLockOverlayManager.showOrUpdate(
@@ -242,7 +285,8 @@ class FullScreenLockController @Inject constructor(
             .onSuccess {
                 // Замок уводим сразу и помечаем время старта: пока система поднимает вызов и аудио-
                 // режим ещё не стал IN_CALL, замок держим скрытым по таймеру (CALL_SETUP_GRACE_MS),
-                // а дальше его удерживает скрытым сам аудио-режим — см. [callActiveFlow].
+                // а дальше его удерживает скрытым сам аудио-режим (ringing или разговор).
+                // Отсчёт только от реального тапа: null в остальное время — без ложного grace (D16).
                 callStartedAtMs = elapsedTimeSource.elapsedRealtimeMs()
                 fullScreenLockOverlayManager.hide()
                 Timber.tag(TAG).d("Экстренный звонок (прямой=%s)", canCallDirectly)
@@ -251,12 +295,34 @@ class FullScreenLockController @Inject constructor(
     }
 
     /**
-     * Идёт ли сейчас разговор — по режиму аудио системы, без `READ_PHONE_STATE`. При звонке режим
-     * становится `IN_CALL`/`IN_COMMUNICATION`; так замок скрывается ровно на время вызова и
-     * возвращается сразу по его завершении. Детект «диалер на переднем плане» через accessibility
-     * под нашим оверлеем не работает: система не шлёт событие об окне, открывшемся под оверлеем.
+     * Идёт ли сейчас звонок — включая входящий, который ещё звонит (`includeRinging = true`):
+     * замок перерыва обязан уйти уже на рингтоне, иначе ребёнок не успеет ответить (D14).
+     * Аудио-режим — единственный надёжный признак: окно звонилки, открывшееся ПОД нашим оверлеем,
+     * сервис доступности не видит (система не шлёт о нём событие).
      */
-    private fun callActiveFlow(): Flow<Boolean> = context.callAudioModeFlow(includeRinging = false)
+    private fun callActiveFlow(): Flow<Boolean> = context.callAudioModeFlow(includeRinging = true)
+
+    /**
+     * Тик контроллера плюс немедленный пересчёт по SCREEN_ON: если плашку не удалось показать
+     * (экран был погашен / неинтерактивен), повтор случается сразу при включении, а не через
+     * 15 секунд, — но только пока предупреждение ещё актуально.
+     */
+    private fun triggerFlow(): Flow<Unit> = merge(ticker(), screenOnFlow())
+
+    private fun screenOnFlow(): Flow<Unit> = callbackFlow {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                trySend(Unit)
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(Intent.ACTION_SCREEN_ON),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        awaitClose { runCatching { context.unregisterReceiver(receiver) } }
+    }
 
     private fun ticker(): Flow<Unit> = flow {
         while (true) {

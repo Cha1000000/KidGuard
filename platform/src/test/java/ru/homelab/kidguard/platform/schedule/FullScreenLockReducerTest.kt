@@ -97,6 +97,16 @@ class FullScreenLockReducerTest {
     }
 
     @Test
+    fun `конец звонка возвращает тот же замок перерыва с той же сессией`() {
+        // Контракт п. 3 этапа 6: после звонка показ по текущей сессии, новая сессия не создаётся —
+        // выбор обязан вернуть тот же sessionId (lockKey сохраняется, замок обновляется на месте).
+        val duringCall = select(breakState = breakSession, callActive = true)
+        val afterCall = select(breakState = breakSession)
+        assertEquals(FullScreenLockSelection.Hidden, duringCall)
+        assertEquals(FullScreenLockSelection.Break("session-1"), afterCall)
+    }
+
+    @Test
     fun `setup-grace после начала звонка держит замок скрытым`() {
         assertEquals(
             FullScreenLockSelection.Hidden,
