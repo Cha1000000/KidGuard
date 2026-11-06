@@ -1,8 +1,29 @@
 # Дизайн: принудительные перерывы («режим перерыва»)
 
 - **Дата:** 2026-07-21
-- **Статус:** согласовано (брейншторм), ждёт ревью спеки → план
+- **Статус:** реализовано; архитектурные разделы ниже частично SUPERSEDED — см. врезку.
 - **Источник идеи:** Володя — кейс «родитель не задал лимитов, ребёнок залипает с утра до вечера».
+
+> **SUPERSEDED (2026-11-06, план «KidGuard — исправление перерывов», этапы 0–7).**
+> Реализация разошлась с этим дизайном в главном: перерыв — не проекция счётчика, а устойчивая
+> сессия с абсолютным deadline. Конкретно:
+> - **§1 Домен:** `stickySeconds` больше не владеет перерывом. Есть `BreakSession`
+>   (`sessionId`, `endsAtElapsedMs` + wall-clock пары, `bootCount`, `windowKey`), жизненным циклом
+>   владеет `ObserveBreakStateUseCase`; `BreakState.Active` несёт `sessionId`/`endsAtElapsedMs`,
+>   `BreakState.Warning` — стабильный `warningKey`; правила `HOURS` считаются в секундах по
+>   объединённым окнам (`mergedHoursWindows`/`activeHoursWindow`).
+> - **§2 Счётчик залипания:** `StickinessTracker` накапливает фактические дельты `elapsedRealtime`
+>   (`ContinuousUsageAccumulator`), снимок переживает смерть процесса; пауза/сброс сессии — не его
+>   забота (это `completeBreakAndResetUsage` одной транзакцией).
+> - **§3 Замки:** `FullScreenLockOverlayManager.showOrUpdate(FullScreenLockModel)` с `lockKey`
+>   (`NIGHT`/`BREAK:<sessionId>`), выбор сценария — чистый `FullScreenLockReducer`, countdown —
+>   чистый `CountdownCalculator` от `endsAtElapsedMs`.
+> - **§4 Плашка:** `BreakWarningOverlay.show()` — suspend с результатом `addView`; однократность
+>   по `warningKey` — чистая `BreakWarningPolicy`; при звонке/расписании плашка убирается.
+> - **§5 Хранение:** добавлены runtime-таблицы (`break_session`, `stickiness_state`, Room 16),
+>   которые синк политики НЕ трогает.
+> Актуальный контракт поведения — план «KidGuard — исправление перерывов», раздел 3. Этот документ
+> остаётся историей решений брейншторма и источником «почему».
 
 ## Контекст (зачем)
 
