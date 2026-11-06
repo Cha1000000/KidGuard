@@ -32,4 +32,5 @@ dependencies {
     implementation(libs.timber)
     implementation(libs.kotlinx.coroutines.core)
     compileOnly(libs.error.prone.annotations)
+    testImplementation(libs.junit)
 }

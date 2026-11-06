@@ -26,8 +26,11 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveBreakStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.platform.R
 import ru.homelab.kidguard.platform.overlay.BreakWarningOverlay
+import ru.homelab.kidguard.platform.overlay.FullScreenLockModel
 import ru.homelab.kidguard.platform.overlay.FullScreenLockOverlayManager
+import ru.homelab.kidguard.platform.overlay.LOCK_KEY_NIGHT
 import ru.homelab.kidguard.platform.overlay.LockAppearance
+import ru.homelab.kidguard.platform.overlay.breakLockKey
 import timber.log.Timber
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -109,30 +112,22 @@ class FullScreenLockController @Inject constructor(
                 showWarningIfNeeded(breakState)
                 if (activeBreak == null) breakUnlockedUntilScreenOff = false
 
-                when {
-                    // Идёт экстренный звонок (или система только его поднимает) — не накрываем набор.
-                    callActive ||
-                        elapsedTimeSource.elapsedRealtimeMs() - callStartedAtMs < CALL_SETUP_GRACE_MS ->
-                        hideIfShowing("идёт звонок — не мешаем")
-
-                    // Активная сессия перерыва продолжается под расписанием; здесь выбирается только UI.
-                    sleep != null -> {
-                        if (sleepUnlockedUntilScreenOff) {
-                            hideIfShowing("ночной замок снят PIN-ом до гашения экрана")
-                        } else {
-                            showSleepLock(sleep, contacts)
-                        }
-                    }
-
-                    activeBreak != null -> {
-                        if (breakUnlockedUntilScreenOff) {
-                            hideIfShowing("перерыв снят PIN-ом до гашения экрана")
-                        } else {
-                            showBreakLock(activeBreak, contacts)
-                        }
-                    }
-
-                    else -> hideIfShowing("блокировать нечего")
+                // Чистый выбор замка (приоритеты — в FullScreenLockReducer): звонок → сон → перерыв.
+                // Активная сессия перерыва продолжается под расписанием; здесь выбирается только UI.
+                when (
+                    val selection = FullScreenLockReducer.select(
+                        scheduleState = scheduleState,
+                        breakState = breakState,
+                        callActive = callActive,
+                        callGraceActive =
+                            elapsedTimeSource.elapsedRealtimeMs() - callStartedAtMs < CALL_SETUP_GRACE_MS,
+                        sleepUnlocked = sleepUnlockedUntilScreenOff,
+                        breakUnlocked = breakUnlockedUntilScreenOff
+                    )
+                ) {
+                    FullScreenLockSelection.Hidden -> hideIfShowing()
+                    FullScreenLockSelection.Night -> showSleepLock(sleep!!, contacts)
+                    is FullScreenLockSelection.Break -> showBreakLock(activeBreak!!, contacts)
                 }
             }
         } finally {
@@ -156,42 +151,50 @@ class FullScreenLockController @Inject constructor(
     }
 
     private fun showSleepLock(sleep: ScheduleState.Sleep, contacts: List<EmergencyContact>) {
-        if (fullScreenLockOverlayManager.isShowing()) return
-        Timber.tag(TAG).d("Показываю ночной замок до %s", sleep.endsAt)
-        fullScreenLockOverlayManager.show(
-            appearance = LockAppearance.NIGHT,
-            title = context.getString(R.string.sleep_lock_title),
-            subtitle = context.getString(
-                R.string.sleep_lock_until, sleep.endsAt.format(TIME_FORMATTER)
-            ),
-            countdownSeconds = null,
-            contacts = contacts,
-            verifyPin = pinGuard::verify,
-            onUnlocked = {
-                sleepUnlockedUntilScreenOff = true
-                Timber.tag(TAG).d("Верный PIN — ночной замок снят до гашения экрана")
-            },
-            onCall = ::callContact
+        fullScreenLockOverlayManager.showOrUpdate(
+            FullScreenLockModel(
+                lockKey = LOCK_KEY_NIGHT,
+                appearance = LockAppearance.NIGHT,
+                title = context.getString(R.string.sleep_lock_title),
+                subtitle = context.getString(
+                    R.string.sleep_lock_until, sleep.endsAt.format(TIME_FORMATTER)
+                ),
+                countdownEndsAtElapsedMs = null,
+                contacts = contacts,
+                verifyPin = pinGuard::verify,
+                onUnlocked = {
+                    sleepUnlockedUntilScreenOff = true
+                    Timber.tag(TAG).d("Верный PIN — ночной замок снят до гашения экрана")
+                },
+                onCall = ::callContact
+            )
         )
     }
 
     private fun showBreakLock(state: BreakState.Active, contacts: List<EmergencyContact>) {
-        if (fullScreenLockOverlayManager.isShowing()) return
-        Timber.tag(TAG).d("Показываю замок перерыва, осталось %d с", state.secondsLeft)
-        fullScreenLockOverlayManager.show(
-            appearance = LockAppearance.BREAK,
-            title = context.getString(R.string.break_lock_title),
-            // Родитель мог не заполнить поле — тогда показываем фразу-шаблон, иначе ребёнок
-            // увидел бы голый отсчёт без объяснения, зачем его прервали.
-            subtitle = state.message.ifBlank { context.getString(R.string.break_lock_default_message) },
-            countdownSeconds = state.secondsLeft,
-            contacts = contacts,
-            verifyPin = pinGuard::verify,
-            onUnlocked = {
-                breakUnlockedUntilScreenOff = true
-                Timber.tag(TAG).d("Верный PIN — замок перерыва снят до гашения экрана")
-            },
-            onCall = ::callContact
+        fullScreenLockOverlayManager.showOrUpdate(
+            FullScreenLockModel(
+                // Ключ привязан к доменной сессии: новая сессия — новый замок, обновление той же
+                // сессии (текст, контакты) — на месте, без сброса набранных цифр.
+                lockKey = breakLockKey(state.sessionId),
+                appearance = LockAppearance.BREAK,
+                title = context.getString(R.string.break_lock_title),
+                // Родитель мог не заполнить поле — тогда показываем фразу-шаблон, иначе ребёнок
+                // увидел бы голый отсчёт без объяснения, зачем его прервали.
+                subtitle = state.message.ifBlank {
+                    context.getString(R.string.break_lock_default_message)
+                },
+                // Отсчёт идёт от deadline сессии, а не от секундного снимка — погашенный экран
+                // и звонок не искажают остаток.
+                countdownEndsAtElapsedMs = state.endsAtElapsedMs,
+                contacts = contacts,
+                verifyPin = pinGuard::verify,
+                onUnlocked = {
+                    breakUnlockedUntilScreenOff = true
+                    Timber.tag(TAG).d("Верный PIN — замок перерыва снят до гашения экрана")
+                },
+                onCall = ::callContact
+            )
         )
     }
 
@@ -216,9 +219,9 @@ class FullScreenLockController @Inject constructor(
         return receiver
     }
 
-    private fun hideIfShowing(reason: String) {
+    private fun hideIfShowing() {
         if (!fullScreenLockOverlayManager.isShowing()) return
-        Timber.tag(TAG).d("Убираю замок: %s", reason)
+        Timber.tag(TAG).d("Убираю замок — сейчас блокировать нечего")
         fullScreenLockOverlayManager.hide()
     }
 
