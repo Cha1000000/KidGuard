@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -58,8 +59,6 @@ class StickinessTracker @Inject constructor(
 
     private val accumulator = ContinuousUsageAccumulator()
 
-    private val _stickySeconds = MutableStateFlow(0)
-    override val stickySeconds: Flow<Int> = _stickySeconds.asStateFlow()
     private val _usageSession = MutableStateFlow<ContinuousUsageSession?>(null)
     override val usageSession: Flow<ContinuousUsageSession?> = _usageSession.asStateFlow()
 
@@ -69,10 +68,15 @@ class StickinessTracker @Inject constructor(
     @Volatile
     private var countingAllowed = false
 
-    /** Скоуп для записи снимка из синхронных методов интерфейса (reset/флаги). */
-    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
+    /** Защищает состояние аккумулятора и зеркало [lastSaved] от гонок тика и screen-событий. */
     private val lock = Any()
+
+    /**
+     * Зеркало того, что лежит в Room. Инициализируется ПРОЧИТАННЫМ снимком, а не null: после
+     * reboot `restore()` честно отбрасывает снимок прошлой загрузки, и зеркало обязано это
+     * заметить — иначе строка прошлой загрузки осталась бы в Room (регресс D11 в узком окне).
+     * Доступ — только под [lock].
+     */
     private var lastSaved: ContinuousUsageSession? = null
 
     /** [resetAfterIdleSeconds] — сколько паузы засчитываем за состоявшийся перерыв. */
@@ -84,7 +88,10 @@ class StickinessTracker @Inject constructor(
             Timber.tag(TAG).w(e, "Снимок залипания не прочитался — начинаем с нуля")
             null
         }
+        // Зеркало = фактическое содержимое Room ДО решения restore(): если reboot отбросит
+        // снимок прошлой загрузки, persistIfChanged() увидит расхождение и очистит строку.
         synchronized(lock) {
+            lastSaved = saved
             accumulator.restore(
                 snapshot = saved,
                 nowElapsedMs = SystemClock.elapsedRealtime(),
@@ -152,25 +159,45 @@ class StickinessTracker @Inject constructor(
         val snapshot = synchronized(lock) { accumulator.state }
         _usageSession.value = snapshot
         val seconds = ((snapshot?.accumulatedMs ?: 0) / 1000).toInt()
-        if (_stickySeconds.value != seconds) {
-            _stickySeconds.value = seconds
-            if (seconds % 60 == 0 && seconds > 0) {
-                // Раз в минуту — чтобы на обкатке было видно, что счётчик реально идёт.
-                Timber.tag(TAG).d("Залипание: %d мин подряд", seconds / 60)
+        if (seconds > 0 && seconds % 60 == 0) {
+            // Раз в минуту — чтобы на обкатке было видно, что счётчик реально идёт.
+            Timber.tag(TAG).d("Залипание: %d мин подряд", seconds / 60)
+        }
+    }
+
+    /**
+     * Очередь записи снимка. Один потребитель + CONFLATED: записи не обгоняют друг друга, а при
+     * пачке изменений в Room попадает последнее состояние. Иначе тик (Default) и reset/флаги
+     * (другой поток) могли завершиться в обратном порядке и оставить в БД устаревший снимок.
+     */
+    private val persistRequests = Channel<ContinuousUsageSession?>(Channel.CONFLATED)
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        persistScope.launch {
+            for (snapshot in persistRequests) {
+                runCatching {
+                    if (snapshot == null) breakRuntimeRepository.clearUsageSnapshot()
+                    else breakRuntimeRepository.saveUsageSnapshot(snapshot)
+                }.onFailure { Timber.tag(TAG).w(it, "Снимок залипания не сохранился") }
             }
         }
     }
 
-    /** Снимок меняется на каждом тике (lastObserved), но запись — только когда менялось содержимое. */
+    /**
+     * Запись снимка в Room. `lastObservedElapsedMs` меняется на каждом наблюдении и персистится
+     * намеренно — без него после reboot не отличить снимок прошлой загрузки; поэтому запись идёт
+     * каждые [TICK_MS] и на screen-событиях, а сравнение отсекает только полные дубли.
+     * Сверка и обновление зеркала — под тем же [lock], что и чтение состояния аккумулятора.
+     */
     private fun persistIfChanged() {
-        val snapshot = synchronized(lock) { accumulator.state }
-        if (snapshot == lastSaved) return
-        lastSaved = snapshot
-        if (snapshot == null) {
-            persistScope.launch { breakRuntimeRepository.clearUsageSnapshot() }
-        } else {
-            persistScope.launch { breakRuntimeRepository.saveUsageSnapshot(snapshot) }
+        val snapshot = synchronized(lock) {
+            val current = accumulator.state
+            if (current == lastSaved) return
+            lastSaved = current
+            current
         }
+        persistRequests.trySend(snapshot)
     }
 
     private fun isUserActive(): Boolean =

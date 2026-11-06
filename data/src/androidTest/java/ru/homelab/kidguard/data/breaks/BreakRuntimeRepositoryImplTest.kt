@@ -122,7 +122,7 @@ class BreakRuntimeRepositoryImplTest {
     }
 
     @Test
-    fun новая_сессия_вытесняет_прежнюю_из_активных() = runBlocking {
+    fun отменённая_сессия_не_читается_активной() = runBlocking {
         repository.saveSession(session("s1"))
         repository.cancelSession("s1")
         repository.saveSession(session("s2", endsAtElapsedMs = 900_000))

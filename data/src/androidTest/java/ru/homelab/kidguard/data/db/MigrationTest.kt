@@ -166,6 +166,17 @@ class MigrationTest {
                     "VALUES (0, 1, 'HOURS', 0, 15, 'отдохни')"
             )
             db.execSQL("INSERT INTO break_hour(minuteOfDay) VALUES (900)")
+            // §7.2: миграция не должна трогать PIN и маркеры дня — проверяем их сохранность.
+            db.execSQL(
+                "INSERT INTO pin_protection(id, pinHash, pinSalt) VALUES (0, 'hash-15', 'salt-15')"
+            )
+            db.execSQL(
+                "INSERT INTO policy_flags(id, blockGoogleSearch, studyScheduleEnabled, " +
+                    "sleepScheduleEnabled, dailyUsageResetDate, dailyUsageResetAt, " +
+                    "dailyUsageBlockDate, dailyUsageBlockAt, dailyUsageUnblockDate, " +
+                    "dailyUsageUnblockAt, dailyUsageUnblockRestore) " +
+                    "VALUES (0, 0, 0, 0, '2026-11-05', 111, '2026-11-05', 222, '2026-11-05', 333, 1)"
+            )
         }
 
         val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, MIGRATION_15_16)
@@ -179,6 +190,9 @@ class MigrationTest {
         assertEquals(1800, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-11-05'"))
         assertEquals(15, db.querySingleInt("SELECT durationMinutes FROM break_rules WHERE id = 0"))
         assertEquals(900, db.querySingleInt("SELECT minuteOfDay FROM break_hour"))
+        // PIN и маркеры дня не участвуют в миграции — обязаны пережить её без изменений.
+        assertEquals("hash-15", db.querySingleString("SELECT pinHash FROM pin_protection WHERE id = 0"))
+        assertEquals(333, db.querySingleInt("SELECT dailyUsageUnblockAt FROM policy_flags WHERE id = 0"))
         // Runtime-таблицы рождаются пустыми: до миграции устойчивых сессий не существовало.
         assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM break_session"))
         assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM stickiness_state"))
@@ -205,6 +219,11 @@ class MigrationTest {
     private fun SupportSQLiteDatabase.querySingleInt(sql: String): Int = query(sql).use { cursor ->
         assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
         cursor.getInt(0)
+    }
+
+    private fun SupportSQLiteDatabase.querySingleString(sql: String): String? = query(sql).use { cursor ->
+        assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
+        cursor.getString(0)
     }
 
     private fun SupportSQLiteDatabase.isNull(sql: String): Boolean = query(sql).use { cursor ->

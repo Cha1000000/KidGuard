@@ -14,7 +14,7 @@ import ru.homelab.kidguard.data.db.entity.StickinessStateEntity
 @Dao
 interface BreakRuntimeDao {
 
-    @Query("SELECT * FROM break_session WHERE status = 'ACTIVE' LIMIT 1")
+    @Query("SELECT * FROM break_session WHERE status = 'ACTIVE' ORDER BY startedAtElapsedMs DESC LIMIT 1")
     suspend fun activeSession(): BreakSessionEntity?
 
     @Upsert

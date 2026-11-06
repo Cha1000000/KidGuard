@@ -324,6 +324,35 @@ class ObserveBreakStateUseCaseTest {
         assertEquals(1, fixture.runtime.savedSessions.size)
     }
 
+    @Test
+    fun `HOURS остаток считается с точностью до секунды`() = runTest {
+        val fixture = Fixture(
+            clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 15, 0, 59)),
+            rules = hoursRules(hours = setOf(15 * 60), durationMinutes = 10)
+        )
+        val states = observe(fixture)
+        val active = states.filterIsInstance<BreakState.Active>().single()
+        // До конца окна 9 мин 1 с — остаток не должен округляться до целых минут.
+        assertEquals(9 * 60 + 1, active.secondsLeft)
+    }
+
+    @Test
+    fun `расписание подавляет предупреждение HOURS, но не отменяет живое окно`() = runTest {
+        val fixture = Fixture(
+            clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 14, 57)),
+            rules = hoursRules(hours = setOf(15 * 60), durationMinutes = 10)
+        )
+        fixture.schedule.value = ScheduleState.Study(endsAt = LocalTime.of(16, 0))
+        val states = observe(fixture)
+        assertEquals(BreakState.Idle, states.last())
+
+        // Сняли расписание — предупреждение снова актуально (до окна 3 минуты).
+        fixture.schedule.value = ScheduleState.Inactive
+        runCurrent()
+        runCurrent()
+        assertTrue(states.last() is BreakState.Warning)
+    }
+
     private suspend fun TestScope.observe(fixture: Fixture): MutableList<BreakState> {
         val states = mutableListOf<BreakState>()
         fixture.job = backgroundScope.launch { fixture.useCase().collect { states += it } }
@@ -390,12 +419,10 @@ class ObserveBreakStateUseCaseTest {
         initialUsage: ContinuousUsageSession?
     ) : StickinessSource {
         private val usageState = MutableStateFlow(initialUsage)
-        private val secondsState = MutableStateFlow(((initialUsage?.accumulatedMs ?: 0) / 1000).toInt())
         private var nextCycle = 1
         val pauseValues = mutableListOf<Boolean>()
 
         override val usageSession: Flow<ContinuousUsageSession?> = usageState
-        override val stickySeconds: Flow<Int> = secondsState
 
         override fun reset() {
             setUsage(0, "cycle-${nextCycle++}")
@@ -413,7 +440,6 @@ class ObserveBreakStateUseCaseTest {
                 idleSinceElapsedMs = null,
                 lastObservedElapsedMs = clock.elapsedRealtimeMs()
             )
-            secondsState.value = (accumulatedMs / 1000).toInt()
         }
 
         fun currentUsage(): ContinuousUsageSession? = usageState.value

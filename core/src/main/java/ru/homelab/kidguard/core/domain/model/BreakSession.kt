@@ -20,7 +20,11 @@ data class BreakSession(
     val endsAtWallMs: Long,
     /** Системный BOOT_COUNT на момент старта; null — прошивка его не отдаёт, fallback по wall-clock. */
     val bootCount: Int?,
-    /** Стабильный ключ объединённого окна HOURS (не даёт создать дубликат после рестарта); у INTERVAL null. */
+    /**
+     * Ключ объединённого окна HOURS, к которому относится сессия (диагностика/трассировка);
+     * у INTERVAL null. Дедупликацию после рестарта обеспечивает восстановление ACTIVE-сессии,
+     * а не этот ключ.
+     */
     val windowKey: String?
 )
 

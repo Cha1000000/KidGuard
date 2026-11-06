@@ -4,14 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import ru.homelab.kidguard.core.domain.model.ContinuousUsageSession
 
 /**
- * Непрерывное «залипание» — сколько секунд подряд ребёнок смотрит в экран. Реализация живёт в
+ * Непрерывное «залипание» — сколько времени подряд ребёнок смотрит в экран. Реализация живёт в
  * `:platform` (нужны PowerManager/KeyguardManager), домен видит только этот порт: так правило
  * перерывов остаётся чистым и тестируется без Robolectric.
  */
 interface StickinessSource {
-
-    /** Секунды непрерывного использования; обнуляется достаточно долгой паузой. */
-    val stickySeconds: Flow<Int>
 
     /** Полный usage-цикл: координатору нужны миллисекунды и стабильный cycleId для warningKey. */
     val usageSession: Flow<ContinuousUsageSession?>

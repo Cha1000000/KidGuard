@@ -144,7 +144,7 @@ class FullScreenLockController @Inject constructor(
                         breakUnlocked = breakUnlockedUntilScreenOff
                     )
                 ) {
-                    FullScreenLockSelection.Hidden -> hideIfShowing()
+                    FullScreenLockSelection.Hidden -> hideLock()
                     FullScreenLockSelection.Night -> showSleepLock(sleep!!, contacts)
                     is FullScreenLockSelection.Break -> showBreakLock(activeBreak!!, contacts)
                 }
@@ -262,10 +262,14 @@ class FullScreenLockController @Inject constructor(
         return receiver
     }
 
-    private fun hideIfShowing() {
-        if (!fullScreenLockOverlayManager.isShowing()) return
-        Timber.tag(TAG).d("Убираю замок — сейчас блокировать нечего")
+    private fun hideLock() {
+        // hide() обязателен и когда окна ещё нет: showOrUpdate запоминает requestedModel ДО
+        // показа, и если окна не было (accessibility не подключён), ранний выход по isShowing()
+        // оставил бы в памяти устаревший замок — attach() показал бы его позже, хотя контроллер
+        // уже решил, что замка быть не должно. removeCurrentView() без окна безопасен.
+        val wasShowing = fullScreenLockOverlayManager.isShowing()
         fullScreenLockOverlayManager.hide()
+        if (wasShowing) Timber.tag(TAG).d("Убираю замок — сейчас блокировать нечего")
     }
 
     /**
