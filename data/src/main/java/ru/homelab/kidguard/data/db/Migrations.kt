@@ -231,3 +231,44 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         )
     }
 }
+
+/**
+ * v16 (план «исправление перерывов», этап 2): runtime-состояние перерывов — сессии перерыва
+ * (`break_session`) и снимок счётчика залипания (`stickiness_state`). Это локальное состояние
+ * устройства: в `PolicySnapshot` и серверную синхронизацию не входит, `replaceAllPolicy` его
+ * не трогает. Данных из старых таблиц сюда не переносится — до миграции устойчивых сессий
+ * не существовало, начинаем с чистого листа.
+ *
+ * Плюс `break_hour.rulesId`: связывает часы со строкой правил, чтобы Room мог читать правила
+ * и часы одним @Relation-запросом в одной транзакции — иначе combine двух независимых flow
+ * показывал наблюдателю полуприменённую запись (D18).
+ */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `break_session` (" +
+                "`sessionId` TEXT NOT NULL, " +
+                "`mode` TEXT NOT NULL, " +
+                "`startedAtElapsedMs` INTEGER NOT NULL, " +
+                "`endsAtElapsedMs` INTEGER NOT NULL, " +
+                "`startedAtWallMs` INTEGER NOT NULL, " +
+                "`endsAtWallMs` INTEGER NOT NULL, " +
+                "`bootCount` INTEGER, " +
+                "`windowKey` TEXT, " +
+                "`status` TEXT NOT NULL, " +
+                "PRIMARY KEY(`sessionId`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `stickiness_state` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`cycleId` TEXT NOT NULL, " +
+                "`accumulatedMs` INTEGER NOT NULL, " +
+                "`idleSinceElapsedMs` INTEGER, " +
+                "`lastObservedElapsedMs` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`id`))"
+        )
+        // Часы перерывов привязываем к single-row строке правил (`id = 0`); у существующих
+        // строк правила одни, поэтому DEFAULT 0 и есть корректный бэкфилл.
+        db.execSQL("ALTER TABLE `break_hour` ADD COLUMN `rulesId` INTEGER NOT NULL DEFAULT 0")
+    }
+}

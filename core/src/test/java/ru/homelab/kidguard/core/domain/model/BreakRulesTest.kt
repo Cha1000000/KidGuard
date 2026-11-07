@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
 
 class BreakRulesTest {
 
@@ -15,6 +16,10 @@ class BreakRulesTest {
         hours: Set<Int> = emptySet(),
         durationMinutes: Int = 10
     ) = BreakRules(enabled, mode, intervalMinutes, hours, durationMinutes, message = "")
+
+    /** Произвольный будний день; конкретная дата в чистых правилах значения не имеет. */
+    private fun at(day: Int, hour: Int, minute: Int, second: Int = 0, nano: Int = 0): LocalDateTime =
+        LocalDateTime.of(2026, 11, day, hour, minute, second, nano)
 
     @Test
     fun `перерывы действуют, когда лимит не задан`() {
@@ -64,83 +69,47 @@ class BreakRulesTest {
     @Test
     fun `активное окно часов - внутри окна`() {
         val r = rules(mode = BreakMode.HOURS, hours = setOf(900), durationMinutes = 15)
-        assertEquals(TimeWindow(900, 915), r.activeHoursWindow(nowMinuteOfDay = 907))
+        assertEquals(
+            HoursWindow(at(4, 15, 0), at(4, 15, 15)),
+            r.activeHoursWindow(at(4, 15, 7))
+        )
     }
 
     @Test
     fun `активное окно часов - до начала окна null`() {
         val r = rules(mode = BreakMode.HOURS, hours = setOf(900), durationMinutes = 15)
-        assertNull(r.activeHoursWindow(nowMinuteOfDay = 899))
+        assertNull(r.activeHoursWindow(at(4, 14, 59, 59)))
     }
 
     @Test
     fun `активное окно часов - конец окна не включается`() {
         val r = rules(mode = BreakMode.HOURS, hours = setOf(900), durationMinutes = 15)
-        assertNull(r.activeHoursWindow(nowMinuteOfDay = 915))
-    }
-
-    @Test
-    fun `минут до ближайшего часа`() {
-        val r = rules(mode = BreakMode.HOURS, hours = setOf(900, 1080))
-        assertEquals(5, r.minutesUntilNextHour(nowMinuteOfDay = 895))
-    }
-
-    @Test
-    fun `минут до ближайшего часа - после последнего часа null`() {
-        val r = rules(mode = BreakMode.HOURS, hours = setOf(900))
-        assertNull(r.minutesUntilNextHour(nowMinuteOfDay = 901))
+        assertNull(r.activeHoursWindow(at(4, 15, 15)))
     }
 
     @Test
     fun `выключенное расписание не даёт окна`() {
         val r = rules(enabled = false, mode = BreakMode.HOURS, hours = setOf(900))
-        assertNull(r.activeHoursWindow(nowMinuteOfDay = 905))
+        assertNull(r.activeHoursWindow(at(4, 15, 5)))
     }
 
-    @Test
-    fun `окно расписания бьёт перерыв`() {
-        val r = rules(intervalMinutes = 30, durationMinutes = 10)
-        val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = true,
-            stickySeconds = 31 * 60, nowMinuteOfDay = 600)
-        assertEquals(BreakState.Idle, state)
-    }
 
-    @Test
-    fun `в день с малым лимитом перерывов нет`() {
-        val r = rules(intervalMinutes = 30, durationMinutes = 10)
-        val state = breakStateAt(r, dayLimitMinutes = 120, scheduleActive = false,
-            stickySeconds = 40 * 60, nowMinuteOfDay = 600)
-        assertEquals(BreakState.Idle, state)
-    }
 
-    @Test
-    fun `перерыв активен с корректным остатком`() {
-        val r = rules(intervalMinutes = 30, durationMinutes = 10)
-        val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
-            stickySeconds = 31 * 60, nowMinuteOfDay = 600)
-        assertEquals(BreakState.Active(9 * 60), state)
-    }
 
-    @Test
-    fun `после перерыва снова Idle`() {
-        val r = rules(intervalMinutes = 30, durationMinutes = 10)
-        val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
-            stickySeconds = 40 * 60, nowMinuteOfDay = 600)
-        assertEquals(BreakState.Idle, state)
-    }
 
-    @Test
-    fun `за пять минут до перерыва - предупреждение`() {
-        val r = rules(intervalMinutes = 30, durationMinutes = 10)
-        val state = breakStateAt(r, dayLimitMinutes = null, scheduleActive = false,
-            stickySeconds = 26 * 60, nowMinuteOfDay = 600)
-        assertEquals(BreakState.Warning, state)
-    }
 
-    @Test
-    fun `окно под полночь обрывается в полночь`() {
-        val r = rules(mode = BreakMode.HOURS, hours = setOf(1438), durationMinutes = 15)
-        // Известное ограничение: окно не переносится на следующие сутки.
-        assertNull(r.activeHoursWindow(nowMinuteOfDay = 5))
-    }
+    // --- Characterization: текущее поведение, которое сохраняется (план, этап 0) ---
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

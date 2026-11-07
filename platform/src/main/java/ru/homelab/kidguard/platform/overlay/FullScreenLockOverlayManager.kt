@@ -14,6 +14,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.TextUtils
 import android.text.format.DateFormat
 import android.view.Gravity
@@ -54,6 +55,16 @@ enum class LockAppearance { NIGHT, BREAK }
  * за него (кто последний в тике, тот и прав). Кто именно показывает замок сейчас, решает
  * единственный контроллер.
  *
+ * Жизненный цикл — через [showOrUpdate] и [FullScreenLockModel.lockKey]: контроллер каждый тик
+ * сообщает желаемое состояние, а менеджер сам решает, обновить ли показанный замок на месте
+ * (тот же ключ — тексты, отсчёт и контакты меняются без сброса набранных цифр PIN) или атомарно
+ * заменить окно (другой ключ). Так повторные тики не портят ввод, а смена «сон ↔ перерыв» не
+ * оставляет сиротских окон, countdown и ресиверов.
+ *
+ * Обратный отсчёт не декрементится локально: каждый тик вычисляется от deadline доменной сессии
+ * ([CountdownCalculator]), поэтому погашенный экран, звонок или переподключение сервиса не
+ * искажают остаток.
+ *
  * Тип окна — `TYPE_ACCESSIBILITY_OVERLAY` и WindowManager самого accessibility-сервиса (как в
  * [PinOverlayManager]): обычный `SYSTEM_ALERT_WINDOW` система прячет на защищённых экранах, а
  * нам замок нужен именно везде.
@@ -75,108 +86,149 @@ class FullScreenLockOverlayManager @Inject constructor(
     // PBKDF2-проверка PIN тяжёлая — считаем вне главного потока (как в PinOverlayManager).
     private val verifyScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Что контроллер хочет видеть на экране. Переживает [detach]: повторный [attach] сразу
+     * восстановит тот же замок, не дожидаясь тика контроллера. Обнуляется только явным [hide()]
+     * или верным PIN — то есть решением «замка быть не должно». */
+    private var requestedModel: FullScreenLockModel? = null
+
+    /** Что реально показано в окне прямо сейчас (может отставать от [requestedModel], если
+     * WindowManager ещё не привязан). */
+    private var activeModel: FullScreenLockModel? = null
+    private var activeLockView: LockView? = null
+
     private var overlayView: View? = null
     private var verifyJob: Job? = null
     private var countdownTick: Runnable? = null
-    private var statusReceivers: List<BroadcastReceiver> = emptyList()
+    private var lockReceivers: List<BroadcastReceiver> = emptyList()
     private val enteredDigits = StringBuilder()
 
-    /** Сервис отдаёт свой WindowManager при подключении — без него замок показать нельзя. */
-    fun attach(serviceWindowManager: WindowManager) {
+    /** Сервис отдаёт свой WindowManager при подключении — без него замок показать нельзя.
+     * Повторный attach (система может переподключить сервис без отключения) не дублирует окно:
+     * при живом замке лишь догоняет отсчёт, при снятом — восстанавливает [requestedModel]. */
+    fun attach(serviceWindowManager: WindowManager) = mainHandler.post {
         windowManager = serviceWindowManager
+        if (overlayView != null) {
+            refreshCountdown()
+        } else {
+            requestedModel?.let(::showModel)
+        }
     }
 
-    /** Сервис отключился — ссылка на его окно больше не действительна (см. `PinOverlayManager.detach`). */
-    fun detach() {
-        hide()
+    /** Сервис отключился — ссылка на его окно больше не действительна (см. `PinOverlayManager.detach`).
+     * [requestedModel] намеренно сохраняется: после переподключения [attach] вернёт тот же замок. */
+    fun detach() = mainHandler.post {
+        removeCurrentView()
         windowManager = null
     }
 
     fun isShowing(): Boolean = overlayView != null
 
     /**
-     * Показать замок (idempotent: повторный вызов, пока замок висит, ничего не делает — иначе
-     * повторные тики контроллера сбрасывали бы уже набранные цифры).
-     *
-     * @param appearance ночное оформление или перерыв.
-     * @param title заголовок — «Время сна» или «Перерыв».
-     * @param subtitle вторая строка: у сна «Телефон откроется в 07:00», у перерыва — текст родителя.
-     * @param countdownSeconds сколько секунд осталось до конца перерыва; null — отсчёта нет (сон).
-     * @param contacts кому можно позвонить; пустой список — блок кнопок не рисуется.
-     * @param verifyPin проверка PIN через `PinGuard` (хеш + защита от перебора).
-     * @param onUnlocked верный PIN: замок уже скрыт к моменту вызова.
-     * @param onCall тап по контакту — звонок наружу делает вызывающая сторона.
+     * Показать или обновить замок. Идемпотентно относительно [FullScreenLockModel.lockKey]:
+     * тот же ключ — обновление содержимого без пересоздания окна и клавиатуры (набранные цифры
+     * PIN сохраняются), другой ключ — атомарная замена окна, callbacks, countdown и ресиверов.
      */
-    fun show(
-        appearance: LockAppearance,
-        title: String,
-        subtitle: String,
-        countdownSeconds: Int?,
-        contacts: List<EmergencyContact>,
-        verifyPin: suspend (String) -> PinVerifyResult,
-        onUnlocked: () -> Unit,
-        onCall: (EmergencyContact) -> Unit
-    ) = mainHandler.post {
-        if (overlayView != null) return@post
+    fun showOrUpdate(model: FullScreenLockModel) = mainHandler.post {
+        requestedModel = model
+        val lock = activeLockView
+        if (overlayView != null && lock != null && activeModel?.lockKey == model.lockKey) {
+            activeModel = model
+            updateLockView(lock, model)
+            return@post
+        }
+        removeCurrentView()
+        showModel(model)
+    }
+
+    /** Убрать замок без коллбэков — решение контроллера «замка быть не должно». Доменную сессию
+     * перерыва это не трогает: она живёт своим жизненным циклом в репозитории. */
+    fun hide() = mainHandler.post {
+        requestedModel = null
+        removeCurrentView()
+    }
+
+    private fun showModel(model: FullScreenLockModel) {
         // Без WindowManager замок показать нечем: foreground-сервис может стартовать раньше,
         // чем accessibility-сервис вызовет attach() (типично после перезагрузки). Выходим, НЕ
-        // запоминая view — иначе isShowing() соврёт, и контроллер решит, что замок уже висит.
+        // заполняя active-поля — requestedModel уже запомнен, attach() покажет его позже.
         val manager = windowManager
         if (manager == null) {
-            Timber.w("WindowManager ещё не привязан — замок покажем на следующем тике")
-            return@post
+            Timber.w("WindowManager ещё не привязан — замок покажем при attach()")
+            return
         }
         enteredDigits.clear()
-        val lock = createOverlayView(
-            appearance, title, subtitle, countdownSeconds, contacts, verifyPin, onUnlocked, onCall
-        )
+        val lock = createOverlayView(model)
         try {
             manager.addView(lock.root, buildLayoutParams())
-            overlayView = lock.root
         } catch (e: Exception) {
-            Timber.e(e, "Не удалось показать ночной замок")
-            return@post
+            Timber.e(e, "Не удалось показать замок")
+            return
         }
-        registerStatusReceivers(lock.status)
+        Timber.d("Замок показан: %s", model.lockKey)
+        overlayView = lock.root
+        activeLockView = lock
+        activeModel = model
+        registerLockReceivers(lock.status)
+        val deadline = model.countdownEndsAtElapsedMs
+        if (deadline != null && lock.countdown != null) {
+            startCountdown(lock.countdown, deadline)
+        }
     }
 
-    /** Убрать замок без коллбэков — например, когда окно сна закончилось само. */
-    fun hide() = mainHandler.post {
-        val view = overlayView ?: return@post
-        dismiss(view)
+    /** Обновление на месте (тот же lockKey): тексты, отсчёт, контакты. Клавиатуру, точки и
+     * набранные цифры не трогаем — ребёнок мог уже набирать PIN. Callbacks клавиатура и кнопки
+     * звонка читают из [activeModel] в момент нажатия, поэтому обновлять их здесь не нужно. */
+    private fun updateLockView(lock: LockView, model: FullScreenLockModel) {
+        lock.title.text = model.title
+        // Подпись могла быть заменена текстом ошибки прошлой попытки PIN — возвращаем актуальный
+        // текст и обычный цвет. Точки сбрасывать не нужно: следующая цифра сама вернёт их вид.
+        lock.subtitle.text = model.subtitle
+        lock.subtitle.setTextColor(Color.parseColor(UNTIL_COLOR))
+        updateCallButtons(lock.contactsContainer, model.contacts)
+        countdownTick?.let(mainHandler::removeCallbacks)
+        countdownTick = null
+        val deadline = model.countdownEndsAtElapsedMs
+        if (deadline != null && lock.countdown != null) {
+            lock.countdown.visibility = View.VISIBLE
+            startCountdown(lock.countdown, deadline)
+        } else {
+            lock.countdown?.visibility = View.GONE
+        }
     }
 
-    private fun dismiss(view: View) {
-        if (overlayView !== view) return
+    private fun removeCurrentView() {
         verifyJob?.cancel()
         verifyJob = null
         countdownTick?.let(mainHandler::removeCallbacks)
         countdownTick = null
-        unregisterStatusReceivers()
-        try {
-            windowManager?.removeView(view)
-        } catch (e: Exception) {
-            Timber.e(e, "Не удалось убрать замок")
+        unregisterLockReceivers()
+        overlayView?.let { view ->
+            try {
+                windowManager?.removeView(view)
+            } catch (e: Exception) {
+                Timber.e(e, "Не удалось убрать замок")
+            }
         }
         overlayView = null
+        activeLockView = null
+        activeModel = null
     }
 
-    private fun createOverlayView(
-        appearance: LockAppearance,
-        titleText: String,
-        subtitleText: String,
-        countdownSeconds: Int?,
-        contacts: List<EmergencyContact>,
-        verifyPin: suspend (String) -> PinVerifyResult,
-        onUnlocked: () -> Unit,
-        onCall: (EmergencyContact) -> Unit
-    ): LockView {
+    /** Снять замок после верного PIN, но только если на экране всё ещё тот замок, в который его
+     * вводили: за время PBKDF2-проверки контроллер мог уже поставить другой (сон сменил перерыв). */
+    private fun dismissAfterUnlock(unlockedView: View) {
+        if (overlayView !== unlockedView) return
+        requestedModel = null
+        removeCurrentView()
+    }
+
+    private fun createOverlayView(model: FullScreenLockModel): LockView {
         val status = buildStatusStrip()
         val container = FrameLayout(context).apply {
             isClickable = true
             setOnTouchListener { _, _ -> true } // поглощаем всё, что под замком
             addView(
-                NightSkyView(context, appearance),
+                NightSkyView(context, model.appearance),
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
@@ -185,7 +237,7 @@ class FullScreenLockOverlayManager @Inject constructor(
         }
 
         val title = TextView(context).apply {
-            text = titleText
+            text = model.title
             setTextColor(Color.WHITE)
             textSize = 23f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -193,28 +245,30 @@ class FullScreenLockOverlayManager @Inject constructor(
             setPadding(0, dp(14), 0, 0)
         }
         // Вторая строка: у сна — «Телефон откроется в 07:00», у перерыва — фраза родителя.
-        // Она же место для ошибки ввода PIN, поэтому исходный текст запоминаем для восстановления.
+        // Она же место для ошибки ввода PIN, поэтому при обновлении модели текст восстанавливается.
         val until = TextView(context).apply {
-            text = subtitleText
+            text = model.subtitle
             setTextColor(Color.parseColor(UNTIL_COLOR))
             textSize = 14f
             gravity = Gravity.CENTER
-            setPadding(dp(24), dp(2), dp(24), if (countdownSeconds == null) dp(20) else dp(6))
+            setPadding(dp(24), dp(2), dp(24), if (model.countdownEndsAtElapsedMs == null) dp(20) else dp(6))
         }
-        val countdown = countdownSeconds?.let { seconds ->
+        // Текст заполнит startCountdown — первое значение ставится сразу после addView, пустышку
+        // не показываем.
+        val countdown = if (model.countdownEndsAtElapsedMs != null) {
             TextView(context).apply {
-                text = formatCountdown(seconds)
                 setTextColor(Color.WHITE)
                 textSize = 40f
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 gravity = Gravity.CENTER
                 setPadding(0, dp(4), 0, dp(16))
-                startCountdown(this, seconds)
             }
+        } else {
+            null
         }
         val hint = TextView(context).apply {
             text = context.getString(
-                if (appearance == LockAppearance.BREAK) {
+                if (model.appearance == LockAppearance.BREAK) {
                     R.string.break_lock_hint
                 } else {
                     R.string.sleep_lock_hint
@@ -248,23 +302,26 @@ class FullScreenLockOverlayManager @Inject constructor(
         fun handleDigit(digit: Int) {
             if (enteredDigits.length >= PIN_LENGTH) return
             // Возвращаем исходную подпись: там могла остаться ошибка прошлой попытки.
-            until.text = subtitleText
+            until.text = activeModel?.subtitle ?: model.subtitle
             until.setTextColor(Color.parseColor(UNTIL_COLOR))
             enteredDigits.append(digit)
             updateDots(dots, enteredDigits.length, isError = false)
             if (enteredDigits.length < PIN_LENGTH) return
 
             val pin = enteredDigits.toString()
+            // Callbacks берём из актуальной модели: за время набора контроллер мог обновить замок
+            // на месте (тот же lockKey), и проверять нужно уже её verifyPin/onUnlocked.
+            val currentModel = activeModel ?: model
             verifyJob = verifyScope.launch {
-                val result = verifyPin(pin)
+                val result = currentModel.verifyPin(pin)
                 withContext(Dispatchers.Main) {
                     when (result) {
                         // NoPinSet сюда не доходит: без PIN родитель не может включить расписание
                         // сна (тумблер заблокирован), но трактуем как проход — иначе замок было
                         // бы нечем снять. Для перерыва то же самое: он уйдёт и сам по таймеру.
                         is PinVerifyResult.Success, is PinVerifyResult.NoPinSet -> {
-                            dismiss(container)
-                            onUnlocked()
+                            dismissAfterUnlock(container)
+                            currentModel.onUnlocked()
                         }
                         is PinVerifyResult.Wrong -> showError(
                             until, dots, context.getString(R.string.pin_overlay_wrong)
@@ -283,12 +340,20 @@ class FullScreenLockOverlayManager @Inject constructor(
             updateDots(dots, enteredDigits.length, isError = false)
         }
 
+        // Контейнер кнопок звонка создаём всегда, даже пустой: тогда при обновлении контактов
+        // на месте (тот же lockKey) не придётся перестраивать иерархию.
+        val contactsContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            visibility = View.GONE
+        }
+
         val content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(20), dp(8), dp(20), dp(28))
             // Полумесяц — только ночью: перерыв про отдых глаз, а не про сон.
-            if (appearance == LockAppearance.NIGHT) {
+            if (model.appearance == LockAppearance.NIGHT) {
                 addView(MoonView(context), LinearLayout.LayoutParams(dp(62), dp(62)).apply {
                     gravity = Gravity.CENTER_HORIZONTAL
                 })
@@ -298,14 +363,13 @@ class FullScreenLockOverlayManager @Inject constructor(
             countdown?.let { addView(it, wrapContent()) }
             addView(dotsRow, wrapContent())
             addView(buildKeypad(::handleDigit, ::handleBackspace), wrapContent())
-            if (contacts.isNotEmpty()) {
-                addView(buildCallButtons(contacts, onCall), LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(20) })
-            }
+            addView(contactsContainer, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(20) })
             addView(hint, wrapContent())
         }
+        updateCallButtons(contactsContainer, model.contacts)
 
         // Прокрутка: с несколькими контактами и на невысоких экранах клавиатура иначе уезжает
         // за границу — а без неё замок не снять.
@@ -340,7 +404,7 @@ class FullScreenLockOverlayManager @Inject constructor(
             )
         )
         applyInsetPadding(container, foreground)
-        return LockView(container, status)
+        return LockView(container, status, title, until, countdown, contactsContainer)
     }
 
     /**
@@ -360,22 +424,35 @@ class FullScreenLockOverlayManager @Inject constructor(
     }
 
     /**
-     * Обратный отсчёт тикает в самом оверлее, а не в контроллере: гонять контроллер раз в секунду
-     * ради одной строки незачем. Отсчёт идёт от значения, выданного контроллером при показе, —
-     * дальше он живёт сам, а следующий тик контроллера всё равно сверит его с настоящим остатком.
+     * Отсчёт идёт от deadline доменной сессии, а не локальным декрементом: каждый тик честно
+     * вычисляет остаток, поэтому погашенный экран или уход в звонок не «замораживают» цифры.
+     * Тикает в самом оверлее, а не в контроллере: гонять контроллер раз в секунду незачем.
+     * На нуле показываем «0:00» и останавливаемся — замок снимет контроллер по доменному событию
+     * (завершение сессии), а не по тику часов.
      */
-    private fun startCountdown(view: TextView, initialSeconds: Int) {
-        var left = initialSeconds
+    private fun startCountdown(view: TextView, endsAtElapsedMs: Long) {
         val tick = object : Runnable {
             override fun run() {
-                left -= 1
-                if (left <= 0) return  // замок уберёт контроллер: перерыв кончился
-                view.text = formatCountdown(left)
-                mainHandler.postDelayed(this, 1_000L)
+                val seconds = CountdownCalculator.secondsLeft(endsAtElapsedMs, SystemClock.elapsedRealtime())
+                view.text = formatCountdown(seconds)
+                if (seconds > 0) {
+                    mainHandler.postDelayed(this, 1_000L)
+                } else {
+                    countdownTick = null
+                }
             }
         }
         countdownTick = tick
-        mainHandler.postDelayed(tick, 1_000L)
+        // Первое значение — сразу: замок не должен секунду висеть с пустым отсчётом.
+        tick.run()
+    }
+
+    /** Немедленно пересчитать отсчёт от deadline — по включению экрана, повторному attach()
+     * и возврату из звонка, не дожидаясь очередной секунды. */
+    private fun refreshCountdown() {
+        val tick = countdownTick ?: return
+        mainHandler.removeCallbacks(tick)
+        mainHandler.post(tick)
     }
 
     private fun formatCountdown(seconds: Int): String =
@@ -388,8 +465,16 @@ class FullScreenLockOverlayManager @Inject constructor(
         until.setTextColor(Color.parseColor(ERROR_COLOR))
     }
 
-    /** Собранный замок: корневое окно и строка состояния, которую обновляют ресиверы. */
-    private class LockView(val root: View, val status: StatusStrip)
+    /** Собранный замок: корневое окно и ссылки на обновляемые части, чтобы showOrUpdate мог
+     * менять содержимое без пересоздания иерархии. */
+    private class LockView(
+        val root: View,
+        val status: StatusStrip,
+        val title: TextView,
+        val subtitle: TextView,
+        val countdown: TextView?,
+        val contactsContainer: LinearLayout
+    )
 
     /**
      * Своя строка состояния поверх замка.
@@ -486,27 +571,36 @@ class FullScreenLockOverlayManager @Inject constructor(
     }
 
     /**
-     * Пока замок висит, часы и заряд должны жить. Подписываемся ТОЛЬКО после успешного
-     * `addView`: [show] умеет выйти раньше (WindowManager ещё не привязан после ночной
-     * перезагрузки, или окно не добавилось), и ресивер, подписанный до этого, повис бы навсегда —
-     * снимать его было бы некому, [dismiss] в таком случае не зовут.
+     * Подписки на жизнь замка: часы/заряд строки состояния и мгновенное обновление отсчёта по
+     * включению экрана. Подписываемся ТОЛЬКО после успешного `addView`: [showModel] умеет выйти
+     * раньше (WindowManager ещё не привязан после ночной перезагрузки, или окно не добавилось),
+     * и ресивер, подписанный до этого, повис бы навсегда — снимать его было бы некому.
      *
      * `ACTION_TIME_TICK` система шлёт раз в минуту и только динамическим ресиверам, поэтому
-     * собственный таймер не нужен: попадаем ровно в границу минуты и переживаем перевод часов.
+     * собственный таймер для часов не нужен: попадаем ровно в границу минуты и переживаем
+     * перевод часов. `ACTION_SCREEN_ON`/`ACTION_USER_PRESENT` догоняют отсчёт перерыва до
+     * реального остатка сразу, а не на следующем секундном тике.
      */
-    private fun registerStatusReceivers(strip: StatusStrip) {
+    private fun registerLockReceivers(strip: StatusStrip) {
         val time = object : BroadcastReceiver() {
             override fun onReceive(unused: Context?, intent: Intent?) = updateClock(strip)
         }
         val battery = object : BroadcastReceiver() {
             override fun onReceive(unused: Context?, intent: Intent?) = updateBattery(strip, intent)
         }
+        val screen = object : BroadcastReceiver() {
+            override fun onReceive(unused: Context?, intent: Intent?) = refreshCountdown()
+        }
         val timeFilter = IntentFilter().apply {
             addAction(Intent.ACTION_TIME_TICK)
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
         }
-        // Список копим по мере регистрации: если вторая подписка упадёт, первую всё равно снимут.
+        val screenFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        // Список копим по мере регистрации: если подписка упадёт на середине, успевшие всё равно снимут.
         val registered = mutableListOf<BroadcastReceiver>()
         try {
             context.registerReceiver(time, timeFilter, Context.RECEIVER_NOT_EXPORTED)
@@ -515,29 +609,35 @@ class FullScreenLockOverlayManager @Inject constructor(
                 battery, IntentFilter(Intent.ACTION_BATTERY_CHANGED), Context.RECEIVER_NOT_EXPORTED
             )
             registered += battery
+            context.registerReceiver(screen, screenFilter, Context.RECEIVER_NOT_EXPORTED)
+            registered += screen
         } catch (e: Exception) {
-            Timber.e(e, "Не удалось подписаться на часы и заряд — строка состояния замрёт")
+            Timber.e(e, "Не удалось подписаться на события замка — строка состояния/отсчёт замрут")
         }
-        statusReceivers = registered
+        lockReceivers = registered
     }
 
-    private fun unregisterStatusReceivers() {
-        statusReceivers.forEach { receiver ->
+    private fun unregisterLockReceivers() {
+        lockReceivers.forEach { receiver ->
             try {
                 context.unregisterReceiver(receiver)
             } catch (e: IllegalArgumentException) {
-                Timber.w(e, "Ресивер строки состояния уже был снят")
+                Timber.w(e, "Ресивер замка уже был снят")
             }
         }
-        statusReceivers = emptyList()
+        lockReceivers = emptyList()
     }
 
-    private fun buildCallButtons(
-        contacts: List<EmergencyContact>,
-        onCall: (EmergencyContact) -> Unit
-    ): View = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
+    /** Пересобрать кнопки экстренных контактов в готовом контейнере. Пустой список прячет блок.
+     * Callback звонка берётся из [activeModel] в момент нажатия — так обновление модели на месте
+     * подменяет обработчик без пересоздания кнопок. */
+    private fun updateCallButtons(container: LinearLayout, contacts: List<EmergencyContact>) {
+        container.removeAllViews()
+        if (contacts.isEmpty()) {
+            container.visibility = View.GONE
+            return
+        }
+        container.visibility = View.VISIBLE
         contacts.forEach { contact ->
             val button = TextView(context).apply {
                 // «Мама» → «Позвонить маме»: имя склоняется в дательный падеж.
@@ -551,9 +651,9 @@ class FullScreenLockOverlayManager @Inject constructor(
                     cornerRadius = dp(13).toFloat()
                     setStroke(dp(1), Color.parseColor(CALL_BORDER_COLOR))
                 }
-                setOnClickListener { onCall(contact) }
+                setOnClickListener { activeModel?.onCall?.invoke(contact) }
             }
-            addView(
+            container.addView(
                 button,
                 LinearLayout.LayoutParams(dp(CALL_WIDTH_DP), LinearLayout.LayoutParams.WRAP_CONTENT)
                     .apply { topMargin = dp(9) }

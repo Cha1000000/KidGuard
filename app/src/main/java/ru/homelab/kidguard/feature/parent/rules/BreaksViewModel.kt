@@ -6,8 +6,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
 import ru.homelab.kidguard.core.domain.model.breaksApplyToday
@@ -81,14 +84,28 @@ class BreaksViewModel @Inject constructor(
     /** Текст, который увидит ребёнок на замке перерыва; пусто — покажется фраза-шаблон. */
     fun setMessage(message: String) = update { it.copy(message = message) }
 
-    /** Общий сброс: выключает перерывы, обнуляет интервал, часы, длительность и текст. */
+    /**
+     * Общий сброс: выключает перерывы, обнуляет интервал, часы, длительность и текст.
+     * Идёт через тот же последовательный путь [updateMutex], что и правки: сброс, поставленный
+     * в очередь изменений, обязан примениться последним, а не быть затёртым более старой записью.
+     */
     fun reset() {
-        viewModelScope.launch { policyRepository.resetBreaks() }
+        viewModelScope.launch {
+            updateMutex.withLock { policyRepository.resetBreaks() }
+        }
     }
+
+    /** Сериализация правок: быстрые действия не должны терять друг друга (план, этап 7). */
+    private val updateMutex = Mutex()
 
     private fun update(transform: (BreakRules) -> BreakRules) {
         viewModelScope.launch {
-            policyRepository.setBreakRules(transform(uiState.value.rules))
+            updateMutex.withLock {
+                // Читаем фактическое состояние репозитория, а не кэш UI: StateFlow может
+                // отставать от Room, а до первой загрузки он пуст — быстрое действие до
+                // загрузки UI обязано ждать сохранённые правила, а не писать поверх них EMPTY.
+                policyRepository.setBreakRules(transform(policyRepository.breakRules.first()))
+            }
         }
     }
 }

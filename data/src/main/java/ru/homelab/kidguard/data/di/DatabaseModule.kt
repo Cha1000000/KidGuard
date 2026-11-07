@@ -22,7 +22,9 @@ import ru.homelab.kidguard.data.db.MIGRATION_11_12
 import ru.homelab.kidguard.data.db.MIGRATION_12_13
 import ru.homelab.kidguard.data.db.MIGRATION_13_14
 import ru.homelab.kidguard.data.db.MIGRATION_14_15
+import ru.homelab.kidguard.data.db.MIGRATION_15_16
 import ru.homelab.kidguard.data.db.dao.BonusDao
+import ru.homelab.kidguard.data.db.dao.BreakRuntimeDao
 import ru.homelab.kidguard.data.db.dao.PenaltyDao
 import ru.homelab.kidguard.data.db.dao.PolicyDao
 import ru.homelab.kidguard.data.db.dao.UsageDao
@@ -39,7 +41,8 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15
+                MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
+                MIGRATION_15_16
             )
             .build()
 
@@ -54,4 +57,7 @@ object DatabaseModule {
 
     @Provides
     fun providePenaltyDao(database: KidGuardDatabase): PenaltyDao = database.penaltyDao()
+
+    @Provides
+    fun provideBreakRuntimeDao(database: KidGuardDatabase): BreakRuntimeDao = database.breakRuntimeDao()
 }

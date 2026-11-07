@@ -108,7 +108,7 @@ class DnsProxyLoop(
     /** Round-trip до upstream-DNS — в пуле, чтобы не блокировать чтение следующих пакетов. */
     private fun forward(parsed: IpUdpPacket.Parsed) {
         val executor = forwardExecutor ?: return
-        executor.execute {
+        executor.executeOrIgnore {
             var socket: DatagramSocket? = null
             try {
                 socket = DatagramSocket()

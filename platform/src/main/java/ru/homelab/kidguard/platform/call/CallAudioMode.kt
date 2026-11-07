@@ -17,12 +17,22 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  *   Ночному замку это не нужно — он скрывается на время разговора; PIN над списком последних
  *   должен уходить уже на звонок, иначе ребёнок не сможет ответить.
  */
+/**
+ * Чистая часть [callAudioModeFlow]: считается ли аудио-режим признаком звонка.
+ *
+ * Вынесена отдельно, чтобы контракт «ringing — тоже звонок, если попросили» проверялся
+ * JVM-тестами: полноэкранный замок перерыва скрывается уже на входящем вызове, иначе ребёнок
+ * не успевает ответить (дефект D14).
+ */
+internal fun isCallAudioMode(mode: Int, includeRinging: Boolean): Boolean =
+    mode == AudioManager.MODE_IN_CALL ||
+        mode == AudioManager.MODE_IN_COMMUNICATION ||
+        (includeRinging && mode == AudioManager.MODE_RINGTONE)
+
 fun Context.callAudioModeFlow(includeRinging: Boolean): Flow<Boolean> = callbackFlow {
     val audioManager = getSystemService(AudioManager::class.java)
     fun active(): Boolean = audioManager?.mode.let {
-        it == AudioManager.MODE_IN_CALL ||
-            it == AudioManager.MODE_IN_COMMUNICATION ||
-            (includeRinging && it == AudioManager.MODE_RINGTONE)
+        it != null && isCallAudioMode(it, includeRinging)
     }
     trySend(active())
     val listener = AudioManager.OnModeChangedListener { trySend(active()) }

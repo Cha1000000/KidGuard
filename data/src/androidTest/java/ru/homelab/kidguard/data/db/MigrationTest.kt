@@ -157,9 +157,73 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun миграция15в16_создаёт_runtime_таблицы_перерывов_не_трогая_данные() {
+        helper.createDatabase(TEST_DB, 15).use { db ->
+            db.execSQL("INSERT INTO screen_time(date, seconds) VALUES('2026-11-05', 1800)")
+            db.execSQL(
+                "INSERT INTO break_rules(id, enabled, mode, intervalMinutes, durationMinutes, message) " +
+                    "VALUES (0, 1, 'HOURS', 0, 15, 'отдохни')"
+            )
+            db.execSQL("INSERT INTO break_hour(minuteOfDay) VALUES (900)")
+            // §7.2: миграция не должна трогать PIN и маркеры дня — проверяем их сохранность.
+            db.execSQL(
+                "INSERT INTO pin_protection(id, pinHash, pinSalt) VALUES (0, 'hash-15', 'salt-15')"
+            )
+            db.execSQL(
+                "INSERT INTO policy_flags(id, blockGoogleSearch, studyScheduleEnabled, " +
+                    "sleepScheduleEnabled, dailyUsageResetDate, dailyUsageResetAt, " +
+                    "dailyUsageBlockDate, dailyUsageBlockAt, dailyUsageUnblockDate, " +
+                    "dailyUsageUnblockAt, dailyUsageUnblockRestore) " +
+                    "VALUES (0, 0, 0, 0, '2026-11-05', 111, '2026-11-05', 222, '2026-11-05', 333, 1)"
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, MIGRATION_15_16)
+
+        assertTrue(db.hasTable("break_session"))
+        assertTrue(db.hasTable("stickiness_state"))
+        // Часы привязаны к строке правил: колонка появилась, старые строки бэкфиллены нулём.
+        assertTrue(db.hasColumn("break_hour", "rulesId"))
+        assertEquals(0, db.querySingleInt("SELECT rulesId FROM break_hour WHERE minuteOfDay = 900"))
+        // Накопленный учёт и настройки перерывов переживают миграцию.
+        assertEquals(1800, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-11-05'"))
+        assertEquals(15, db.querySingleInt("SELECT durationMinutes FROM break_rules WHERE id = 0"))
+        assertEquals(900, db.querySingleInt("SELECT minuteOfDay FROM break_hour"))
+        // PIN и маркеры дня не участвуют в миграции — обязаны пережить её без изменений.
+        assertEquals("hash-15", db.querySingleString("SELECT pinHash FROM pin_protection WHERE id = 0"))
+        assertEquals(333, db.querySingleInt("SELECT dailyUsageUnblockAt FROM policy_flags WHERE id = 0"))
+        // Runtime-таблицы рождаются пустыми: до миграции устойчивых сессий не существовало.
+        assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM break_session"))
+        assertEquals(0, db.querySingleInt("SELECT COUNT(*) FROM stickiness_state"))
+        db.close()
+    }
+
+    @Test
+    fun вся_цепочка_11_в_16_проходит_подряд() {
+        helper.createDatabase(TEST_DB, 11).use { db ->
+            db.execSQL("INSERT INTO screen_time(date, seconds) VALUES('2026-08-01', 1200)")
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 16, true,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16
+        )
+
+        assertEquals(1200, db.querySingleInt("SELECT seconds FROM screen_time WHERE date='2026-08-01'"))
+        assertTrue(db.hasTable("break_session"))
+        assertTrue(db.hasTable("stickiness_state"))
+        db.close()
+    }
+
     private fun SupportSQLiteDatabase.querySingleInt(sql: String): Int = query(sql).use { cursor ->
         assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
         cursor.getInt(0)
+    }
+
+    private fun SupportSQLiteDatabase.querySingleString(sql: String): String? = query(sql).use { cursor ->
+        assertTrue("Запрос не вернул ни одной строки: $sql", cursor.moveToFirst())
+        cursor.getString(0)
     }
 
     private fun SupportSQLiteDatabase.isNull(sql: String): Boolean = query(sql).use { cursor ->

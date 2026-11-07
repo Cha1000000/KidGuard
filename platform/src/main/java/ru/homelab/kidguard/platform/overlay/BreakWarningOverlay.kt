@@ -11,6 +11,8 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,20 +53,36 @@ class BreakWarningOverlay @Inject constructor(
     }
 
     /**
-     * Показать плашку. Повторный вызов, пока она висит, ничего не делает — иначе тик контроллера
-     * каждые 15 секунд перезапускал бы её и она мигала бы весь оставшийся до перерыва отрезок.
+     * Показать плашку и получить результат: `true` — плашка на экране (только что добавлена или уже
+     * висела), `false` — показать не удалось (нет WindowManager или `addView` бросил).
+     *
+     * Suspend на Main намеренно: контроллер запоминает ключ предупреждения только после успешного
+     * `addView`, иначе неудачная попытка навсегда блокировала бы повтор. Повторный вызов, пока
+     * плашка висит, ничего не делает — иначе тик каждые 15 секунд перезапускал бы её.
+     *
+     * `Dispatchers.Main` (а не `Main.immediate`) вместе с [hide] гарантирует порядок через общую
+     * очередь главного потока: hide → show никогда не выполнится в обратном порядке, даже если
+     * контроллер придёт с последовательными событиями «смена ключа» → «показать новый».
      */
-    fun show(title: String, subtitle: String) = mainHandler.post {
-        if (overlayView != null) return@post
-        val manager = windowManager ?: return@post
-        val view = createView(title, subtitle)
-        try {
-            manager.addView(view, buildLayoutParams())
-            overlayView = view
-            scheduleHide(view)
-        } catch (e: Exception) {
-            Timber.e(e, "Не удалось показать плашку предупреждения")
+    suspend fun show(title: String, subtitle: String): Boolean =
+        withContext(Dispatchers.Main) {
+            if (overlayView != null) return@withContext true
+            val manager = windowManager ?: return@withContext false
+            val view = createView(title, subtitle)
+            try {
+                manager.addView(view, buildLayoutParams())
+                overlayView = view
+                scheduleHide(view)
+                true
+            } catch (e: Exception) {
+                Timber.e(e, "Не удалось показать плашку предупреждения")
+                false
+            }
         }
+
+    /** Убрать плашку немедленно: перерыв начался, активное расписание, звонок или отмена правил. */
+    suspend fun hide() = withContext(Dispatchers.Main) {
+        overlayView?.let { remove(it) }
     }
 
     private fun scheduleHide(view: View) {

@@ -1,9 +1,11 @@
 package ru.homelab.kidguard.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
@@ -211,13 +213,14 @@ interface PolicyDao {
     @Query("DELETE FROM pin_protection")
     suspend fun deletePin()
 
-    /** Настройки перерывов (веха «принудительные перерывы») — single-row таблица, `id = 0`. */
+    /**
+     * Настройки перерывов вместе с часами режима HOURS — одним @Relation-запросом в одной
+     * транзакции (D18): наблюдатель никогда не видит полуприменённую запись, чего combine
+     * двух независимых flow гарантировать не может. Отсутствие строки — «родитель ничего не задал».
+     */
+    @Transaction
     @Query("SELECT * FROM break_rules WHERE id = 0")
-    fun breakRules(): Flow<BreakRulesEntity?>
-
-    /** Часы перерыва режима HOURS, по возрастанию — так же, как читает `BreakRules.activeHoursWindow`. */
-    @Query("SELECT minuteOfDay FROM break_hour ORDER BY minuteOfDay")
-    fun breakHours(): Flow<List<Int>>
+    fun breakRulesWithHours(): Flow<BreakRulesWithHours?>
 
     /**
      * Настройки перерывов сохраняются целиком одним экраном (в отличие от `policy_flags`, где
@@ -233,11 +236,16 @@ interface PolicyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBreakHours(entities: List<BreakHourEntity>)
 
-    /** Полная замена списка часов режима HOURS: удалить старые, вставить новые, одной транзакцией. */
+    /**
+     * Правила и часы перерывов — одной транзакцией (план «исправление перерывов», этап 2, D18):
+     * наблюдатель `breakRules` склеивает строку `break_rules` с таблицей `break_hour`, и при
+     * раздельной записи он мог увидеть промежуточную комбинацию «новый режим HOURS + старые часы».
+     */
     @Transaction
-    suspend fun replaceBreakHours(minutes: Collection<Int>) {
+    suspend fun replaceBreakRules(entity: BreakRulesEntity, hours: Collection<Int>) {
+        upsertBreakRules(entity)
         deleteAllBreakHours()
-        insertBreakHours(minutes.map(::BreakHourEntity))
+        insertBreakHours(hours.map(::BreakHourEntity))
     }
 
     /**
@@ -286,4 +294,11 @@ data class PolicyEntities(
     val pin: PinEntity?,
     val breakRules: BreakRulesEntity,
     val breakHours: List<Int>
+)
+
+/** Строка `break_rules` вместе с её часами — для [PolicyDao.breakRulesWithHours]. */
+data class BreakRulesWithHours(
+    @Embedded val rules: BreakRulesEntity?,
+    @Relation(parentColumn = "id", entityColumn = "rulesId")
+    val hours: List<BreakHourEntity>
 )
