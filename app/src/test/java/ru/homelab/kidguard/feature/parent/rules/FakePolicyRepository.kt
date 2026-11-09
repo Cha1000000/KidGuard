@@ -36,10 +36,20 @@ import java.time.LocalDate
 class FakePolicyRepository(
     initialRules: BreakRules = BreakRules.EMPTY,
     private val rulesEmitDelayMs: Long = 0L,
-    private val rulesWriteDelayMs: Long = 0L
+    private val rulesWriteDelayMs: Long = 0L,
+    initialStudySchedule: ScheduleRules = ScheduleRules.EMPTY,
+    initialSleepSchedule: ScheduleRules = ScheduleRules.EMPTY,
+    initialPinProtection: PinProtection? = null
 ) : PolicyRepository {
 
     private val savedRules = MutableStateFlow(initialRules)
+    private val studyScheduleFlow = MutableStateFlow(initialStudySchedule)
+    private val sleepScheduleFlow = MutableStateFlow(initialSleepSchedule)
+    private val pinProtectionFlow = MutableStateFlow(initialPinProtection)
+    private val emergencyContactsFlow = MutableStateFlow<List<EmergencyContact>>(emptyList())
+
+    /** Записи включения/выключения расписаний — для проверки VM-гарда без PIN. */
+    val enabledWrites = mutableListOf<Pair<ScheduleKind, Boolean>>()
 
     /** Все записи по порядку — чтобы проверять, что реально уехало в репозиторий и в каком виде. */
     val writtenRules = mutableListOf<BreakRules>()
@@ -74,10 +84,10 @@ class FakePolicyRepository(
     override val blockedSites: Flow<List<BlockedSite>> get() = error("не используется в тестах BreaksViewModel")
     override val blockGoogleSearch: Flow<Boolean> get() = error("не используется в тестах BreaksViewModel")
     override val siteBlockRules: Flow<SiteBlockRules> get() = error("не используется в тестах BreaksViewModel")
-    override val studySchedule: Flow<ScheduleRules> get() = error("не используется в тестах BreaksViewModel")
-    override val sleepSchedule: Flow<ScheduleRules> get() = error("не используется в тестах BreaksViewModel")
-    override val emergencyContacts: Flow<List<EmergencyContact>> get() = error("не используется в тестах BreaksViewModel")
-    override val pinProtection: Flow<PinProtection?> get() = error("не используется в тестах BreaksViewModel")
+    override val studySchedule: Flow<ScheduleRules> get() = studyScheduleFlow
+    override val sleepSchedule: Flow<ScheduleRules> get() = sleepScheduleFlow
+    override val emergencyContacts: Flow<List<EmergencyContact>> get() = emergencyContactsFlow
+    override val pinProtection: Flow<PinProtection?> get() = pinProtectionFlow
     override val dailyUsageReset: Flow<DailyUsageReset?> get() = error("не используется в тестах BreaksViewModel")
     override val dailyUsageBlock: Flow<DailyUsageBlock?> get() = error("не используется в тестах BreaksViewModel")
     override val dailyUsageUnblock: Flow<DailyUsageUnblock?> get() = error("не используется в тестах BreaksViewModel")
@@ -91,7 +101,13 @@ class FakePolicyRepository(
     override suspend fun removeBlockedSite(domain: String): Unit = error("не используется в тестах BreaksViewModel")
     override suspend fun setBlockGoogleSearch(enabled: Boolean): Unit = error("не используется в тестах BreaksViewModel")
     override suspend fun setScheduleWindow(kind: ScheduleKind, day: DayOfWeek, window: TimeWindow?): Unit = error("не используется в тестах BreaksViewModel")
-    override suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean): Unit = error("не используется в тестах BreaksViewModel")
+    override suspend fun setScheduleEnabled(kind: ScheduleKind, enabled: Boolean) {
+        enabledWrites += kind to enabled
+        when (kind) {
+            ScheduleKind.STUDY -> studyScheduleFlow.value = studyScheduleFlow.value.copy(enabled = enabled)
+            ScheduleKind.SLEEP -> sleepScheduleFlow.value = sleepScheduleFlow.value.copy(enabled = enabled)
+        }
+    }
     override suspend fun addEmergencyContact(contact: EmergencyContact): Unit = error("не используется в тестах BreaksViewModel")
     override suspend fun removeEmergencyContact(phone: String): Unit = error("не используется в тестах BreaksViewModel")
     override suspend fun updateEmergencyContact(oldPhone: String, contact: EmergencyContact): Unit = error("не используется в тестах BreaksViewModel")

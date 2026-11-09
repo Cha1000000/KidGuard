@@ -191,4 +191,50 @@ class ScheduleTest {
         )
         assertEquals(ScheduleState.Study(LocalTime.of(22, 0)), state)
     }
+
+    // --- Пересечение с диапазоном (для остатка HOURS-перерыва после расписания) ---
+
+    @Test
+    fun `overlaps - обычное окно пересекает диапазон`() {
+        val rules = everyDay(window(8, 14))
+        assertTrue(rules.overlaps(monday(9, 0), monday(10, 0)))
+    }
+
+    @Test
+    fun `overlaps - границы исключающие`() {
+        val rules = everyDay(window(8, 14))
+        assertFalse(rules.overlaps(monday(7, 0), monday(8, 0)))
+        assertFalse(rules.overlaps(monday(14, 0), monday(15, 0)))
+    }
+
+    @Test
+    fun `overlaps - окно через полночь покрывает хвост следующего дня`() {
+        val rules = everyDay(window(21, 7))
+        assertTrue(rules.overlaps(monday(23, 0), monday(23, 30)))
+        assertTrue(rules.overlaps(tuesday(6, 30), tuesday(7, 0)))
+        assertFalse(rules.overlaps(tuesday(7, 0), tuesday(8, 0)))
+    }
+
+    @Test
+    fun `overlaps - хвост вчерашнего окна без окна сегодня`() {
+        val rules = ScheduleRules(mapOf(DayOfWeek.MONDAY to window(21, 7)), enabled = true)
+        assertTrue(rules.overlaps(tuesday(0, 30), tuesday(1, 0)))
+        assertFalse(rules.overlaps(tuesday(7, 0), tuesday(8, 0)))
+    }
+
+    @Test
+    fun `overlaps - окно до полуночи не задевает следующий день`() {
+        val rules = everyDay(TimeWindow(startMinute = 22 * 60, endMinute = 0))
+        assertTrue(rules.overlaps(monday(23, 0), monday(23, 30)))
+        assertFalse(rules.overlaps(tuesday(0, 0), tuesday(1, 0)))
+    }
+
+    @Test
+    fun `overlaps - выключенное и пустое расписание не пересекаются`() {
+        assertFalse(everyDay(window(8, 14), enabled = false).overlaps(monday(9, 0), monday(10, 0)))
+        assertFalse(
+            everyDay(TimeWindow(startMinute = 600, endMinute = 600))
+                .overlaps(monday(9, 0), monday(10, 0))
+        )
+    }
 }

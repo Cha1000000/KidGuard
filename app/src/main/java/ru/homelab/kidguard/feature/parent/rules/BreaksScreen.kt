@@ -74,6 +74,7 @@ import java.time.DayOfWeek
 @Composable
 fun BreaksScreen(
     onBack: () -> Unit,
+    onOpenPinSetup: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BreaksViewModel = hiltViewModel()
 ) {
@@ -100,6 +101,14 @@ fun BreaksScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 12.dp)
                 )
+            }
+            if (!uiState.pinIsSet) {
+                item {
+                    PinWarningCard(
+                        onOpenPinSetup = onOpenPinSetup,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+                }
             }
             item {
                 GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
@@ -288,6 +297,7 @@ private fun BreaksEnableRow(
 /** Подзаголовок тумблера: чего не хватает, либо в какие дни перерывы реально сработают. */
 @Composable
 private fun breaksHintText(uiState: BreaksUiState): String = when {
+    !uiState.pinIsSet -> stringResource(R.string.breaks_enable_hint_pin)
     !uiState.canEnable -> stringResource(R.string.breaks_enable_hint_disabled)
     uiState.activeDays.size == DayOfWeek.entries.size -> stringResource(R.string.breaks_enable_hint_active_all)
     uiState.activeDays.isEmpty() -> stringResource(R.string.breaks_enable_hint_none)

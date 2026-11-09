@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,7 +82,6 @@ import ru.homelab.kidguard.ui.theme.ScheduleSleepDark
 import ru.homelab.kidguard.ui.theme.ScheduleSleepLight
 import ru.homelab.kidguard.ui.theme.ScheduleStudyDark
 import ru.homelab.kidguard.ui.theme.ScheduleStudyLight
-import ru.homelab.kidguard.ui.theme.WarningAccent
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -145,6 +143,14 @@ fun ScheduleScreen(
                     modifier = Modifier.padding(vertical = 12.dp)
                 )
             }
+            if (!pinIsSet) {
+                item {
+                    PinWarningCard(
+                        onOpenPinSetup = onOpenPinSetup,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+                }
+            }
             item {
                 GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     ScheduleCard(
@@ -155,7 +161,8 @@ fun ScheduleScreen(
                         accentColor = studyColor,
                         schedule = studySchedule,
                         today = today,
-                        toggleEnabled = true,
+                        // Без PIN включать экран-замок нельзя — снять его с телефона ребёнка будет нечем.
+                        toggleEnabled = pinIsSet,
                         onToggle = { viewModel.setEnabled(ScheduleKind.STUDY, it) },
                         onDayClick = { day -> editing = ScheduleKind.STUDY to day },
                         onReset = { resetConfirmKind = ScheduleKind.STUDY }
@@ -163,29 +170,21 @@ fun ScheduleScreen(
                 }
             }
             item {
-                Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                    GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        ScheduleCard(
-                            titleRes = R.string.schedule_sleep_title,
-                            hintRes = R.string.schedule_sleep_hint,
-                            resetLabelRes = R.string.schedule_reset_sleep,
-                            icon = ImageVector.vectorResource(id = R.drawable.ic_moon),
-                            accentColor = sleepColor,
-                            schedule = sleepSchedule,
-                            today = today,
-                            // Без PIN включать ночной замок нельзя — снять его будет нечем.
-                            toggleEnabled = pinIsSet,
-                            onToggle = { viewModel.setEnabled(ScheduleKind.SLEEP, it) },
-                            onDayClick = { day -> editing = ScheduleKind.SLEEP to day },
-                            onReset = { resetConfirmKind = ScheduleKind.SLEEP }
-                        )
-                    }
-                    if (!pinIsSet) {
-                        PinWarningCard(
-                            onOpenPinSetup = onOpenPinSetup,
-                            modifier = Modifier.padding(top = 10.dp)
-                        )
-                    }
+                GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    ScheduleCard(
+                        titleRes = R.string.schedule_sleep_title,
+                        hintRes = R.string.schedule_sleep_hint,
+                        resetLabelRes = R.string.schedule_reset_sleep,
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_moon),
+                        accentColor = sleepColor,
+                        schedule = sleepSchedule,
+                        today = today,
+                        // Без PIN включать ночной замок нельзя — снять его будет нечем.
+                        toggleEnabled = pinIsSet,
+                        onToggle = { viewModel.setEnabled(ScheduleKind.SLEEP, it) },
+                        onDayClick = { day -> editing = ScheduleKind.SLEEP to day },
+                        onReset = { resetConfirmKind = ScheduleKind.SLEEP }
+                    )
                 }
             }
             item {
@@ -478,45 +477,6 @@ private fun windowRangeText(window: TimeWindow): String {
     val start = stringResource(R.string.schedule_time_hm, startTime.hour, startTime.minute)
     val end = stringResource(R.string.schedule_time_hm, window.endsAt.hour, window.endsAt.minute)
     return stringResource(R.string.schedule_window_range, start, end)
-}
-
-/** Плашка-предупреждение: «Время сна» нельзя включить без родительского PIN. */
-@Composable
-private fun PinWarningCard(onOpenPinSetup: () -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(14.dp)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(WarningAccent.copy(alpha = 0.12f))
-            .border(1.dp, WarningAccent.copy(alpha = 0.4f), shape)
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Warning,
-            contentDescription = null,
-            tint = WarningAccent,
-            modifier = Modifier.size(20.dp)
-        )
-        Column {
-            Text(
-                text = stringResource(R.string.schedule_pin_warning),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            TextButton(
-                onClick = onOpenPinSetup,
-                modifier = Modifier.padding(top = 2.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.schedule_pin_warning_action),
-                    color = WarningAccent,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
 }
 
 /**

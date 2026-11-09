@@ -24,7 +24,8 @@ import javax.inject.Inject
  */
 data class BreaksUiState(
     val rules: BreakRules = BreakRules.EMPTY,
-    val activeDays: List<DayOfWeek> = emptyList()
+    val activeDays: List<DayOfWeek> = emptyList(),
+    val pinIsSet: Boolean = false
 ) {
 
     /** Часы перерывов по возрастанию — для стабильного порядка чипов в списке. */
@@ -37,7 +38,7 @@ data class BreaksUiState(
      * в первый раз.
      */
     val canEnable: Boolean
-        get() = rules.durationMinutes > 0 && when (rules.mode) {
+        get() = pinIsSet && rules.durationMinutes > 0 && when (rules.mode) {
             BreakMode.INTERVAL -> rules.intervalMinutes > 0
             BreakMode.HOURS -> rules.hours.isNotEmpty()
         }
@@ -51,21 +52,35 @@ class BreaksViewModel @Inject constructor(
 
     val uiState: StateFlow<BreaksUiState> = combine(
         policyRepository.breakRules,
-        policyRepository.dailyLimits
-    ) { rules, dailyLimits ->
+        policyRepository.dailyLimits,
+        policyRepository.pinProtection
+    ) { rules, dailyLimits, pin ->
         BreaksUiState(
             rules = rules,
             activeDays = DayOfWeek.entries.filter { day ->
                 breaksApplyToday(dailyLimits.limitFor(day))
-            }
+            },
+            // Без PIN замок перерыва снимается любым кодом (аварийный NoPinSet), поэтому включать
+            // перерывы до установки PIN нельзя — та же логика, что у «Времени сна».
+            pinIsSet = pin != null
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BreaksUiState())
 
     /**
      * Включить/выключить перерывы. Родитель всегда может выключить — включить получится только
      * когда [BreaksUiState.canEnable] истинно (проверяет вызывающая сторона, экран блокирует тап).
+     * Включение без PIN запрещено и здесь: UI-состояние может отстать от репозитория.
      */
-    fun setEnabled(enabled: Boolean) = update { it.copy(enabled = enabled) }
+    fun setEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            if (enabled && policyRepository.pinProtection.first() == null) return@launch
+            updateMutex.withLock {
+                policyRepository.setBreakRules(
+                    policyRepository.breakRules.first().copy(enabled = enabled)
+                )
+            }
+        }
+    }
 
     /** Переключить режим — интервал залипания или назначенные часы (взаимоисключающе). */
     fun setMode(mode: BreakMode) = update { it.copy(mode = mode) }

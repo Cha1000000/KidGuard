@@ -14,6 +14,7 @@ import ru.homelab.kidguard.core.domain.model.BreakSession
 import ru.homelab.kidguard.core.domain.model.BreakState
 import ru.homelab.kidguard.core.domain.model.ContinuousUsageSession
 import ru.homelab.kidguard.core.domain.model.HoursWindow
+import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.model.WARNING_LEAD_SECONDS
 import ru.homelab.kidguard.core.domain.model.breaksApplyToday
@@ -24,6 +25,9 @@ import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.StickinessSource
 import ru.homelab.kidguard.core.domain.repository.todayFlow
 import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 
@@ -83,6 +87,26 @@ class ObserveBreakStateUseCase internal constructor(
                 usageReset = true
             }
 
+            // Старт учёбы/сна завершает перерыв и сбрасывает его остаток: после расписания
+            // замок перерыва не должен всплывать (решение 2026-11-08).
+            val scheduled = activeSession
+            if (scheduled != null && input.scheduleActive) {
+                breakRuntimeRepository.completeBreakAndResetUsage(scheduled.id)
+                stickinessSource.reset()
+                activeSession = null
+                usageReset = true
+            }
+
+            // Смерть процесса/reboot: сессия могла начаться до расписания, а завершение не
+            // успеть сохраниться. Прошедшая часть, пересекшая расписание, тоже не воскресает.
+            val tainted = activeSession
+            if (tainted != null && sessionOverlapsSchedule(tainted, input)) {
+                breakRuntimeRepository.completeBreakAndResetUsage(tainted.id)
+                stickinessSource.reset()
+                activeSession = null
+                usageReset = true
+            }
+
             fun finish(state: BreakState): BreakState {
                 previousRules = significantRules
                 previousApplicability = applicable
@@ -102,7 +126,7 @@ class ObserveBreakStateUseCase internal constructor(
 
             val state = when (rules.mode) {
                 BreakMode.INTERVAL -> intervalState(rules, input.usage)
-                BreakMode.HOURS -> hoursState(rules, input.scheduleActive)
+                BreakMode.HOURS -> hoursState(rules, input.scheduleActive, input.studyRules, input.sleepRules)
             }
             if (state is BreakState.Active) {
                 activeSession = breakRuntimeRepository.loadActiveSession()
@@ -110,18 +134,34 @@ class ObserveBreakStateUseCase internal constructor(
             return finish(state)
         }
 
-        val inputs = combine(
+        // Правила расписания нужны для проверки прошедшей части HOURS-окна; combine на 5
+        // потоков уже занят, поэтому сначала собираем политику, затем добавляем состояния.
+        val policyInputs = combine(
             policyRepository.breakRules,
             policyRepository.dailyLimits,
-            scheduleStates,
-            stickinessSource.usageSession,
+            policyRepository.studySchedule,
+            policyRepository.sleepSchedule,
             currentDateProvider.todayFlow()
-        ) { rules, limits, schedule, usage, today ->
-            BreakInput(
+        ) { rules, limits, study, sleep, today ->
+            PolicyRules(
                 rules = rules,
                 dayLimitMinutes = limits.limitFor(today.dayOfWeek),
+                study = study,
+                sleep = sleep
+            )
+        }
+        val inputs = combine(
+            policyInputs,
+            scheduleStates,
+            stickinessSource.usageSession
+        ) { policies, schedule, usage ->
+            BreakInput(
+                rules = policies.rules,
+                dayLimitMinutes = policies.dayLimitMinutes,
                 scheduleActive = schedule !is ScheduleState.Inactive,
-                usage = usage
+                usage = usage,
+                studyRules = policies.study,
+                sleepRules = policies.sleep
             )
         }
         emitAll(
@@ -176,10 +216,24 @@ class ObserveBreakStateUseCase internal constructor(
         }
     }
 
-    private suspend fun hoursState(rules: BreakRules, scheduleActive: Boolean): BreakState {
+    private suspend fun hoursState(
+        rules: BreakRules,
+        scheduleActive: Boolean,
+        studyRules: ScheduleRules,
+        sleepRules: ScheduleRules
+    ): BreakState {
+        // Пока идёт расписание, новую сессию не создаём (решение 2026-11-08).
+        if (scheduleActive) return BreakState.Idle
         val now = breakClock.localDateTime()
         val activeWindow = rules.activeHoursWindow(now)
         if (activeWindow != null) {
+            // Прошедшая часть окна пересекла учёбу/сон — остаток после расписания не показываем.
+            if (
+                studyRules.overlaps(activeWindow.start, now) ||
+                sleepRules.overlaps(activeWindow.start, now)
+            ) {
+                return BreakState.Idle
+            }
             val remainingMs = Duration.between(now, activeWindow.end).toMillis().coerceAtLeast(0)
             if (remainingMs > 0) {
                 return startSession(
@@ -190,7 +244,6 @@ class ObserveBreakStateUseCase internal constructor(
                 )
             }
         }
-        if (scheduleActive) return BreakState.Idle
         val nextWindow = rules.mergedHoursWindows(now).firstOrNull { it.start.isAfter(now) }
         return if (
             nextWindow != null &&
@@ -201,6 +254,18 @@ class ObserveBreakStateUseCase internal constructor(
             BreakState.Idle
         }
     }
+
+    /** Пересекла ли прошедшая часть сессии (до [breakClock.wallTimeMillis] или до её deadline) расписание. */
+    private fun sessionOverlapsSchedule(session: BreakSession, input: BreakInput): Boolean {
+        val endWall = minOf(breakClock.wallTimeMillis(), session.endsAtWallMs)
+        if (endWall <= session.startedAtWallMs) return false
+        val start = session.startedAtWallMs.toLocalDateTime()
+        val end = endWall.toLocalDateTime()
+        return input.studyRules.overlaps(start, end) || input.sleepRules.overlaps(start, end)
+    }
+
+    private fun Long.toLocalDateTime(): LocalDateTime =
+        Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
     private suspend fun startSession(
         mode: BreakMode,
@@ -243,11 +308,20 @@ class ObserveBreakStateUseCase internal constructor(
         }
     }
 
+    private data class PolicyRules(
+        val rules: BreakRules,
+        val dayLimitMinutes: Int?,
+        val study: ScheduleRules,
+        val sleep: ScheduleRules
+    )
+
     private data class BreakInput(
         val rules: BreakRules,
         val dayLimitMinutes: Int?,
         val scheduleActive: Boolean,
-        val usage: ContinuousUsageSession?
+        val usage: ContinuousUsageSession?,
+        val studyRules: ScheduleRules,
+        val sleepRules: ScheduleRules
     )
 
     private data class SignificantRules(

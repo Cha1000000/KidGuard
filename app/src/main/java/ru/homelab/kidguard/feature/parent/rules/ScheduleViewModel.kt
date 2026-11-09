@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,7 +33,7 @@ class ScheduleViewModel @Inject constructor(
     val emergencyContacts: StateFlow<List<EmergencyContact>> = policyRepository.emergencyContacts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** PIN задан у родителя — без него включать «Время сна» нельзя: замок будет нечем снять. */
+    /** PIN задан у родителя — без него включать экраны-замки (учёба/сон) нельзя: снять будет нечем. */
     val pinIsSet: StateFlow<Boolean> = policyRepository.pinProtection
         .map { it != null }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -51,7 +52,12 @@ class ScheduleViewModel @Inject constructor(
 
     /** Включить/выключить расписание целиком, не трогая уже заданные часы дней. */
     fun setEnabled(kind: ScheduleKind, enabled: Boolean) {
-        viewModelScope.launch { policyRepository.setScheduleEnabled(kind, enabled) }
+        viewModelScope.launch {
+            // Defense-in-depth поверх заблокированного тумблера: включение без PIN не должно
+            // проходить, даже если UI-состояние успело отстать.
+            if (enabled && policyRepository.pinProtection.first() == null) return@launch
+            policyRepository.setScheduleEnabled(kind, enabled)
+        }
     }
 
     /** Стереть окна всех 7 дней расписания [kind] («Сбросить время учёбы/сна»). Тумблер не трогаем. */
