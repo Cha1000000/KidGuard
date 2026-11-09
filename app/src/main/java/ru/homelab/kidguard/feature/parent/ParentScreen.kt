@@ -121,7 +121,10 @@ fun ParentScreen(
                 )
             }
             composable(ROUTE_RULES_BREAKS) {
-                BreaksScreen(onBack = { navController.popBackStack() })
+                BreaksScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPinSetup = { navController.navigate(ROUTE_RULES_PIN) }
+                )
             }
             composable(ROUTE_RULES_APP_LIMITS) {
                 AppLimitsScreen(onBack = { navController.popBackStack() })

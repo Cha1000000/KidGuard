@@ -9,10 +9,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.homelab.kidguard.core.domain.model.BreakMode
 import ru.homelab.kidguard.core.domain.model.BreakRules
+import ru.homelab.kidguard.core.domain.model.PinProtection
 
 /**
  * Контракт экрана «Перерывы» против гонок быстрых правок (план «исправление перерывов», этап 7):
@@ -123,5 +126,56 @@ class BreaksViewModelTest {
         assertEquals(25, saved.intervalMinutes)
         assertEquals("Разомнись", saved.message)
         assertEquals(10, saved.durationMinutes)
+    }
+
+    @Test
+    fun `без PIN включение перерывов не пишет правила`() = runTest {
+        val repository = FakePolicyRepository(
+            initialRules = savedRules.copy(enabled = false),
+            initialPinProtection = null
+        )
+        val viewModel = BreaksViewModel(repository)
+
+        viewModel.setEnabled(true)
+        advanceUntilIdle()
+
+        assertFalse(repository.saved.enabled)
+        assertTrue(repository.writtenRules.isEmpty())
+    }
+
+    @Test
+    fun `с PIN включение перерывов пишет правила`() = runTest {
+        val repository = FakePolicyRepository(
+            initialRules = savedRules.copy(enabled = false),
+            initialPinProtection = PinProtection(hash = "hash", salt = "salt")
+        )
+        val viewModel = BreaksViewModel(repository)
+
+        viewModel.setEnabled(true)
+        advanceUntilIdle()
+
+        assertTrue(repository.saved.enabled)
+        assertEquals(listOf(true), repository.writtenRules.map { it.enabled })
+    }
+
+    @Test
+    fun `без PIN выключение перерывов разрешено`() = runTest {
+        val repository = FakePolicyRepository(
+            initialRules = savedRules.copy(enabled = true),
+            initialPinProtection = null
+        )
+        val viewModel = BreaksViewModel(repository)
+
+        viewModel.setEnabled(false)
+        advanceUntilIdle()
+
+        assertFalse(repository.saved.enabled)
+    }
+
+    @Test
+    fun `canEnable учитывает PIN`() {
+        val configured = savedRules.copy(enabled = false)
+        assertFalse(BreaksUiState(rules = configured, pinIsSet = false).canEnable)
+        assertTrue(BreaksUiState(rules = configured, pinIsSet = true).canEnable)
     }
 }

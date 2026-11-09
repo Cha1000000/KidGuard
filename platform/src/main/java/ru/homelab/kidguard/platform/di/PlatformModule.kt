@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import ru.homelab.kidguard.core.domain.repository.BreakClock
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
 import ru.homelab.kidguard.core.domain.repository.ProcessExitReader
+import ru.homelab.kidguard.core.domain.repository.ScheduleClock
 import ru.homelab.kidguard.core.domain.repository.UsageEventSource
 import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
@@ -17,6 +18,7 @@ import ru.homelab.kidguard.platform.usage.AndroidUsageEventSource
 import ru.homelab.kidguard.platform.permissions.PlatformDeviceHealthSource
 import ru.homelab.kidguard.platform.time.PlatformBreakClock
 import ru.homelab.kidguard.platform.time.PlatformElapsedTimeSource
+import ru.homelab.kidguard.platform.time.PlatformScheduleClock
 import ru.homelab.kidguard.platform.tracking.StickinessTracker
 import javax.inject.Singleton
 
@@ -52,4 +54,8 @@ abstract class PlatformModule {
     @Binds
     @Singleton
     abstract fun bindBreakClock(impl: PlatformBreakClock): BreakClock
+
+    @Binds
+    @Singleton
+    abstract fun bindScheduleClock(impl: PlatformScheduleClock): ScheduleClock
 }

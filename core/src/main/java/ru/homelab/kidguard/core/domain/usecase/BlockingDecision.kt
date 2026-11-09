@@ -66,3 +66,14 @@ fun countsTowardsDailyLimit(
     whitelist: Set<String>,
     alwaysAllowed: Set<String>
 ): Boolean = packageName !in alwaysAllowed && packageName !in whitelist
+
+/**
+ * Можно ли предлагать на мягком блоке ссылку «Открыть с PIN родителя».
+ *
+ * Без заданного PIN ссылка — дыра: `PinGuard` вернёт `NoPinSet`, а `PinOverlayManager` трактует
+ * это как успех (осознанный аварийный выход для замка «контроль отключён»), и ребёнок откроет
+ * приложение любыми четырьмя цифрами. Поэтому ссылка только при реально заданном PIN и известном
+ * пакете, который нужно перезапустить после обхода.
+ */
+fun pinBypassAllowed(pinConfigured: Boolean, activePackage: String?): Boolean =
+    pinConfigured && activePackage != null

@@ -90,6 +90,33 @@ data class ScheduleRules(
         return null
     }
 
+    /**
+     * Пересекается ли диапазон `[start, end)` с окнами этого расписания. Нужен перерывам:
+     * HOURS-окно, прошедшая часть которого пересекла учёбу или сон, после расписания не
+     * возобновляется — иначе ребёнок получил бы замок перерыва сразу после замка учёбы/сна.
+     *
+     * Смотрим и день до начала диапазона: окно через полночь ключуется днём старта, а его хвост
+     * живёт на следующий день. Границы — как у [TimeWindow]: начало включительно, конец
+     * исключительно; поэтому окно, закончившееся ровно к началу диапазона, пересечением не считается.
+     */
+    fun overlaps(start: LocalDateTime, end: LocalDateTime): Boolean {
+        if (!enabled || !start.isBefore(end)) return false
+        var date = start.toLocalDate().minusDays(1)
+        val lastDate = end.toLocalDate()
+        while (!date.isAfter(lastDate)) {
+            val window = windowsByDay[date.dayOfWeek]
+            if (window != null && !window.isEmpty) {
+                val windowStart = date.atStartOfDay().plusMinutes(window.startMinute.toLong())
+                val windowEnd = date.atStartOfDay()
+                    .plusMinutes(window.endMinute.toLong())
+                    .let { if (window.crossesMidnight) it.plusDays(1) else it }
+                if (windowStart < end && start < windowEnd) return true
+            }
+            date = date.plusDays(1)
+        }
+        return false
+    }
+
     companion object {
         val EMPTY = ScheduleRules(emptyMap(), enabled = false)
     }

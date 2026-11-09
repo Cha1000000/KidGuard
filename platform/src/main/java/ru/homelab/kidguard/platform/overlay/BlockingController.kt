@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,6 +32,7 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.backgroundVisibleCandidates
 import ru.homelab.kidguard.core.domain.usecase.confirmedAcrossChecks
+import ru.homelab.kidguard.core.domain.usecase.pinBypassAllowed
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
 import ru.homelab.kidguard.core.domain.usecase.shouldRepeatBlock
 import ru.homelab.kidguard.platform.R
@@ -76,9 +78,25 @@ class BlockingController @Inject constructor(
      */
     private val bypassedPackage = MutableStateFlow<String?>(null)
 
+    /**
+     * Задан ли родительский PIN. Без него PIN-ссылку на мягком блоке не показываем: `PinGuard`
+     * вернёт `NoPinSet`, который `PinOverlayManager` трактует как успех (аварийный выход для замка
+     * «контроль отключён»), и любые четыре цифры откроют приложение.
+     */
+    @Volatile
+    private var pinConfigured = false
+
+    /** Последнее показанное решение — чтобы снять плашку, когда причина исчезла. */
+    @Volatile
+    private var lastShown: BlockDecision? = null
+
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun run() = coroutineScope {
         Timber.tag(TAG).d("Контроллер блокировки запущен")
+        // PIN нужен на горячем пути enforce, поэтому держим его в памяти, а не читаем Room на каждый показ.
+        launch {
+            policyRepository.pinProtection.collect { pinConfigured = it != null }
+        }
         // Параллельно основному пути — проверка приложений, которые видны, но не активны (мини-окно,
         // разделённый экран). Основной путь смотрит только на активное окно.
         launch { watchVisibleWindows() }
@@ -117,13 +135,21 @@ class BlockingController @Inject constructor(
                     activePackage, inputs.limitState, inputs.appLimitState, inputs.whitelist,
                     alwaysAllowed, inputs.blockedApps, studyTimeActive, hasPass
                 )
-                describe(block, activePackage, inputs.blockedApps, inputs.scheduleState)
+                describe(
+                    block = block,
+                    packageName = activePackage,
+                    blockedApps = inputs.blockedApps,
+                    scheduleState = inputs.scheduleState,
+                    dailyLimitExpired = inputs.limitState is LimitState.Expired
+                )
             }
         }.distinctUntilChanged().collectLatest { decision ->
-            // Скрытие оверлея сюда намеренно не добавляем: он уходит сам по таймеру внутри
-            // OverlayManager. Если бы скрытие шло отсюда, уход на домашний экран ниже сразу же
-            // «снял» бы блокировку — лаунчер всегда разрешён.
-            if (!decision.block) return@collectLatest
+            // Скрываем не при любом block=false: enforce уводит «Домой», лаунчер всегда разрешён,
+            // и плашка исчезла бы до прочтения. Скрытие — только когда исчезла причина (SoftOverlayPolicy).
+            if (!decision.block) {
+                hideSoftOverlayIfNeeded(decision)
+                return@collectLatest
+            }
             enforce(decision)
             Timber.tag(TAG).d("Блокировка активна (причина=%s)", decision.reason)
             holdBlock(decision)
@@ -163,29 +189,27 @@ class BlockingController @Inject constructor(
     }
 
     /**
-     * Причина и текст для оверлея — в том же порядке приоритета, что и в [shouldBlock]:
-     * 1. Пакет в blockedApps (и не alwaysAllowed) — запрет родителя бьёт всё остальное.
-     * 2. Иначе, если идёт «Время учёбы» — оно и есть причина мягкой блокировки.
-     * 3. Иначе — обычный исчерпанный дневной лимит.
-     * Время окончания нужно только при STUDY_TIME — в остальных случаях формулировка без времени.
+     * Причина и текст для оверлея — приоритет вынесен в чистые [blockReasonFor]/[studyUntilText].
      */
     private fun describe(
         block: Boolean,
         packageName: String?,
         blockedApps: Set<String>,
-        scheduleState: ScheduleState
+        scheduleState: ScheduleState,
+        dailyLimitExpired: Boolean
     ): BlockDecision {
-        val reason = when {
-            packageName != null && packageName !in alwaysAllowed && packageName in blockedApps ->
-                BlockReason.BLOCKED_BY_PARENT
-            scheduleState is ScheduleState.Study -> BlockReason.STUDY_TIME
-            else -> BlockReason.LIMIT_EXPIRED
-        }
-        val untilText = (scheduleState as? ScheduleState.Study)
-            ?.takeIf { reason == BlockReason.STUDY_TIME }
-            ?.endsAt
-            ?.format(TIME_FORMATTER)
-        return BlockDecision(block, reason, untilText, packageName)
+        val studyTimeActive = scheduleState is ScheduleState.Study
+        val reason = blockReasonFor(packageName, alwaysAllowed, blockedApps, studyTimeActive)
+        val untilText = studyUntilText(scheduleState, reason, TIME_FORMATTER)
+        return BlockDecision(
+            block = block,
+            reason = reason,
+            untilText = untilText,
+            activePackage = packageName,
+            studyTimeActive = studyTimeActive,
+            dailyLimitExpired = dailyLimitExpired,
+            blockedApps = blockedApps
+        )
     }
 
     /**
@@ -235,11 +259,13 @@ class BlockingController @Inject constructor(
         val blocked = if (candidates.isEmpty()) emptySet() else blockedAmong(candidates)
         val confirmed = confirmedAcrossChecks(previous, blocked)
         val packageName = confirmed.minOrNull() ?: return blocked
+        val limitState = observeLimitStateUseCase().first()
         val decision = describe(
             block = true,
             packageName = packageName,
             blockedApps = policyRepository.blockedApps.first(),
-            scheduleState = observeScheduleStateUseCase().first()
+            scheduleState = observeScheduleStateUseCase().first(),
+            dailyLimitExpired = limitState is LimitState.Expired
         )
         enforce(decision)
         Timber.tag(TAG).d("Блокировка видимого неактивного окна: %s (причина=%s)", packageName, decision.reason)
@@ -263,11 +289,40 @@ class BlockingController @Inject constructor(
 
     /** Показать оверлей и увести на рабочий стол. */
     private fun enforce(decision: BlockDecision) {
-        val onPinRequested = decision.activePackage?.let { pkg ->
-            { requestPinBypass(pkg) }
-        }
-        overlayManager.show(decision.reason, decision.untilText, onPinRequested)
+        val onPinRequested = decision.activePackage
+            ?.takeIf { pinBypassAllowed(pinConfigured = pinConfigured, activePackage = it) }
+            ?.let { pkg -> { requestPinBypass(pkg) } }
+        overlayManager.showOrUpdate(decision.reason, decision.untilText, onPinRequested)
+        lastShown = decision
         sendHome()
+    }
+
+    /**
+     * Снять плашку, если причина, ради которой её показали, уже исчезла.
+     *
+     * Личный лимит читаем для ТОГО пакета, которому плашка показана: после `sendHome` активным
+     * становится лаунчер, у которого личных лимитов нет — если смотреть на текущий пакет, плашка
+     * снялась бы сразу после показа (регресс, пойман на эмуляторе 09.11.2026).
+     */
+    private suspend fun hideSoftOverlayIfNeeded(decision: BlockDecision) {
+        val last = lastShown ?: return
+        val personalLimitExpired = last.reason == BlockReason.LIMIT_EXPIRED &&
+            last.activePackage != null &&
+            observeAppLimitStateUseCase(last.activePackage).first() is LimitState.Expired
+        if (shouldHideSoftOverlay(
+                lastReason = last.reason,
+                lastPackage = last.activePackage,
+                activePackage = decision.activePackage,
+                studyTimeActive = decision.studyTimeActive,
+                dailyLimitExpired = decision.dailyLimitExpired,
+                personalLimitExpired = personalLimitExpired,
+                blockedApps = decision.blockedApps,
+                alwaysAllowed = alwaysAllowed
+            )
+        ) {
+            overlayManager.hide()
+            lastShown = null
+        }
     }
 
     /**
@@ -311,7 +366,13 @@ class BlockingController @Inject constructor(
         val block: Boolean,
         val reason: BlockReason,
         val untilText: String?,
-        val activePackage: String?
+        val activePackage: String?,
+        val studyTimeActive: Boolean,
+        // Дневной лимит — общий для всех пакетов, поэтому его состояние актуально всегда.
+        // Личный лимит приложения у каждого пакета свой: после sendHome активным становится
+        // лаунчер, и его лимиты к показанной плашке отношения не имеют (см. hideSoftOverlayIfNeeded).
+        val dailyLimitExpired: Boolean,
+        val blockedApps: Set<String>
     )
 
     /** Промежуточный срез политики — до подмешивания обхода PIN'ом (см. [bypassedPackage]). */

@@ -20,14 +20,18 @@ import ru.homelab.kidguard.core.domain.model.BreakSession
 import ru.homelab.kidguard.core.domain.model.BreakState
 import ru.homelab.kidguard.core.domain.model.ContinuousUsageSession
 import ru.homelab.kidguard.core.domain.model.DailyLimits
+import ru.homelab.kidguard.core.domain.model.ScheduleRules
 import ru.homelab.kidguard.core.domain.model.ScheduleState
+import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.BreakClock
 import ru.homelab.kidguard.core.domain.repository.BreakRuntimeRepository
 import ru.homelab.kidguard.core.domain.repository.CurrentDateProvider
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.StickinessSource
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ObserveBreakStateUseCaseTest {
@@ -187,24 +191,115 @@ class ObserveBreakStateUseCaseTest {
     }
 
     @Test
-    fun `расписание скрывает перерыв на UI но не продлевает сессию`() = runTest {
+    fun `старт расписания завершает перерыв со сбросом остатка`() = runTest {
         val fixture = Fixture(rules = intervalRules())
         val states = observe(fixture)
         fixture.stickiness.setUsage(30 * MINUTE)
         runCurrent()
         val active = states.last() as BreakState.Active
 
+        // Новая семантика (2026-11-08): сессия завершается сразу, а не живёт до deadline.
         fixture.schedule.value = ScheduleState.Study(LocalTime.NOON)
         runCurrent()
-        assertEquals(active, states.last())
-        assertEquals(active.endsAtElapsedMs, fixture.runtime.activeSession?.endsAtElapsedMs)
+        assertEquals(BreakState.Idle, states.last())
+        assertNull(fixture.runtime.activeSession)
+        assertEquals(listOf(active.sessionId), fixture.runtime.completedSessions)
+        assertEquals(0L, fixture.stickiness.currentUsage()?.accumulatedMs)
         assertTrue(fixture.stickiness.pauseValues.last())
 
-        fixture.clock.advanceBy(10 * MINUTE)
-        advanceTimeBy(10 * MINUTE)
+        // После расписания остаток не возвращается.
+        fixture.schedule.value = ScheduleState.Inactive
         runCurrent()
         assertEquals(BreakState.Idle, states.last())
-        assertEquals(listOf(active.sessionId), fixture.runtime.completedSessions)
+    }
+
+    @Test
+    fun `HOURS-окно до расписания завершается на его старте`() = runTest {
+        val fixture = Fixture(
+            clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 13, 46)),
+            rules = hoursRules(hours = setOf(13 * 60 + 45), durationMinutes = 30)
+        )
+        fixture.studyRules.value = scheduleRules(14 * 60, 15 * 60)
+        val states = observe(fixture)
+        assertTrue(states.last() is BreakState.Active)
+
+        fixture.clock.advanceBy(14 * MINUTE) // 14:00 — старт учёбы
+        advanceTimeBy(14 * MINUTE)
+        fixture.schedule.value = ScheduleState.Study(LocalTime.of(15, 0))
+        runCurrent()
+        assertEquals(BreakState.Idle, states.last())
+        assertEquals(1, fixture.runtime.completedSessions.size)
+        assertNull(fixture.runtime.activeSession)
+    }
+
+    @Test
+    fun `остаток HOURS-окна после расписания не показывается`() = runTest {
+        val fixture = Fixture(
+            clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 13, 46)),
+            rules = hoursRules(hours = setOf(13 * 60 + 45), durationMinutes = 30)
+        )
+        fixture.studyRules.value = scheduleRules(13 * 60 + 50, 14 * 60)
+        val states = observe(fixture)
+        assertTrue(states.last() is BreakState.Active)
+
+        // 13:50 — старт учёбы: перерыв завершается, хотя окно идёт до 14:15.
+        fixture.clock.advanceBy(4 * MINUTE)
+        advanceTimeBy(4 * MINUTE)
+        fixture.schedule.value = ScheduleState.Study(LocalTime.of(14, 0))
+        runCurrent()
+        assertEquals(BreakState.Idle, states.last())
+        assertEquals(1, fixture.runtime.completedSessions.size)
+
+        // 14:00 — учёба кончилась, но прошедшая часть окна пересекла её: остаток не стартует.
+        fixture.clock.advanceBy(10 * MINUTE)
+        advanceTimeBy(10 * MINUTE)
+        fixture.schedule.value = ScheduleState.Inactive
+        runCurrent()
+        assertEquals(BreakState.Idle, states.last())
+        assertNull(fixture.runtime.activeSession)
+        assertEquals(1, fixture.runtime.savedSessions.size)
+    }
+
+    @Test
+    fun `HOURS-окно, начавшееся внутри расписания, не стартует после него`() = runTest {
+        val fixture = Fixture(
+            clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 14, 5)),
+            rules = hoursRules(hours = setOf(14 * 60 + 5), durationMinutes = 40)
+        )
+        fixture.studyRules.value = scheduleRules(14 * 60, 14 * 60 + 30)
+        fixture.schedule.value = ScheduleState.Study(LocalTime.of(14, 30))
+        val states = observe(fixture)
+        assertEquals(BreakState.Idle, states.last())
+
+        fixture.clock.advanceBy(25 * MINUTE) // 14:30
+        advanceTimeBy(25 * MINUTE)
+        fixture.schedule.value = ScheduleState.Inactive
+        runCurrent()
+        assertEquals(BreakState.Idle, states.last())
+        assertTrue(fixture.runtime.savedSessions.isEmpty())
+    }
+
+    @Test
+    fun `после reboot сессия, пересекшая расписание, не воскресает`() = runTest {
+        val clock = FakeClock(now = LocalDateTime.of(2026, 11, 4, 14, 30))
+        val fixture = Fixture(
+            clock = clock,
+            rules = hoursRules(hours = setOf(13 * 60 + 45), durationMinutes = 30)
+        )
+        fixture.studyRules.value = scheduleRules(13 * 60 + 50, 14 * 60)
+        fixture.runtime.activeSession = BreakSession(
+            id = "restored",
+            mode = BreakMode.HOURS,
+            startedAtElapsedMs = clock.elapsedRealtimeMs() - 44 * MINUTE,
+            endsAtElapsedMs = clock.elapsedRealtimeMs() + 10 * MINUTE,
+            startedAtWallMs = clock.wallTimeMillis() - 44 * MINUTE,
+            endsAtWallMs = clock.wallTimeMillis() + 10 * MINUTE,
+            bootCount = clock.bootCount(),
+            windowKey = "13:45|14:15"
+        )
+        val states = observe(fixture)
+        assertEquals(BreakState.Idle, states.last())
+        assertEquals(listOf("restored"), fixture.runtime.completedSessions)
     }
 
     @Test
@@ -373,7 +468,9 @@ class ObserveBreakStateUseCaseTest {
         initialUsage: ContinuousUsageSession? = usage(0),
         val runtime: FakeBreakRuntimeRepository = FakeBreakRuntimeRepository()
     ) {
-        val policies = FakePolicyRepository(rules)
+        val studyRules = MutableStateFlow(ScheduleRules.EMPTY)
+        val sleepRules = MutableStateFlow(ScheduleRules.EMPTY)
+        val policies = FakePolicyRepository(rules, studyRules, sleepRules)
         val schedule = MutableStateFlow<ScheduleState>(ScheduleState.Inactive)
         val stickiness = FakeStickinessSource(clock, initialUsage)
         lateinit var job: Job
@@ -391,7 +488,7 @@ class ObserveBreakStateUseCaseTest {
     private class FakeClock(
         var now: LocalDateTime = LocalDateTime.of(2026, 11, 4, 10, 0),
         var elapsedMs: Long = 1_000_000L,
-        var wallMs: Long = 1_800_000_000_000L,
+        var wallMs: Long = now.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
         var boot: Int = 7
     ) : BreakClock, CurrentDateProvider {
         override fun elapsedRealtimeMs(): Long = elapsedMs
@@ -482,9 +579,15 @@ class ObserveBreakStateUseCaseTest {
         }
     }
 
-    private class FakePolicyRepository(initialRules: BreakRules) : PolicyRepository by FakePolicyRepository() {
+    private class FakePolicyRepository(
+        initialRules: BreakRules,
+        study: MutableStateFlow<ScheduleRules>,
+        sleep: MutableStateFlow<ScheduleRules>
+    ) : PolicyRepository by FakePolicyRepository() {
         override val breakRules = MutableStateFlow(initialRules)
         override val dailyLimits = MutableStateFlow(DailyLimits.EMPTY)
+        override val studySchedule: Flow<ScheduleRules> = study
+        override val sleepSchedule: Flow<ScheduleRules> = sleep
     }
 
     private companion object {
@@ -501,6 +604,11 @@ class ObserveBreakStateUseCaseTest {
             hours: Set<Int> = setOf(15 * 60),
             durationMinutes: Int = 10
         ) = BreakRules(true, BreakMode.HOURS, 0, hours, durationMinutes, "")
+
+        fun scheduleRules(startMinute: Int, endMinute: Int) = ScheduleRules(
+            DayOfWeek.entries.associateWith { TimeWindow(startMinute, endMinute) },
+            enabled = true
+        )
 
         fun usage(accumulatedMs: Long, cycleId: String = "cycle-0") = ContinuousUsageSession(
             cycleId = cycleId,
