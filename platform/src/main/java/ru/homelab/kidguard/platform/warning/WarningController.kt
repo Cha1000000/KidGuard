@@ -1,18 +1,15 @@
 package ru.homelab.kidguard.platform.warning
 
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
+import ru.homelab.kidguard.core.domain.repository.ScheduleTimeline
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import timber.log.Timber
-import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +23,7 @@ import javax.inject.Singleton
 class WarningController @Inject constructor(
     private val observeLimitStateUseCase: ObserveLimitStateUseCase,
     private val policyRepository: PolicyRepository,
+    private val timeline: ScheduleTimeline,
     private val warningNotifier: WarningNotifier
 ) {
 
@@ -52,12 +50,13 @@ class WarningController @Inject constructor(
 
     /**
      * «Время сна» — это расписание, а не событие приложения: minutesUntilStart меняется от хода
-     * часов, поэтому, как и в [ObserveScheduleStateUseCase][ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase],
-     * нужен собственный тик (те же 30 секунд — тот же компромисс точности/цены).
+     * часов. Время берём из общей шкалы [ScheduleTimeline] — той же, что и у состояния расписания:
+     * свой тик здесь означал бы, что предупреждение «через N минут» считалось от другого момента,
+     * чем сам замок сна, и расходилось с ним на минуту.
      */
     private suspend fun runSleepWarning() {
         policyRepository.sleepSchedule
-            .combine(ticker()) { sleepSchedule, now -> sleepSchedule.minutesUntilStart(now) }
+            .combine(timeline.ticks) { sleepSchedule, now -> sleepSchedule.minutesUntilStart(now) }
             .distinctUntilChanged()
             .collect { minutesLeft ->
                 if (minutesLeft != null && minutesLeft in 0..SLEEP_WARNING_THRESHOLD_MINUTES) {
@@ -69,17 +68,9 @@ class WarningController @Inject constructor(
             }
     }
 
-    private fun ticker(): Flow<LocalDateTime> = flow {
-        while (true) {
-            emit(LocalDateTime.now())
-            delay(TICK_MS)
-        }
-    }
-
     private companion object {
         const val TAG = "KidGuardWarning"
         const val LIMIT_WARNING_THRESHOLD_MINUTES = 5
         const val SLEEP_WARNING_THRESHOLD_MINUTES = 10
-        const val TICK_MS = 30_000L
     }
 }

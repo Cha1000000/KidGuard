@@ -7,8 +7,9 @@ import javax.inject.Inject
 /**
  * Какое расписание действует прямо сейчас: «Время сна» (бьёт всё), «Время учёбы» или ничего.
  *
- * Сам расчёт и тик живут в singleton [ScheduleStateSource]: один поток на процесс, точная граница
- * минуты. Use case остаётся тонкой точкой входа, чтобы вызывающие не зависели от источника.
+ * Сам расчёт живёт в singleton [ScheduleStateSource], а время — в общей шкале
+ * [ru.homelab.kidguard.core.domain.repository.ScheduleTimeline]: один поток на процесс, тик ровно на
+ * границе минуты. Use case остаётся тонкой точкой входа, чтобы вызывающие не зависели от источника.
  */
 class ObserveScheduleStateUseCase @Inject constructor(
     private val source: ScheduleStateSource

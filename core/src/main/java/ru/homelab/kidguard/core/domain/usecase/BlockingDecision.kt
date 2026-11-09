@@ -1,9 +1,49 @@
 package ru.homelab.kidguard.core.domain.usecase
 
+import ru.homelab.kidguard.core.domain.model.BlockCause
 import ru.homelab.kidguard.core.domain.model.LimitState
 
 /**
- * Чистое правило: нужно ли блокировать активное приложение.
+ * Какие причины закрывают доступ приложению — по каждому предмету отдельно.
+ *
+ * Это развёрнутая форма ответа [shouldBlock]: «заблокирован ли пакет» и «почему» решаются в одном
+ * месте, поэтому экран-замок и правило его снятия читают одно и то же и не могут разойтись.
+ *
+ * @property studyTime идёт «Время учёбы»
+ * @property blockedByParent пакет запрещён родителем
+ * @property dailyLimitExpired исчерпан общий дневной лимит
+ * @property personalLimitExpired исчерпан личный лимит этого пакета
+ * @property bonusPass у пакета есть нерастраченный пропуск дополнительного времени
+ */
+data class BlockCauses(
+    val studyTime: Boolean = false,
+    val blockedByParent: Boolean = false,
+    val dailyLimitExpired: Boolean = false,
+    val personalLimitExpired: Boolean = false,
+    val bonusPass: Boolean = false
+) {
+
+    /** Есть ли хоть одна причина, по которой пакет закрыт. */
+    val any: Boolean
+        get() = studyTime || blockedByParent || dailyLimitExpired || personalLimitExpired
+
+    /**
+     * Причины по предметам: окну расписания, общему лимиту, личному лимиту пакета, запрету.
+     *
+     * Личный лимит относится к конкретному пакету, поэтому несёт его имя — иначе причина
+     * «личный лимит» от одного приложения совпала бы с лимитом другого.
+     */
+    fun causesFor(packageName: String): Set<BlockCause> = buildSet {
+        if (studyTime) add(BlockCause.StudyTime)
+        if (dailyLimitExpired) add(BlockCause.DailyLimitExpired)
+        if (personalLimitExpired) add(BlockCause.PersonalLimitExpired(packageName))
+        if (blockedByParent) add(BlockCause.BlockedByParent)
+    }
+
+}
+
+/**
+ * Чистое правило: нужно ли блокировать активное приложение и по каким причинам.
  *
  * Матрица приоритетов (веха 4.1.2, зафиксирована в плане):
  * 1. [alwaysAllowed] (само KidGuard и лаунчер) — никогда не блокируем.
@@ -30,6 +70,48 @@ import ru.homelab.kidguard.core.domain.model.LimitState
  * связи. «Время сна» сюда НЕ входит: оно блокирует всё, включая лаунчер, и потому не может
  * опираться на [activePackage] — им занимается отдельный контроллер ночного замка.
  */
+fun blockCausesFor(
+    activePackage: String?,
+    limitState: LimitState,
+    appLimitState: LimitState,
+    whitelist: Set<String>,
+    alwaysAllowed: Set<String>,
+    blockedApps: Set<String>,
+    studyTimeActive: Boolean = false,
+    hasBonusAccessPass: Boolean = false
+): BlockCauses {
+    if (activePackage == null) return BlockCauses()
+    if (activePackage in alwaysAllowed) return BlockCauses()
+
+    // Порядок как в матрице: запрет и личный лимит бьют белый список, белый список снимает
+    // общий лимит и расписание, пропуск — только общий лимит.
+    val blockedByParent = activePackage in blockedApps
+    val personalLimitExpired = appLimitState is LimitState.Expired
+    val whitelisted = activePackage in whitelist
+    // Расписание — осознанное «сейчас телефон нельзя»: пропуск его НЕ снимает (пункт 5),
+    // а «Всегда доступные» — снимают: ребёнок должен иметь возможность позвонить.
+    val studyTime = studyTimeActive && !whitelisted
+    // Общий лимит снимают «Всегда доступные» и нерастраченный пропуск (но не во время учёбы:
+    // там «телефон нельзя» независимо от потраченного бюджета).
+    val dailyLimitBlocked = limitState is LimitState.Expired &&
+        !whitelisted &&
+        !(hasBonusAccessPass && !studyTimeActive)
+
+    return BlockCauses(
+        studyTime = studyTime,
+        blockedByParent = blockedByParent,
+        dailyLimitExpired = dailyLimitBlocked,
+        personalLimitExpired = personalLimitExpired,
+        bonusPass = hasBonusAccessPass
+    )
+}
+
+/**
+ * Нужно ли блокировать активное приложение.
+ *
+ * Тонкая обёртка над [blockCausesFor]: «есть ли хоть одна причина». Всё, что нужно знать
+ * экрану-замку, берётся из причин, а не из этого флага.
+ */
 fun shouldBlock(
     activePackage: String?,
     limitState: LimitState,
@@ -39,15 +121,27 @@ fun shouldBlock(
     blockedApps: Set<String>,
     studyTimeActive: Boolean = false,
     hasBonusAccessPass: Boolean = false
-): Boolean {
-    if (activePackage == null) return false
-    if (activePackage in alwaysAllowed) return false
-    if (activePackage in blockedApps) return true
-    if (appLimitState is LimitState.Expired) return true
-    if (activePackage in whitelist) return false
-    if (hasBonusAccessPass && !studyTimeActive) return false
-    return limitState is LimitState.Expired || studyTimeActive
-}
+): Boolean = blockCausesFor(
+    activePackage = activePackage,
+    limitState = limitState,
+    appLimitState = appLimitState,
+    whitelist = whitelist,
+    alwaysAllowed = alwaysAllowed,
+    blockedApps = blockedApps,
+    studyTimeActive = studyTimeActive,
+    hasBonusAccessPass = hasBonusAccessPass
+).any
+
+/**
+ * Можно ли предлагать на мягком блоке ссылку «Открыть с PIN родителя».
+ *
+ * Без заданного PIN ссылка — дыра: `PinGuard` вернёт `NoPinSet`, а `PinOverlayManager` трактует
+ * это как успех (осознанный аварийный выход для замка «контроль отключён»), и ребёнок откроет
+ * приложение любыми четырьмя цифрами. Поэтому ссылка только при реально заданном PIN и известном
+ * пакете, который нужно перезапустить после обхода.
+ */
+fun pinBypassAllowed(pinConfigured: Boolean, activePackage: String?): Boolean =
+    pinConfigured && activePackage != null
 
 /**
  * Расходует ли приложение **общий дневной лимит**. Зеркальная сторона [shouldBlock]: что дневной
@@ -66,14 +160,3 @@ fun countsTowardsDailyLimit(
     whitelist: Set<String>,
     alwaysAllowed: Set<String>
 ): Boolean = packageName !in alwaysAllowed && packageName !in whitelist
-
-/**
- * Можно ли предлагать на мягком блоке ссылку «Открыть с PIN родителя».
- *
- * Без заданного PIN ссылка — дыра: `PinGuard` вернёт `NoPinSet`, а `PinOverlayManager` трактует
- * это как успех (осознанный аварийный выход для замка «контроль отключён»), и ребёнок откроет
- * приложение любыми четырьмя цифрами. Поэтому ссылка только при реально заданном PIN и известном
- * пакете, который нужно перезапустить после обхода.
- */
-fun pinBypassAllowed(pinConfigured: Boolean, activePackage: String?): Boolean =
-    pinConfigured && activePackage != null

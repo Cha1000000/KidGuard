@@ -2,12 +2,19 @@ package ru.homelab.kidguard.platform.di
 
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import ru.homelab.kidguard.core.di.ApplicationScope
 import ru.homelab.kidguard.core.domain.repository.BreakClock
 import ru.homelab.kidguard.core.domain.repository.DeviceHealthSource
 import ru.homelab.kidguard.core.domain.repository.ProcessExitReader
 import ru.homelab.kidguard.core.domain.repository.ScheduleClock
+import ru.homelab.kidguard.core.domain.repository.ScheduleTimeline
+import ru.homelab.kidguard.core.domain.repository.SharedScheduleTimeline
 import ru.homelab.kidguard.core.domain.repository.UsageEventSource
 import ru.homelab.kidguard.core.domain.repository.ElapsedTimeSource
 import ru.homelab.kidguard.core.domain.repository.InstalledAppsSource
@@ -58,4 +65,21 @@ abstract class PlatformModule {
     @Binds
     @Singleton
     abstract fun bindScheduleClock(impl: PlatformScheduleClock): ScheduleClock
+
+    @Binds
+    @Singleton
+    abstract fun bindScheduleTimeline(impl: SharedScheduleTimeline): ScheduleTimeline
+
+    companion object {
+
+        /**
+         * Scope на весь процесс: им пользуется единая временная шкала расписания — её тики должны
+         * жить столько же, сколько живёт приложение, и не пересоздаваться на каждый экран.
+         */
+        @Provides
+        @Singleton
+        @ApplicationScope
+        fun provideApplicationScope(): CoroutineScope =
+            CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
+import ru.homelab.kidguard.core.domain.model.BlockCause
 import ru.homelab.kidguard.core.domain.model.LimitState
 import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
@@ -31,6 +32,7 @@ import ru.homelab.kidguard.core.domain.usecase.ObserveBonusPassesUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveLimitStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.ObserveScheduleStateUseCase
 import ru.homelab.kidguard.core.domain.usecase.backgroundVisibleCandidates
+import ru.homelab.kidguard.core.domain.usecase.blockCausesFor
 import ru.homelab.kidguard.core.domain.usecase.confirmedAcrossChecks
 import ru.homelab.kidguard.core.domain.usecase.pinBypassAllowed
 import ru.homelab.kidguard.core.domain.usecase.shouldBlock
@@ -127,20 +129,21 @@ class BlockingController @Inject constructor(
             }.combine(observeBonusPassesUseCase()) { inputs, passes ->
                 inputs to (activePackage != null && activePackage in passes)
             }.combine(bypassedPackage) { (inputs, hasPass), bypassed ->
-                // «Время учёбы» по смыслу равно исчерпанному дневному лимиту (см. shouldBlock) —
-                // просто передаём признак дальше в чистую функцию, вся матрица приоритетов там.
+                // Вся матрица приоритетов — в чистой функции blockCausesFor; здесь получаем
+                // ПРИЧИНЫ, а не только флаг «заблокирован»: экран-замок должен знать, чем именно
+                // закрыт пакет, и сниматься, когда ни одной причины не осталось.
                 val studyTimeActive = inputs.scheduleState is ScheduleState.Study
                 val bypassActive = activePackage != null && activePackage == bypassed
-                val block = !bypassActive && shouldBlock(
+                val causes = blockCausesFor(
                     activePackage, inputs.limitState, inputs.appLimitState, inputs.whitelist,
                     alwaysAllowed, inputs.blockedApps, studyTimeActive, hasPass
-                )
+                ).causesFor(activePackage.orEmpty())
                 describe(
-                    block = block,
+                    causes = causes,
                     packageName = activePackage,
                     blockedApps = inputs.blockedApps,
                     scheduleState = inputs.scheduleState,
-                    dailyLimitExpired = inputs.limitState is LimitState.Expired
+                    bypassed = bypassActive
                 )
             }
         }.distinctUntilChanged().collectLatest { decision ->
@@ -189,25 +192,27 @@ class BlockingController @Inject constructor(
     }
 
     /**
-     * Причина и текст для оверлея — приоритет вынесен в чистые [blockReasonFor]/[studyUntilText].
+     * Причина, по которой закрыт пакет, и текст для оверлея.
+     *
+     * Причины считаются чистой функцией [blockCausesFor]; приоритет показа вынесен в
+     * [blockReasonFor]/[studyUntilText].
      */
     private fun describe(
-        block: Boolean,
+        causes: Set<BlockCause>,
         packageName: String?,
         blockedApps: Set<String>,
         scheduleState: ScheduleState,
-        dailyLimitExpired: Boolean
+        bypassed: Boolean = false
     ): BlockDecision {
         val studyTimeActive = scheduleState is ScheduleState.Study
         val reason = blockReasonFor(packageName, alwaysAllowed, blockedApps, studyTimeActive)
         val untilText = studyUntilText(scheduleState, reason, TIME_FORMATTER)
         return BlockDecision(
-            block = block,
+            block = causes.isNotEmpty() && !bypassed,
             reason = reason,
             untilText = untilText,
             activePackage = packageName,
-            studyTimeActive = studyTimeActive,
-            dailyLimitExpired = dailyLimitExpired,
+            causes = causes,
             blockedApps = blockedApps
         )
     }
@@ -259,13 +264,12 @@ class BlockingController @Inject constructor(
         val blocked = if (candidates.isEmpty()) emptySet() else blockedAmong(candidates)
         val confirmed = confirmedAcrossChecks(previous, blocked)
         val packageName = confirmed.minOrNull() ?: return blocked
-        val limitState = observeLimitStateUseCase().first()
+        val causes = causesFor(packageName)
         val decision = describe(
-            block = true,
+            causes = causes,
             packageName = packageName,
             blockedApps = policyRepository.blockedApps.first(),
-            scheduleState = observeScheduleStateUseCase().first(),
-            dailyLimitExpired = limitState is LimitState.Expired
+            scheduleState = observeScheduleStateUseCase().first()
         )
         enforce(decision)
         Timber.tag(TAG).d("Блокировка видимого неактивного окна: %s (причина=%s)", packageName, decision.reason)
@@ -300,29 +304,46 @@ class BlockingController @Inject constructor(
     /**
      * Снять плашку, если причина, ради которой её показали, уже исчезла.
      *
-     * Личный лимит читаем для ТОГО пакета, которому плашка показана: после `sendHome` активным
-     * становится лаунчер, у которого личных лимитов нет — если смотреть на текущий пакет, плашка
-     * снялась бы сразу после показа (регресс, пойман на эмуляторе 09.11.2026).
+     * Причины пересчитываются ДЛЯ ТОГО пакета, которому плашка показана: после `sendHome`
+     * активным становится лаунчер, у которого личных лимитов нет — если смотреть на текущий
+     * пакет, плашка снялась бы сразу после показа (регресс, пойман на эмуляторе 09.11.2026).
      */
     private suspend fun hideSoftOverlayIfNeeded(decision: BlockDecision) {
         val last = lastShown ?: return
-        val personalLimitExpired = last.reason == BlockReason.LIMIT_EXPIRED &&
-            last.activePackage != null &&
-            observeAppLimitStateUseCase(last.activePackage).first() is LimitState.Expired
+        val lastPackage = last.activePackage ?: return
+        val currentShownCauses = causesFor(lastPackage)
+        // Причины для ТЕКУЩЕГО активного пакета: нужны, чтобы отличить «ребёнок ушёл в другое
+        // разрешённое приложение» от «причина просто исчезла».
+        val currentActiveCauses = decision.activePackage
+            ?.takeIf { it != lastPackage && it != null }
+            ?.let { causesFor(it) }
+            ?: emptySet()
         if (shouldHideSoftOverlay(
-                lastReason = last.reason,
-                lastPackage = last.activePackage,
+                shownCauses = last.causes,
+                currentShownCauses = currentShownCauses,
+                activeCauses = currentActiveCauses,
                 activePackage = decision.activePackage,
-                studyTimeActive = decision.studyTimeActive,
-                dailyLimitExpired = decision.dailyLimitExpired,
-                personalLimitExpired = personalLimitExpired,
-                blockedApps = decision.blockedApps,
+                lastPackage = lastPackage,
                 alwaysAllowed = alwaysAllowed
             )
         ) {
             overlayManager.hide()
             lastShown = null
         }
+    }
+
+    /** Причины блокировки пакета прямо сейчас — тем же чистым правилом, что и основной путь. */
+    private suspend fun causesFor(packageName: String): Set<BlockCause> {
+        val limitState = observeLimitStateUseCase().first()
+        val appLimitState = observeAppLimitStateUseCase(packageName).first()
+        val whitelist = policyRepository.whitelist.first()
+        val blockedApps = policyRepository.blockedApps.first()
+        val studyTimeActive = observeScheduleStateUseCase().first() is ScheduleState.Study
+        val hasPass = packageName in observeBonusPassesUseCase().first()
+        return blockCausesFor(
+            packageName, limitState, appLimitState, whitelist,
+            alwaysAllowed, blockedApps, studyTimeActive, hasPass
+        ).causesFor(packageName)
     }
 
     /**
@@ -367,11 +388,8 @@ class BlockingController @Inject constructor(
         val reason: BlockReason,
         val untilText: String?,
         val activePackage: String?,
-        val studyTimeActive: Boolean,
-        // Дневной лимит — общий для всех пакетов, поэтому его состояние актуально всегда.
-        // Личный лимит приложения у каждого пакета свой: после sendHome активным становится
-        // лаунчер, и его лимиты к показанной плашке отношения не имеют (см. hideSoftOverlayIfNeeded).
-        val dailyLimitExpired: Boolean,
+        /** Причины по предметам: окну расписания, общему и личному лимиту, запрету родителя. */
+        val causes: Set<BlockCause>,
         val blockedApps: Set<String>
     )
 

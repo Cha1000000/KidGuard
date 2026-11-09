@@ -1,9 +1,13 @@
 package ru.homelab.kidguard.core.domain.usecase
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -16,13 +20,14 @@ import ru.homelab.kidguard.core.domain.model.ScheduleState
 import ru.homelab.kidguard.core.domain.model.TimeWindow
 import ru.homelab.kidguard.core.domain.repository.PolicyRepository
 import ru.homelab.kidguard.core.domain.repository.ScheduleClock
+import ru.homelab.kidguard.core.domain.repository.ScheduleTimeline
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
 
 /**
  * Контракт общего состояния расписания: граница окна переключается на точной минуте, смена
- * политики применяется сразу, все потребители получают один поток и один тикер.
+ * политики применяется сразу, все потребители получают один поток и одни тики.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ObserveScheduleStateUseCaseTest {
@@ -32,7 +37,7 @@ class ObserveScheduleStateUseCaseTest {
         val clock = FakeScheduleClock()
         val policy = FakePolicy()
         policy.study.value = schedule(21 * 60 + 58, 22 * 60)
-        val source = ScheduleStateSource.forTest(policy, clock, backgroundScope)
+        val source = source(policy, clock, backgroundScope)
         val states = mutableListOf<ScheduleState>()
         backgroundScope.launch {
             ObserveScheduleStateUseCase(source)().collect { states += it }
@@ -51,7 +56,7 @@ class ObserveScheduleStateUseCaseTest {
     fun `смена политики применяется сразу, без ожидания тика`() = runTest {
         val clock = FakeScheduleClock(now = LocalDateTime.of(2026, 11, 7, 21, 57, 0))
         val policy = FakePolicy()
-        val source = ScheduleStateSource.forTest(policy, clock, backgroundScope)
+        val source = source(policy, clock, backgroundScope)
         val states = mutableListOf<ScheduleState>()
         backgroundScope.launch {
             ObserveScheduleStateUseCase(source)().collect { states += it }
@@ -71,7 +76,7 @@ class ObserveScheduleStateUseCaseTest {
         val clock = FakeScheduleClock()
         val policy = FakePolicy()
         policy.study.value = schedule(21 * 60 + 58, 22 * 60)
-        val source = ScheduleStateSource.forTest(policy, clock, backgroundScope)
+        val source = source(policy, clock, backgroundScope)
         val first = mutableListOf<ScheduleState>()
         val second = mutableListOf<ScheduleState>()
         backgroundScope.launch { ObserveScheduleStateUseCase(source)().collect { first += it } }
@@ -91,7 +96,7 @@ class ObserveScheduleStateUseCaseTest {
         val clock = FakeScheduleClock()
         val policy = FakePolicy()
         policy.study.value = schedule(21 * 60 + 58, 22 * 60)
-        val source = ScheduleStateSource.forTest(policy, clock, backgroundScope)
+        val source = source(policy, clock, backgroundScope)
         val first = mutableListOf<ScheduleState>()
         backgroundScope.launch { ObserveScheduleStateUseCase(source)().collect { first += it } }
         runCurrent()
@@ -105,6 +110,37 @@ class ObserveScheduleStateUseCaseTest {
         assertEquals(ScheduleState.Study(LocalTime.of(22, 0)), late.single())
     }
 
+    @Test
+    fun `состояние расписания и подсчёт минут идут по одной шкале`() = runTest {
+        // Шкала одна на процесс: и состояние расписания, и подсчёт минут до окна идут по одним
+        // тикам. Иначе предупреждение «через N минут — сон» считалось бы от другого момента,
+        // чем сам замок сна, и расходилось с ним на минуту.
+        val clock = FakeScheduleClock()
+        val timeline = FakeTimeline(clock, backgroundScope)
+        val source = source(FakePolicy(), clock, backgroundScope, timeline)
+
+        val stateAt = mutableListOf<LocalDateTime>()
+        val warningAt = mutableListOf<LocalDateTime>()
+        backgroundScope.launch {
+            ObserveScheduleStateUseCase(source)().collect { stateAt += clock.now() }
+        }
+        backgroundScope.launch {
+            timeline.ticks.collect { warningAt += it }
+        }
+        runCurrent()
+
+        // Оба потребителя видят ОДНО и то же время: расхождения фаз нет.
+        assertEquals(warningAt, stateAt)
+        assertEquals(1, clock.awaitCalls)
+    }
+
+    private fun source(
+        policy: PolicyRepository,
+        clock: FakeScheduleClock,
+        scope: CoroutineScope,
+        timeline: ScheduleTimeline = FakeTimeline(clock, scope)
+    ) = ScheduleStateSource(policy, timeline, scope)
+
     private fun schedule(startMinute: Int, endMinute: Int) = ScheduleRules(
         DayOfWeek.entries.associateWith { TimeWindow(startMinute, endMinute) },
         enabled = true
@@ -116,6 +152,23 @@ class ObserveScheduleStateUseCaseTest {
     ) : PolicyRepository by FakePolicyRepository() {
         override val studySchedule: Flow<ScheduleRules> = study
         override val sleepSchedule: Flow<ScheduleRules> = sleep
+    }
+
+    /**
+     * Шкала поверх фейковых часов — ГОРЯЧАЯ, как настоящая ([SharedScheduleTimeline]): один цикл
+     * тиков на всех подписчиков. Холодный flow дал бы каждому подписчику свой цикл и разные фазы —
+     * ровно та рассинхронизация, которую мы убираем.
+     */
+    private class FakeTimeline(
+        private val clock: FakeScheduleClock,
+        scope: CoroutineScope
+    ) : ScheduleTimeline {
+        override val ticks: Flow<LocalDateTime> = flow {
+            while (true) {
+                emit(clock.now())
+                clock.awaitNextMinute()
+            }
+        }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
     }
 
     private class FakeScheduleClock(
